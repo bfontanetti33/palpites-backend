@@ -1,17 +1,18 @@
 """
 Agente de dados — Copa do Mundo FIFA 2026.
 
-Fonte de fixtures: seeds/copa_2026.json (dados reais da API com IDs oficiais).
-  - Lido uma vez no startup, sem gastar quota da API.
-  - IDs, slugs, grupos, rodadas, horários já estão corretos.
+Fonte de fixtures : seeds/copa_2026.json  (dados reais, zero quota)
+Fonte de stats    : API-Football v3       (sob demanda, cache 1h)
 
-Fonte de stats/H2H/forma: API-Football v3 (chamada sob demanda).
-  - /teams/statistics nas Copas anteriores (2022 → 2018 → 2014 → 2010)
-  - /fixtures/headtohead  (últimos 10 confrontos, sem filtro de data)
-  - /fixtures?team={id}&last=5  (forma recente em qualquer competição)
+Chamadas por detalhe de partida (estimativa):
+  - /teams/statistics × 2  (stats históricas de cada time)
+  - /fixtures?team&last=5  × 2  (forma recente)
+  - /fixtures/headtohead   × 1  (H2H)
+  - /fixtures?id=          × 1  (árbitro)
+  - /fixtures?referee=     × 1  (stats do árbitro)
+  Total ≈ 7 chamadas, todas cacheadas por 1h.
 
 Regra: nunca inventa dados — dados_insuficientes=True quando a API não retorna.
-Cache: 1 hora (fixtures do seed não expiram; API responses sim).
 """
 import asyncio
 import json
@@ -23,29 +24,30 @@ import httpx
 from cachetools import TTLCache
 
 from app.models.schemas import (
-    EstatisticasTime, EntradaForma, Partida, PartidaResumo, Probabilidades,
+    Arbitro, EntradaForma, EstatisticasTemporada, Partida,
+    PartidaResumo, PerformanceLocal, PlacarProvavel, Probabilidades,
 )
 
-BASE_URL    = "https://v3.football.api-sports.io"
-HEADERS     = {"x-apisports-key": os.getenv("API_FOOTBALL_KEY", "")}
-WC_SEASONS  = [2022, 2018, 2014, 2010]
+BASE_URL   = "https://v3.football.api-sports.io"
+HEADERS    = {"x-apisports-key": os.getenv("API_FOOTBALL_KEY", "")}
+WC_SEASONS = [2022, 2018, 2014, 2010]
 
-_cache: TTLCache = TTLCache(maxsize=300, ttl=3600)
+_cache: TTLCache = TTLCache(maxsize=400, ttl=3600)
 
-# ── Seed carregado uma vez no startup ────────────────────────────────────────
+
+# ── Seed ─────────────────────────────────────────────────────────────────────
 
 def _carregar_seed() -> dict:
     path = Path(__file__).parent.parent.parent / "seeds" / "copa_2026.json"
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
-_SEED  = _carregar_seed()
-_TIMES = _SEED["times"]           # nome -> {api_football_id, logo, ...}
-_JOGOS = _SEED["jogos"]           # lista de 72 jogos
+_SEED = _carregar_seed()
+_JOGOS: list[dict] = _SEED["jogos"]
 _POR_SLUG: dict[str, dict] = {j["slug"]: j for j in _JOGOS}
 
 
-# ── HTTP com cache ────────────────────────────────────────────────────────────
+# ── HTTP com cache ─────────────────────────────────────────────────────────────
 
 async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     key = f"{path}:{sorted(params.items())}"
@@ -58,7 +60,7 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     return data
 
 
-# ── Modelo de Poisson ─────────────────────────────────────────────────────────
+# ── Poisson ───────────────────────────────────────────────────────────────────
 
 def _poisson(lam: float, k: int) -> float:
     if lam <= 0:
@@ -66,62 +68,125 @@ def _poisson(lam: float, k: int) -> float:
     return (lam ** k) * exp(-lam) / factorial(k)
 
 
-def _calcular_probabilidades(lambda_casa: float, lambda_fora: float) -> Probabilidades:
+def _calcular_probabilidades(lc: float, lf: float) -> Probabilidades:
     MAX = 9
-    p_v = p_e = p_d = 0.0
+    pv = pe = pd = 0.0
     for i in range(MAX):
         for j in range(MAX):
-            p = _poisson(lambda_casa, i) * _poisson(lambda_fora, j)
-            if i > j:   p_v += p
-            elif i == j: p_e += p
-            else:        p_d += p
-    total = p_v + p_e + p_d
+            p = _poisson(lc, i) * _poisson(lf, j)
+            if i > j:    pv += p
+            elif i == j: pe += p
+            else:        pd += p
+    t = pv + pe + pd
     return Probabilidades(
-        vitoria_casa=round(p_v / total * 100),
-        empate=round(p_e / total * 100),
-        vitoria_fora=round(p_d / total * 100),
-        lambda_casa=round(lambda_casa, 2),
-        lambda_fora=round(lambda_fora, 2),
+        vitoria_casa=round(pv / t * 100),
+        empate=round(pe / t * 100),
+        vitoria_fora=round(pd / t * 100),
+        lambda_casa=round(lc, 2),
+        lambda_fora=round(lf, 2),
         metodo="poisson",
         dados_insuficientes=False,
     )
 
 
-# ── Dados por time (via API) ──────────────────────────────────────────────────
+def _calcular_placares_provaveis(lc: float, lf: float, top: int = 3) -> list[PlacarProvavel]:
+    """Retorna os top N placares mais prováveis via Poisson."""
+    MAX = 7
+    scores: list[PlacarProvavel] = []
+    for i in range(MAX):
+        for j in range(MAX):
+            prob = round(_poisson(lc, i) * _poisson(lf, j) * 100, 2)
+            scores.append(PlacarProvavel(placar=f"{i}-{j}", probabilidade=prob))
+    scores.sort(key=lambda x: -x.probabilidade)
+    return scores[:top]
 
-async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTime:
-    """Stats históricas do time nas Copas do Mundo disponíveis (2022→2010)."""
+
+# ── Stats históricas via /teams/statistics ────────────────────────────────────
+
+async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTemporada:
+    """
+    Busca estatísticas históricas do time nas Copas anteriores (2022→2010).
+    Casa/fora são IGNORADOS pois a Copa é disputada em campo neutro.
+    BTTS/Over/médias recentes são preenchidos depois via _enriquecer_btts_over.
+    """
     for season in WC_SEASONS:
         try:
             data  = await _get(client, "/teams/statistics", {
                 "league": 1, "season": season, "team": team_id,
             })
             resp  = data.get("response", {})
-            jogos = resp.get("fixtures", {}).get("played", {}).get("total", 0)
+            jogos = resp.get("fixtures", {}).get("played", {}).get("total") or 0
             if not resp or jogos == 0:
                 continue
-            return EstatisticasTime(
-                media_gols_marcados=float(resp["goals"]["for"]["average"]["total"]),
-                media_gols_sofridos=float(resp["goals"]["against"]["average"]["total"]),
-                vitorias=resp["fixtures"]["wins"]["total"],
-                empates=resp["fixtures"]["draws"]["total"],
-                derrotas=resp["fixtures"]["loses"]["total"],
-                jogos=jogos,
+
+            fix   = resp["fixtures"]
+            goals = resp["goals"]
+            cards = resp.get("cards", {})
+            pen   = resp.get("penalty", {})
+            clean = resp.get("clean_sheet", {})
+
+            total_yellow = sum(
+                (v.get("total") or 0) for v in cards.get("yellow", {}).values()
+            )
+            total_red = sum(
+                (v.get("total") or 0) for v in cards.get("red", {}).values()
+            )
+
+            return EstatisticasTemporada(
                 fonte=f"Copa {season}",
                 dados_insuficientes=False,
+                sede_neutra=True,          # Copa = campo neutro, sem split casa/fora
+                casa=None,
+                fora=None,
+                jogos=jogos,
+                vitorias=fix["wins"]["total"],
+                empates=fix["draws"]["total"],
+                derrotas=fix["loses"]["total"],
+                gols_marcados=goals["for"]["total"]["total"],
+                gols_sofridos=goals["against"]["total"]["total"],
+                media_gols_marcados=float(goals["for"]["average"]["total"]),
+                media_gols_sofridos=float(goals["against"]["average"]["total"]),
+                clean_sheets=clean.get("total"),
+                media_amarelos=round(total_yellow / jogos, 2) if jogos else None,
+                media_vermelhos=round(total_red / jogos, 2) if jogos else None,
+                penaltis_marcados=pen.get("scored", {}).get("total"),
+                penaltis_total=pen.get("total"),
             )
         except Exception:
             continue
-    return EstatisticasTime(dados_insuficientes=True)
+
+    return EstatisticasTemporada(dados_insuficientes=True)
+
+
+# ── Forma recente (últimos 10 jogos, apenas masculino sênior) ─────────────────
+
+# Termos que indicam competição não-sênior ou feminina — excluídos do cálculo
+_EXCLUIR_LIGA = (
+    "women", "feminino", "female",
+    "u-17", "u-20", "u-21", "u-23", "u17", "u20", "u21", "u23",
+    "youth", "junior", "sub-", "olímpic", "olympic",
+)
+
+def _e_jogo_senior_masculino(f: dict) -> bool:
+    nome = f["league"]["name"].lower()
+    return not any(t in nome for t in _EXCLUIR_LIGA)
 
 
 async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[EntradaForma]:
-    """Últimos 5 jogos do time em qualquer competição."""
+    """
+    Últimos 10 jogos profissionais masculinos do time em qualquer competição
+    (amistosos, eliminatórias, copa continental, etc.).
+    Filtra competições femininas e de base.
+    """
     try:
-        data     = await _get(client, "/fixtures", {"team": team_id, "last": 5})
-        fixtures = data.get("response", [])
+        data     = await _get(client, "/fixtures", {"team": team_id, "last": 10})
+        fixtures = [
+            f for f in data.get("response", [])
+            if _e_jogo_senior_masculino(f)
+        ]
     except Exception:
         return []
+
     forma = []
     for f in sorted(fixtures, key=lambda x: x["fixture"]["date"]):
         is_home     = f["teams"]["home"]["id"] == team_id
@@ -141,8 +206,43 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
     return forma
 
 
+# ── Enriquece stats com BTTS/Over/médias dos últimos 10 jogos ────────────────
+
+def _enriquecer_btts_over(
+    stats: EstatisticasTemporada, forma: list[EntradaForma]
+) -> EstatisticasTemporada:
+    """
+    A partir dos últimos 10 jogos reais calcula:
+    - BTTS%, Over/Under 2.5%
+    - Média de gols marcados e sofridos (mais representativa do momento atual)
+    Zero chamadas adicionais à API.
+    """
+    jogos_validos = [
+        j for j in forma
+        if j.placar_proprio is not None and j.placar_adversario is not None
+    ]
+    if not jogos_validos:
+        return stats
+
+    n = len(jogos_validos)
+    btts = sum(1 for j in jogos_validos if j.placar_proprio > 0 and j.placar_adversario > 0)
+    over = sum(1 for j in jogos_validos if j.placar_proprio + j.placar_adversario > 2)
+
+    gols_pro    = [j.placar_proprio    for j in jogos_validos]
+    gols_contra = [j.placar_adversario for j in jogos_validos]
+
+    stats.jogos_forma                  = n
+    stats.btts_pct                     = round(btts / n * 100)
+    stats.over25_pct                   = round(over / n * 100)
+    stats.under25_pct                  = 100 - stats.over25_pct
+    stats.media_gols_marcados_recente  = round(sum(gols_pro)    / n, 2)
+    stats.media_gols_sofridos_recente  = round(sum(gols_contra) / n, 2)
+    return stats
+
+
+# ── H2H ──────────────────────────────────────────────────────────────────────
+
 async def _h2h(client: httpx.AsyncClient, id1: int, id2: int) -> list[dict]:
-    """Últimos 10 confrontos diretos, sem filtro de data ou liga."""
     try:
         data = await _get(client, "/fixtures/headtohead", {
             "h2h": f"{id1}-{id2}", "last": 10,
@@ -165,6 +265,45 @@ async def _h2h(client: httpx.AsyncClient, id1: int, id2: int) -> list[dict]:
         ]
     except Exception:
         return []
+
+
+# ── Árbitro ───────────────────────────────────────────────────────────────────
+
+async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro | None:
+    """
+    Busca o árbitro do jogo via /fixtures?id={fixture_id}.
+    Depois tenta estimar médias de cartões/pênaltis pelos jogos recentes do árbitro.
+    """
+    try:
+        data = await _get(client, "/fixtures", {"id": fixture_id})
+        resp = data.get("response", [{}])[0]
+        nome_raw = resp.get("fixture", {}).get("referee")
+        if not nome_raw:
+            return None
+
+        # API retorna "Nome Sobrenome, País" — pega só o nome
+        nome = nome_raw.split(",")[0].strip()
+
+        # Busca últimos 20 jogos do árbitro para calcular médias
+        jogos_data = await _get(client, "/fixtures", {"referee": nome, "last": 20})
+        jogos = jogos_data.get("response", [])
+
+        if not jogos:
+            return Arbitro(nome=nome)
+
+        total = len(jogos)
+        total_yellow = total_red = total_pen = 0
+
+        for f in jogos:
+            # Cartões e pênaltis estão nos eventos, mas buscar evento por jogo
+            # usaria muita quota. Usamos score como proxy de pênaltis não é confiável.
+            # Retornamos só o total de jogos por enquanto.
+            pass
+
+        return Arbitro(nome=nome, jogos_apitados=total)
+
+    except Exception:
+        return None
 
 
 # ── Seed → schema ─────────────────────────────────────────────────────────────
@@ -190,53 +329,65 @@ def _jogo_para_resumo(j: dict) -> PartidaResumo:
 # ── API pública ───────────────────────────────────────────────────────────────
 
 async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
-    """
-    Retorna todos os 72 jogos da fase de grupos.
-    Lê do seed — sem chamada à API, sem gastar quota.
-    """
+    """72 jogos da fase de grupos — lidos do seed, zero quota."""
     return [_jogo_para_resumo(j) for j in _JOGOS]
 
 
 async def buscar_detalhe_partida(slug: str) -> Partida | None:
-    """
-    Retorna detalhes completos de um jogo pelo slug.
-    Fixture: do seed (IDs reais, zero quota).
-    Stats, forma e H2H: chamadas paralelas à API.
-    """
     jogo = _POR_SLUG.get(slug)
     if not jogo:
         return None
 
-    home_id = jogo["time_casa_id"]
-    away_id = jogo["time_fora_id"]
+    home_id     = jogo["time_casa_id"]
+    away_id     = jogo["time_fora_id"]
+    fixture_id  = jogo["api_fixture_id"]
 
+    # ── 7 chamadas paralelas à API ────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=20) as client:
-            # 5 chamadas em paralelo — se a API falhar, retorna defaults do seed
-            stats_casa, stats_fora, forma_casa, forma_fora, h2h = await asyncio.gather(
+            (
+                stats_casa_raw,
+                stats_fora_raw,
+                forma_casa,
+                forma_fora,
+                h2h,
+                arb,
+            ) = await asyncio.gather(
                 _stats_time(client, home_id),
                 _stats_time(client, away_id),
                 _forma_recente(client, home_id),
                 _forma_recente(client, away_id),
                 _h2h(client, home_id, away_id),
+                _arbitro(client, fixture_id),
             )
     except Exception:
-        # API completamente inacessível: retorna fixture do seed com dados_insuficientes
-        stats_casa = stats_fora = EstatisticasTime(dados_insuficientes=True)
+        stats_casa_raw = stats_fora_raw = EstatisticasTemporada(dados_insuficientes=True)
         forma_casa = forma_fora = []
         h2h = []
+        arb = None
 
-    # Probabilidades via Poisson — só se ambos tiverem médias
+    # ── Enriquece stats com BTTS/Over calculados da forma recente ─────────────
+    stats_casa = _enriquecer_btts_over(stats_casa_raw, forma_casa)
+    stats_fora = _enriquecer_btts_over(stats_fora_raw, forma_fora)
+
+    # ── Probabilidades e top 3 placares via Poisson ───────────────────────────
+    probabilidades   = None
+    placares_provaveis: list[PlacarProvavel] = []
+
+    # Prefere médias dos últimos 10 jogos (mais representativas) sobre histórico de Copa
+    lc_raw = stats_casa.media_gols_marcados_recente or stats_casa.media_gols_marcados
+    lf_raw = stats_fora.media_gols_marcados_recente or stats_fora.media_gols_marcados
+
     if (
         not stats_casa.dados_insuficientes
         and not stats_fora.dados_insuficientes
-        and stats_casa.media_gols_marcados is not None
-        and stats_fora.media_gols_marcados is not None
+        and lc_raw is not None
+        and lf_raw is not None
     ):
-        probabilidades = _calcular_probabilidades(
-            stats_casa.media_gols_marcados,
-            stats_fora.media_gols_marcados,
-        )
+        lc = lc_raw
+        lf = lf_raw
+        probabilidades     = _calcular_probabilidades(lc, lf)
+        placares_provaveis = _calcular_placares_provaveis(lc, lf, top=3)
     else:
         probabilidades = Probabilidades(
             vitoria_casa=0, empate=0, vitoria_fora=0,
@@ -245,18 +396,18 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         )
 
     return Partida(
-        id=jogo["api_fixture_id"],
+        id=fixture_id,
         slug=jogo["slug"],
         rodada=jogo["rodada"],
         horario=jogo["data_hora_brasilia"],
-        status=jogo.get("status", "NS"),
-        estadio=jogo.get("estadio", ""),
-        cidade=jogo.get("cidade", ""),
+        status=jogo.get("status") or "NS",
+        estadio=jogo.get("estadio") or "",
+        cidade=jogo.get("cidade") or "",
         time_casa_nome=jogo["time_casa"],
-        time_casa_logo=jogo.get("time_casa_logo", ""),
+        time_casa_logo=jogo.get("time_casa_logo") or "",
         time_casa_id=home_id,
         time_fora_nome=jogo["time_fora"],
-        time_fora_logo=jogo.get("time_fora_logo", ""),
+        time_fora_logo=jogo.get("time_fora_logo") or "",
         time_fora_id=away_id,
         gols_casa=jogo.get("gols_casa"),
         gols_fora=jogo.get("gols_fora"),
@@ -266,6 +417,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         forma_fora=forma_fora,
         head_to_head=h2h,
         probabilidades=probabilidades,
+        placares_provaveis=placares_provaveis,
+        arbitro=arb,
         dados_insuficientes=(
             stats_casa.dados_insuficientes
             or stats_fora.dados_insuficientes
