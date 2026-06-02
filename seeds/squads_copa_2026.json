@@ -1,0 +1,424 @@
+{
+  "squads": {
+    "Mexico": [
+      {
+        "no": 1,
+        "pos": "GK",
+        "nome": "Raúl Rangel",
+        "caps": 13,
+        "gols_int": 0,
+        "clube": "Guadalajara"
+      },
+      {
+        "no": 2,
+        "pos": "DF",
+        "nome": "Jorge Sánchez",
+        "caps": 58,
+        "gols_int": 3,
+        "clube": "PAOK"
+      },
+      {
+        "no": 3,
+        "pos": "DF",
+        "nome": "César Montes",
+        "caps": 66,
+        "gols_int": 4,
+        "clube": "Lokomotiv Moscow"
+      },
+      {
+        "no": 4,
+        "pos": "DF",
+        "nome": "Edson Álvarez",
+        "caps": 97,
+        "gols_int": 7,
+        "clube": "Fenerbahçe"
+      },
+      {
+        "no": 5,
+        "pos": "DF",
+        "nome": "Johan Vásquez",
+        "caps": 45,
+        "gols_int": 2,
+        "clube": "Genoa"
+      },
+      {
+        "no": 6,
+        "pos": "MF",
+        "nome": "Érik Lira",
+        "caps": 24,
+        "gols_int": 0,
+        "clube": "Cruz Azul"
+      },
+      {
+        "no": 7,
+        "pos": "MF",
+        "nome": "Luis Romo",
+        "caps": 62,
+        "gols_int": 4,
+        "clube": "Guadalajara"
+      },
+      {
+        "no": 8,
+        "pos": "MF",
+        "nome": "Álvaro Fidalgo",
+        "caps": 3,
+        "gols_int": 0,
+        "clube": "Real Betis"
+      },
+      {
+        "no": 9,
+        "pos": "FW",
+        "nome": "Raúl Jiménez",
+        "caps": 123,
+        "gols_int": 44,
+        "clube": "Fulham"
+      },
+      {
+        "no": 10,
+        "pos": "FW",
+        "nome": "Alexis Vega",
+        "caps": 51,
+        "gols_int": 7,
+        "clube": "Toluca"
+      },
+      {
+        "no": 11,
+        "pos": "FW",
+        "nome": "Santiago Giménez",
+        "caps": 47,
+        "gols_int": 6,
+        "clube": "Milan"
+      },
+      {
+        "no": 12,
+        "pos": "GK",
+        "nome": "Carlos Acevedo",
+        "caps": 7,
+        "gols_int": 0,
+        "clube": "Santos Laguna"
+      },
+      {
+        "no": 13,
+        "pos": "GK",
+        "nome": "Guillermo Ochoa",
+        "caps": 152,
+        "gols_int": 0,
+        "clube": "AEL Limassol"
+      },
+      {
+        "no": 14,
+        "pos": "FW",
+        "nome": "Armando González",
+        "caps": 7,
+        "gols_int": 1,
+        "clube": "Guadalajara"
+      },
+      {
+        "no": 15,
+        "pos": "DF",
+        "nome": "Israel Reyes",
+        "caps": 33,
+        "gols_int": 2,
+        "clube": "América"
+      },
+      {
+        "no": 16,
+        "pos": "FW",
+        "nome": "Julián Quiñones",
+        "caps": 21,
+        "gols_int": 2,
+        "clube": "Al-Qadsiah"
+      },
+      {
+        "no": 17,
+        "pos": "MF",
+        "nome": "Orbelín Pineda",
+        "caps": 91,
+        "gols_int": 12,
+        "clube": "AEK Athens"
+      },
+      {
+        "no": 18,
+        "pos": "MF",
+        "nome": "Obed Vargas",
+        "caps": 6,
+        "gols_int": 0,
+        "clube": "Atlético Madrid"
+      },
+      {
+        "no": 19,
+        "pos": "MF",
+        "nome": "Gilberto Mora",
+        "caps": 7,
+        "gols_int": 0,
+        "clube": "Tijuana"
+      },
+      {
+        "no": 20,
+        "pos": "DF",
+        "nome": "Mateo Chávez",
+        "caps": 9,
+        "gols_int": 0,
+        "clube": "AZ"
+      },
+      {
+        "no": 21,
+        "pos": "FW",
+        "nome": "César Huerta",
+        "caps": 26,
+        "gols_int": 3,
+        "clube": "Anderlecht"
+      },
+      {
+        "no": 22,
+        "pos": "FW",
+        "nome": "Guillermo Martínez",
+        "caps": 11,
+        "gols_int": 3,
+        "clube": "UNAM"
+      },
+      {
+        "no": 23,
+        "pos": "DF",
+        "nome": "Jesús Gallardo",
+        "caps": 120,
+        "gols_int": 3,
+        "clube": "Toluca"
+      },
+      {
+        "no": 24,
+        "pos": "MF",
+        "nome": "Luis Chávez",
+        "caps": 44,
+        "gols_int": 4,
+        "clube": "Dynamo Moscow"
+      },
+      {
+        "no": 25,
+        "pos": "FW",
+        "nome": "Roberto Alvarado",
+        "caps": 66,
+        "gols_int": 5,
+        "clube": "Guadalajara"
+      },
+      {
+        "no": 26,
+        "pos": "MF",
+        "nome": "Brian Gutiérrez",
+        "caps": 6,
+        "gols_int": 2,
+        "clube": "Guadalajara"
+      }
+    ],
+    "South Africa": [
+      {
+        "no": 1,
+        "pos": "GK",
+        "nome": "Ronwen Williams",
+        "caps": 62,
+        "gols_int": 0,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 2,
+        "pos": "DF",
+        "nome": "Thabang Matuludi",
+        "caps": 2,
+        "gols_int": 0,
+        "clube": "Polokwane City"
+      },
+      {
+        "no": 3,
+        "pos": "DF",
+        "nome": "Khulumani Ndamane",
+        "caps": 5,
+        "gols_int": 0,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 4,
+        "pos": "MF",
+        "nome": "Teboho Mokoena",
+        "caps": 51,
+        "gols_int": 9,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 5,
+        "pos": "MF",
+        "nome": "Thalente Mbatha",
+        "caps": 14,
+        "gols_int": 3,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 6,
+        "pos": "DF",
+        "nome": "Aubrey Modiba",
+        "caps": 44,
+        "gols_int": 3,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 7,
+        "pos": "FW",
+        "nome": "Oswin Appollis",
+        "caps": 25,
+        "gols_int": 8,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 8,
+        "pos": "FW",
+        "nome": "Tshepang Moremi",
+        "caps": 9,
+        "gols_int": 1,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 9,
+        "pos": "FW",
+        "nome": "Lyle Foster",
+        "caps": 26,
+        "gols_int": 10,
+        "clube": "Burnley"
+      },
+      {
+        "no": 10,
+        "pos": "FW",
+        "nome": "Relebohile Mofokeng",
+        "caps": 12,
+        "gols_int": 0,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 11,
+        "pos": "MF",
+        "nome": "Themba Zwane",
+        "caps": 53,
+        "gols_int": 12,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 12,
+        "pos": "FW",
+        "nome": "Thapelo Maseko",
+        "caps": 9,
+        "gols_int": 1,
+        "clube": "AEL Limassol"
+      },
+      {
+        "no": 13,
+        "pos": "MF",
+        "nome": "Sphephelo Sithole",
+        "caps": 27,
+        "gols_int": 1,
+        "clube": "Tondela"
+      },
+      {
+        "no": 14,
+        "pos": "DF",
+        "nome": "Mbekezeli Mbokazi",
+        "caps": 10,
+        "gols_int": 1,
+        "clube": "Chicago Fire FC"
+      },
+      {
+        "no": 15,
+        "pos": "FW",
+        "nome": "Iqraam Rayners",
+        "caps": 13,
+        "gols_int": 4,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 16,
+        "pos": "GK",
+        "nome": "Sipho Chaine",
+        "caps": 3,
+        "gols_int": 0,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 17,
+        "pos": "FW",
+        "nome": "Evidence Makgopa",
+        "caps": 26,
+        "gols_int": 6,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 18,
+        "pos": "DF",
+        "nome": "Samukele Kabini",
+        "caps": 5,
+        "gols_int": 0,
+        "clube": "Molde"
+      },
+      {
+        "no": 19,
+        "pos": "DF",
+        "nome": "Nkosinathi Sibisi",
+        "caps": 19,
+        "gols_int": 0,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 20,
+        "pos": "DF",
+        "nome": "Khuliso Mudau",
+        "caps": 32,
+        "gols_int": 1,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 21,
+        "pos": "DF",
+        "nome": "Ime Okon",
+        "caps": 7,
+        "gols_int": 1,
+        "clube": "Hannover 96"
+      },
+      {
+        "no": 22,
+        "pos": "GK",
+        "nome": "Ricardo Goss",
+        "caps": 4,
+        "gols_int": 0,
+        "clube": "Siwelele"
+      },
+      {
+        "no": 23,
+        "pos": "MF",
+        "nome": "Jayden Adams",
+        "caps": 4,
+        "gols_int": 0,
+        "clube": "Mamelodi Sundowns"
+      },
+      {
+        "no": 24,
+        "pos": "DF",
+        "nome": "Olwethu Makhanya",
+        "caps": 0,
+        "gols_int": 0,
+        "clube": "Philadelphia Union"
+      },
+      {
+        "no": 25,
+        "pos": "FW",
+        "nome": "Kamogelo Sebelebele",
+        "caps": 2,
+        "gols_int": 0,
+        "clube": "Orlando Pirates"
+      },
+      {
+        "no": 26,
+        "pos": "DF",
+        "nome": "Bradley Cross",
+        "caps": 0,
+        "gols_int": 0,
+        "clube": "Kaizer Chiefs"
+      }
+    ]
+  }
+}
