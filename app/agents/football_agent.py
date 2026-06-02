@@ -306,6 +306,51 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro | None
         return None
 
 
+# ── Odds ─────────────────────────────────────────────────────────────────────
+
+def _parsear_odds(bets: list) -> dict:
+    """Extrai odds de 1X2, BTTS e Over/Under de uma lista de bets da Bet365."""
+    mapa = {b["name"]: b["values"] for b in bets}
+    odds: dict = {}
+
+    if "Match Winner" in mapa:
+        for v in mapa["Match Winner"]:
+            chave = {"Home": "vitoria_casa", "Draw": "empate", "Away": "vitoria_fora"}.get(v["value"])
+            if chave:
+                odds[chave] = float(v["odd"])
+
+    if "Both Teams Score" in mapa:
+        for v in mapa["Both Teams Score"]:
+            chave = {"Yes": "btts_sim", "No": "btts_nao"}.get(v["value"])
+            if chave:
+                odds[chave] = float(v["odd"])
+
+    for nome in ["Goals Over/Under", "Total Goals"]:
+        if nome in mapa:
+            for v in mapa[nome]:
+                label = v["value"]  # ex: "Over 2.5", "Under 2.5"
+                if "Over 1.5" in label:  odds["over15"] = float(v["odd"])
+                elif "Under 1.5" in label: odds["under15"] = float(v["odd"])
+                elif "Over 2.5" in label:  odds["over25"] = float(v["odd"])
+                elif "Under 2.5" in label: odds["under25"] = float(v["odd"])
+                elif "Over 3.5" in label:  odds["over35"] = float(v["odd"])
+                elif "Under 3.5" in label: odds["under35"] = float(v["odd"])
+            break
+
+    return odds or {}
+
+
+async def _buscar_odds(client: httpx.AsyncClient, fixture_id: int) -> dict | None:
+    """Busca odds da Bet365 para o fixture. Retorna None se indisponíveis."""
+    try:
+        data = await _get(client, "/odds", {"fixture": fixture_id, "bookmaker": 6})
+        bets = data["response"][0]["bookmakers"][0]["bets"]
+        parsed = _parsear_odds(bets)
+        return parsed if parsed else None
+    except (IndexError, KeyError, Exception):
+        return None
+
+
 # ── Seed → schema ─────────────────────────────────────────────────────────────
 
 def _jogo_para_resumo(j: dict) -> PartidaResumo:
@@ -342,7 +387,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     away_id     = jogo["time_fora_id"]
     fixture_id  = jogo["api_fixture_id"]
 
-    # ── 7 chamadas paralelas à API ────────────────────────────────────────────
+    # ── 8 chamadas paralelas à API ────────────────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             (
@@ -352,6 +397,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 forma_fora,
                 h2h,
                 arb,
+                odds,
             ) = await asyncio.gather(
                 _stats_time(client, home_id),
                 _stats_time(client, away_id),
@@ -359,12 +405,14 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 _forma_recente(client, away_id),
                 _h2h(client, home_id, away_id),
                 _arbitro(client, fixture_id),
+                _buscar_odds(client, fixture_id),
             )
     except Exception:
         stats_casa_raw = stats_fora_raw = EstatisticasTemporada(dados_insuficientes=True)
         forma_casa = forma_fora = []
         h2h = []
         arb = None
+        odds = None
 
     # ── Enriquece stats com BTTS/Over calculados da forma recente ─────────────
     stats_casa = _enriquecer_btts_over(stats_casa_raw, forma_casa)
@@ -419,6 +467,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         probabilidades=probabilidades,
         placares_provaveis=placares_provaveis,
         arbitro=arb,
+        odds=odds,
         dados_insuficientes=(
             stats_casa.dados_insuficientes
             or stats_fora.dados_insuficientes
