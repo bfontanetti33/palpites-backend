@@ -74,6 +74,41 @@ class Arbitro(BaseModel):
     media_penaltis: float | None = None
 
 
+# ── Modelos de jogadores (devem vir antes de Partida) ────────────────────────
+
+class JogadorDestaque(BaseModel):
+    nome: str
+    posicao: str
+    pos_sigla: str
+    clube: str
+    clube_logo: str = ""
+    foto_jogador: str = ""
+    caps: int | None = None
+    categoria: str
+    icone_categoria: str = ""
+    stat_label: str
+    stat_p90: float | None = None
+    stat_p90_adj: float | None = None
+    liga_lss: float | None = None
+    liga_nome: str = ""
+    stat_total: int = 0
+    minutos_jogados: int = 0
+    resumo: str
+    mercado_sugerido: str = ""
+    odd_mercado: float | None = None
+    amostra_insuficiente: bool = False
+    dados_insuficientes: bool = False
+
+
+class JogadoresDestaque(BaseModel):
+    time_nome: str
+    jogadores: list[JogadorDestaque] = []
+    total_squad: int = 0
+    fonte_squad: str = ""
+    jogadores_analisados: int = 0
+    dados_insuficientes: bool = False
+
+
 # ── Modelos de partida ────────────────────────────────────────────────────────
 
 class PartidaResumo(BaseModel):
@@ -210,39 +245,6 @@ class TailRiskResult(BaseModel):
     barbell_prob_segura: float | None = None
     barbell_entrada_especulativa: str | None = None
     barbell_value_especulativo: float | None = None
-
-
-class JogadorDestaque(BaseModel):
-    nome: str
-    posicao: str
-    pos_sigla: str                          # GK, DF, MF, FW
-    clube: str
-    clube_logo: str = ""
-    foto_jogador: str = ""
-    caps: int | None = None
-    categoria: str                          # "goleadores", "assistentes", …
-    icone_categoria: str = ""
-    stat_label: str                         # "gols/90"
-    stat_p90: float | None = None           # P90 bruto
-    stat_p90_adj: float | None = None       # P90 × LSS (ajustado pela liga)
-    liga_lss: float | None = None           # League Strength Score
-    liga_nome: str = ""
-    stat_total: int = 0
-    minutos_jogados: int = 0
-    resumo: str                             # "0.72 gols/90 · 8 gols em 1001 min"
-    mercado_sugerido: str = ""
-    odd_mercado: float | None = None        # None se odds indisponíveis
-    amostra_insuficiente: bool = False      # < 270 min
-    dados_insuficientes: bool = False
-
-
-class JogadoresDestaque(BaseModel):
-    time_nome: str
-    jogadores: list[JogadorDestaque] = []
-    total_squad: int = 0
-    fonte_squad: str = ""
-    jogadores_analisados: int = 0
-    dados_insuficientes: bool = False
 
 
 class MercadoRecomendado(BaseModel):
