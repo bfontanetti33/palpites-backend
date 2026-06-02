@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>México x África do Sul — Palpites da IA v2</title>
+<style>
+  :root {
+    --bg:#0f1117; --card:#1a1d27; --card2:#21253a; --border:#2e3347;
+    --green:#22c55e; --amber:#f59e0b; --orange:#f97316; --red:#ef4444;
+    --blue:#3b82f6; --purple:#8b5cf6; --text:#f1f5f9; --muted:#94a3b8;
+    --accent:#6366f1;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;font-size:15px;line-height:1.6}
+  nav{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:#12151f;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+  .logo{font-weight:800;font-size:18px;color:var(--accent);letter-spacing:-0.5px}
+  .nav-tag{background:var(--accent);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:99px;letter-spacing:.5px}
+  .page{max-width:900px;margin:0 auto;padding:24px 16px 64px}
+  .badge{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--border);border-radius:99px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:20px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .match-header{background:linear-gradient(135deg,#1a1d27 0%,#1e2235 100%);border:1px solid var(--border);border-radius:16px;padding:32px 24px 24px;margin-bottom:16px;text-align:center}
+  .league-label{font-size:12px;font-weight:700;color:var(--accent);letter-spacing:1px;text-transform:uppercase;margin-bottom:24px}
+  .teams-row{display:flex;align-items:center;justify-content:center;gap:24px;margin-bottom:20px}
+  .team-block{display:flex;flex-direction:column;align-items:center;gap:10px;flex:1}
+  .team-logo{width:72px;height:72px;border-radius:50%;background:#2a2d3e;padding:8px;object-fit:contain}
+  .team-name{font-size:18px;font-weight:800}
+  .vs-pill{background:var(--card2);border:1px solid var(--border);border-radius:99px;padding:8px 18px;font-size:13px;font-weight:700;color:var(--muted);flex-shrink:0}
+  .match-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+  .meta-item{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+  .alertas{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+  .alerta-card{display:flex;align-items:flex-start;gap:12px;border-radius:12px;padding:14px 16px;border:1px solid}
+  .alerta-card.amber{background:#1c1a0f;border-color:#92400e}
+  .alerta-card.orange{background:#1c140f;border-color:#9a3412}
+  .alerta-card.yellow{background:#1a1c0f;border-color:#713f12}
+  .alerta-card.blue{background:#0f1629;border-color:#1e3a5f}
+  .alerta-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+  .alerta-text{flex:1}
+  .alerta-title{font-weight:700;font-size:13px;margin-bottom:2px}
+  .alerta-card.amber .alerta-title{color:#fbbf24}
+  .alerta-card.orange .alerta-title{color:#fb923c}
+  .alerta-card.yellow .alerta-title{color:#fde68a}
+  .alerta-card.blue .alerta-title{color:#60a5fa}
+  .alerta-desc{font-size:12px;color:var(--muted)}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:16px}
+  .card-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:20px;display:flex;align-items:center;gap:8px}
+  .card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+  .narrativa-text{font-size:16px;line-height:1.75;color:var(--text);font-style:italic}
+  .narrativa-text strong{color:var(--accent);font-style:normal}
+  .triplet{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:8px}
+  .triplet-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px 12px;text-align:center}
+  .triplet-item.best{border-color:var(--accent);background:#1a1d3a}
+  .triplet-label{font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600}
+  .triplet-pct{font-size:26px;font-weight:900}
+  .triplet-item.best .triplet-pct{color:var(--accent)}
+  .triplet-sub{font-size:11px;color:var(--muted);margin-top:4px}
+  .source-line{font-size:11px;color:#64748b;margin-top:5px;font-style:italic}
+  .missing{color:var(--red);font-weight:700}
+  .market-grid{display:flex;flex-direction:column;gap:16px}
+  .market-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .market-label{font-size:14px;font-weight:600}
+  .market-right{display:flex;align-items:center;gap:10px}
+  .market-pct{font-size:20px;font-weight:800}
+  .conf-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.5px}
+  .conf-alta{background:#14532d;color:#4ade80}
+  .conf-media{background:#451a03;color:#fb923c}
+  .conf-baixa{background:#450a0a;color:#f87171}
+  .prob-bar-bg{height:8px;background:var(--card2);border-radius:99px;overflow:hidden}
+  .prob-bar{height:100%;border-radius:99px}
+  .bar-green{background:linear-gradient(90deg,#16a34a,#22c55e)}
+  .bar-amber{background:linear-gradient(90deg,#d97706,#f59e0b)}
+  .bar-blue{background:linear-gradient(90deg,#1d4ed8,#3b82f6)}
+  .bar-red{background:linear-gradient(90deg,#b91c1c,#ef4444)}
+  .scores-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+  .score-item{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 8px;text-align:center}
+  .score-item.top{border-color:var(--accent);background:#1a1d3a}
+  .score-placar{font-size:18px;font-weight:800}
+  .score-item.top .score-placar{color:var(--accent)}
+  .score-prob{font-size:12px;color:var(--muted);margin-top:3px}
+  .forma-row{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .forma-team{font-size:13px;font-weight:700;width:150px;flex-shrink:0}
+  .forma-badges{display:flex;gap:5px;flex-wrap:wrap}
+  .forma-badge{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+  .f-W{background:#14532d;color:#4ade80}
+  .f-D{background:#1e1b0f;color:#fbbf24}
+  .f-L{background:#450a0a;color:#f87171}
+  .forma-games{margin-top:8px}
+  .forma-game-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);font-size:12px}
+  .forma-game-row:last-child{border-bottom:none}
+  .fg-date{color:var(--muted);width:80px;flex-shrink:0}
+  .fg-adv{flex:1}
+  .fg-score{font-weight:700;width:40px;text-align:center}
+  .fg-comp{color:var(--muted);font-size:11px;text-align:right;flex-shrink:0;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rating-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .rating-card{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .rating-team{font-size:14px;font-weight:800;margin-bottom:12px}
+  .rating-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .rating-label{font-size:12px;color:var(--muted)}
+  .rating-value{font-size:14px;font-weight:700}
+  .conf-tag{font-size:10px;padding:2px 8px;border-radius:99px;font-weight:700;margin-left:6px}
+  .conf-CONCACAF{background:#1e3a5f;color:#60a5fa}
+  .conf-CAF{background:#1a2e1a;color:#4ade80}
+  .conf-UEFA{background:#2d1b4e;color:#c084fc}
+  .conf-CONMEBOL{background:#2d1a1a;color:#f87171}
+  .conf-AFC{background:#1a2d2d;color:#34d399}
+  .unc-section{margin-top:8px}
+  .unc-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .unc-bar-bg{height:10px;background:var(--card2);border-radius:99px;overflow:hidden}
+  .unc-bar{height:100%;border-radius:99px}
+  .unc-40{background:linear-gradient(90deg,#d97706,#f59e0b)}
+  .unc-factors{margin-top:10px;display:flex;flex-direction:column;gap:4px}
+  .unc-factor{font-size:11px;color:var(--muted);padding:4px 8px;background:var(--card);border-radius:6px}
+  .odds-box{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+  .odds-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center}
+  .odds-label{font-size:12px;color:var(--muted);margin-bottom:4px}
+  .odds-val{font-size:22px;font-weight:900}
+  .odds-impl{font-size:11px;color:var(--muted);margin-top:2px}
+  .value-alert{background:#0f1f0f;border:1px solid #166534;border-radius:8px;padding:10px 14px;font-size:12px;color:#4ade80;margin-top:8px}
+  .model-compare{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+  .model-col{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px}
+  .model-col-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+  .model-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0}
+  .model-val{font-weight:700}
+  .h2h-summary{display:flex;align-items:center;justify-content:center;gap:0;margin-bottom:20px}
+  .h2h-stat{text-align:center;flex:1}
+  .h2h-num{font-size:28px;font-weight:900}
+  .h2h-lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .h2h-div{width:1px;height:40px;background:var(--border)}
+  .h2h-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .h2h-row:last-child{border-bottom:none}
+  .h2h-date{color:var(--muted);font-size:11px;width:80px;flex-shrink:0}
+  .h2h-teams{flex:1}
+  .h2h-score{font-weight:800;font-size:16px;width:50px;text-align:center}
+  .h2h-comp{color:var(--muted);font-size:11px;text-align:right;flex-shrink:0}
+  footer{text-align:center;padding:32px 16px;font-size:12px;color:#475569;border-top:1px solid var(--border);margin-top:32px}
+  footer a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Palpites da IA</div>
+  <span class="nav-tag">COPA 2026</span>
+</nav>
+
+<div class="page">
+  <div class="badge"><span class="dot"></span>Agente estatístico v2 · Elo + Pi + FIFA + Regional + Tail Risk</div>
+
+  <!-- HEADER -->
+  <div class="match-header">
+    <div class="league-label">⚽ Copa do Mundo FIFA 2026 · Grupo A · Rodada 1</div>
+    <div class="teams-row">
+      <div class="team-block">
+        <img class="team-logo" src="https://media.api-sports.io/football/teams/16.png" alt="México">
+        <div class="team-name">México</div>
+      </div>
+      <div class="vs-pill">VS</div>
+      <div class="team-block">
+        <img class="team-logo" src="https://media.api-sports.io/football/teams/1531.png" alt="África do Sul">
+        <div class="team-name">África do Sul</div>
+      </div>
+    </div>
+    <div class="match-meta">
+      <div class="meta-item">📅 11 de junho de 2026 · 16h00 (Brasília)</div>
+      <div class="meta-item">📍 Estadio Banorte · Cidade do México · México</div>
+    </div>
+  </div>
+
+  <!-- ALERTAS TALEB -->
+  <div class="alertas">
+    <div class="alerta-card blue">
+      <div class="alerta-icon">📊</div>
+      <div class="alerta-text">
+        <div class="alerta-title">Odds Pinnacle disponíveis — Mercado precifica México forte</div>
+        <div class="alerta-desc">Pinnacle: México 1.45 · Empate 4.50 · África do Sul 8.02. Probabilidades implícitas: México 69% vs nosso modelo 35.8%. Discrepância por home advantage (Cidade do México) que nosso modelo ignora.</div>
+      </div>
+    </div>
+    <div class="alerta-card amber">
+      <div class="alerta-icon">⚠️</div>
+      <div class="alerta-text">
+        <div class="alerta-title">Amostra pequena de H2H — apenas 1 confronto histórico</div>
+        <div class="alerta-desc">Único H2H registrado: Copa 2010, empate 1×1. Padrões H2H estatisticamente irrelevantes. Confiança penalizada em 15%.</div>
+      </div>
+    </div>
+    <div class="alerta-card orange">
+      <div class="alerta-icon">🎲</div>
+      <div class="alerta-text">
+        <div class="alerta-title">Uncertainty Index 40/100 — Tail Risk Engine</div>
+        <div class="alerta-desc">H2H escasso (+20) · forma inconsistente dos dois (+10) · Copa Rodada 1 (+10). Abaixo do limiar 60 — probabilidades não achatadas. Fat Tail corrigiu Over 2.5: 45.5% → 50.6%.</div>
+      </div>
+    </div>
+    <div class="alerta-card yellow">
+      <div class="alerta-icon">🏠</div>
+      <div class="alerta-text">
+        <div class="alerta-title">Aviso: campo neutro incorreto para este jogo</div>
+        <div class="alerta-desc">México joga em casa na Cidade do México (altitude 2.240m, 85.000 torcedores). Nosso modelo usa campo_neutro=true — subestima o México. O Pinnacle já precifica o home advantage.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NARRATIVA -->
+  <div class="card">
+    <div class="card-title">🤖 Palpite da IA — Narrativa</div>
+    <div class="narrativa-text">
+      Olha que abertura de Copa, pessoal! <strong>México e África do Sul</strong> se reencontram
+      16 anos depois do histórico empate de 2010 — e dessa vez o México joga em
+      <strong>CASA</strong>, na Cidade do México, a 2.240 metros de altitude.
+      O modelo Dixon-Coles diz empate técnico: México 35.8%, África do Sul 36.2%.
+      Mas o <strong>Pinnacle — a mais afiada das casas — discorda feio: México a 1.45</strong>,
+      o que implica 69% de chance de vitória mexicana. Isso é o mercado precificando
+      altitude, torcida e pressão de jogar em casa. O nosso Pi-rating confirma o México
+      em excelente forma (+1,029), FIFA Ranking #15 mundial contra #68 da África do Sul.
+      Elo regional: México é o <strong>3º melhor da CONCACAF</strong> na Copa, África do Sul é a
+      8ª melhor africana. Com Over 1.5 em 77.5%, esse jogo quase certamente vai ter gols.
+      <span class="missing">⚠️ Odds reais para Over/Under ainda não disponíveis — consulte as casas antes de apostar.</span>
+    </div>
+  </div>
+
+  <!-- ODDS REAIS PINNACLE -->
+  <div class="card">
+    <div class="card-title">💰 Odds Reais — Pinnacle (The Odds API)</div>
+    <div class="odds-box">
+      <div class="odds-item">
+        <div class="odds-label">Vitória México</div>
+        <div class="odds-val" style="color:#3b82f6">1.45</div>
+        <div class="odds-impl">Implícita: 69.0%</div>
+      </div>
+      <div class="odds-item">
+        <div class="odds-label">Empate</div>
+        <div class="odds-val" style="color:#f59e0b">4.50</div>
+        <div class="odds-impl">Implícita: 22.2%</div>
+      </div>
+      <div class="odds-item">
+        <div class="odds-label">Vitória África do Sul</div>
+        <div class="odds-val" style="color:#6366f1">8.02</div>
+        <div class="odds-impl">Implícita: 12.5%</div>
+      </div>
+    </div>
+    <div class="source-line">Fonte: The Odds API · sport_key=soccer_fifa_world_cup · event_id=80d82d1113934bfb · bookmaker=pinnacle · Over/Under e BTTS ainda sem mercado aberto</div>
+    <div class="value-alert">
+      ⚡ Value bet detectado pelo modelo: África do Sul a 8.02 — nosso DC diz 36.2% (vs 12.5% implícita). Value = (0.362 × 8.02) − 1 = <strong>+1.90 (190% value)</strong>. Diferença explicada pelo home advantage não modelado. Entrar apenas se tiver justificativa para o home advantage não se aplicar.
+    </div>
+  </div>
+
+  <!-- 1X2 -->
+  <div class="card">
+    <div class="card-title">⚽ Resultado Final — Modelo vs Mercado</div>
+    <div class="model-compare">
+      <div class="model-col">
+        <div class="model-col-title">Nosso Modelo (DC)</div>
+        <div class="model-row"><span>México</span><span class="model-val" style="color:#3b82f6">35.8%</span></div>
+        <div class="model-row"><span>Empate</span><span class="model-val" style="color:#f59e0b">28.1%</span></div>
+        <div class="model-row"><span>África Sul</span><span class="model-val" style="color:#6366f1">36.2%</span></div>
+      </div>
+      <div class="model-col">
+        <div class="model-col-title">Skellam (confirmação)</div>
+        <div class="model-row"><span>México</span><span class="model-val" style="color:#3b82f6">36.9%</span></div>
+        <div class="model-row"><span>Empate</span><span class="model-val" style="color:#f59e0b">25.8%</span></div>
+        <div class="model-row"><span>África Sul</span><span class="model-val" style="color:#6366f1">37.3%</span></div>
+      </div>
+      <div class="model-col">
+        <div class="model-col-title">Pinnacle (mercado)</div>
+        <div class="model-row"><span>México</span><span class="model-val" style="color:#22c55e">69.0%</span></div>
+        <div class="model-row"><span>Empate</span><span class="model-val" style="color:#22c55e">22.2%</span></div>
+        <div class="model-row"><span>África Sul</span><span class="model-val" style="color:#22c55e">12.5%</span></div>
+      </div>
+    </div>
+    <div class="source-line">λ México=1.348 · λ África Sul=1.356 · Fat Tail +0.2pp · Rodada 1 −5.1pp Over (revertido pela Camada 4B)</div>
+  </div>
+
+  <!-- MERCADOS DE GOLS -->
+  <div class="card">
+    <div class="card-title">🎯 Mercados de Gols</div>
+    <div class="market-grid">
+      <div>
+        <div class="market-row">
+          <span class="market-label">Over 1.5 gols</span>
+          <div class="market-right"><span class="market-pct" style="color:#22c55e">77.5%</span><span class="conf-badge conf-alta">ALTA</span></div>
+        </div>
+        <div class="prob-bar-bg"><div class="prob-bar bar-green" style="width:77.5%"></div></div>
+        <div class="source-line">λ total = 2.704 → maior sinal do modelo. Fat Tail +1.2pp. <span class="missing">Odd: XXX (sem mercado)</span></div>
+      </div>
+      <div>
+        <div class="market-row">
+          <span class="market-label">Ambas Marcam — Sim</span>
+          <div class="market-right"><span class="market-pct" style="color:#f59e0b">56.5%</span><span class="conf-badge conf-media">MÉDIA</span></div>
+        </div>
+        <div class="prob-bar-bg"><div class="prob-bar bar-amber" style="width:56.5%"></div></div>
+        <div class="source-line">Ambos com λ>1.3 · Fragility leve (47.3 e 39.3). <span class="missing">Odd: XXX (sem mercado)</span></div>
+      </div>
+      <div>
+        <div class="market-row">
+          <span class="market-label">Over 2.5 gols</span>
+          <div class="market-right"><span class="market-pct" style="color:#f59e0b">50.6%</span><span class="conf-badge conf-media">MÉDIA</span></div>
+        </div>
+        <div class="prob-bar-bg"><div class="prob-bar bar-amber" style="width:50.6%"></div></div>
+        <div class="source-line">DC puro 50.5% → Fat Tail +0.1pp. Rodada 1 −5.1pp foi revertida pela Camada 4B (ver fraqueza de pipeline). <span class="missing">Odd: XXX</span></div>
+      </div>
+      <div>
+        <div class="market-row">
+          <span class="market-label">Under 2.5 gols</span>
+          <div class="market-right"><span class="market-pct" style="color:#3b82f6">49.4%</span><span class="conf-badge conf-baixa">BAIXA</span></div>
+        </div>
+        <div class="prob-bar-bg"><div class="prob-bar bar-blue" style="width:49.4%"></div></div>
+        <div class="source-line">Praticamente 50/50. Rodada 1 favorece Under, Fat Tail desfavorece. Aguardar odd real. <span class="missing">Odd: XXX</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLACARES -->
+  <div class="card">
+    <div class="card-title">🏆 Top 5 Placares Mais Prováveis</div>
+    <div class="scores-grid">
+      <div class="score-item top"><div class="score-placar">1–1</div><div class="score-prob">13.53%</div></div>
+      <div class="score-item"><div class="score-placar">1–2</div><div class="score-prob">8.34%</div></div>
+      <div class="score-item"><div class="score-placar">2–1</div><div class="score-prob">8.29%</div></div>
+      <div class="score-item"><div class="score-placar">0–0</div><div class="score-prob">7.96%</div></div>
+      <div class="score-item"><div class="score-placar">0–1</div><div class="score-prob">7.90%</div></div>
+    </div>
+    <div class="source-line" style="margin-top:12px">Matriz DC 6×6 · correção τ (0-0: ×1.183, 1-1: ×1.1, 0-1: ×0.867, 1-0: ×0.862) · 15% Fat Tail Student-t ν=4</div>
+  </div>
+
+  <!-- RATINGS -->
+  <div class="card">
+    <div class="card-title">📡 Camada 1 — Ratings Dinâmicos (v2: Elo + Pi + FIFA + Regional)</div>
+    <div class="rating-grid">
+      <div class="rating-card">
+        <div class="rating-team">🇲🇽 México <span class="conf-tag conf-CONCACAF">CONCACAF</span></div>
+        <div class="rating-row"><span class="rating-label">Elo Rating</span><span class="rating-value" style="color:#3b82f6">1.841 <small style="color:var(--muted)">(fallback)</small></span></div>
+        <div class="rating-row"><span class="rating-label">Elo z-score (CONCACAF)</span><span class="rating-value" style="color:#22c55e">+0.88 (3º/7 na conf)</span></div>
+        <div class="rating-row"><span class="rating-label">FIFA Ranking</span><span class="rating-value">#15 mundial · #16/48 na Copa</span></div>
+        <div class="rating-row"><span class="rating-label">FIFA Normalizado</span><span class="rating-value">0.681 (escala 0-1)</span></div>
+        <div class="rating-row"><span class="rating-label">Pi-rating</span><span class="rating-value" style="color:#22c55e">+1.029 (acima da média)</span></div>
+        <div class="rating-row"><span class="rating-label">Rating Combinado</span><span class="rating-value" style="color:#6366f1">+1.370</span></div>
+        <div class="source-line">Fórmula: 50% Elo + 30% Pi + 20% FIFA · Elo médio CONCACAF na Copa: 1715 ± 143</div>
+      </div>
+      <div class="rating-card">
+        <div class="rating-team">🇿🇦 África do Sul <span class="conf-tag conf-CAF">CAF</span></div>
+        <div class="rating-row"><span class="rating-label">Elo Rating</span><span class="rating-value" style="color:#6366f1">1.641 <small style="color:var(--muted)">(fallback)</small></span></div>
+        <div class="rating-row"><span class="rating-label">Elo z-score (CAF)</span><span class="rating-value" style="color:#ef4444">−0.525 (8º/10 na conf)</span></div>
+        <div class="rating-row"><span class="rating-label">FIFA Ranking</span><span class="rating-value">#68 mundial · #46/48 na Copa</span></div>
+        <div class="rating-row"><span class="rating-label">FIFA Normalizado</span><span class="rating-value">0.043 (quase fundo)</span></div>
+        <div class="rating-row"><span class="rating-label">Pi-rating</span><span class="rating-value" style="color:#f59e0b">−0.094 (na média)</span></div>
+        <div class="rating-row"><span class="rating-label">Rating Combinado</span><span class="rating-value">+0.150</span></div>
+        <div class="source-line">Fórmula: 50% Elo + 30% Pi + 20% FIFA · Elo médio CAF na Copa: 1696 ± 106</div>
+      </div>
+    </div>
+
+    <!-- Uncertainty -->
+    <div class="unc-section" style="margin-top:20px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">Uncertainty Index 40/100 — Camada 4B (Tail Risk Engine)</div>
+      <div class="unc-label"><span>Previsível</span><span style="font-weight:700;color:#f59e0b">40/100</span><span>Imprevisível</span></div>
+      <div class="unc-bar-bg"><div class="unc-bar unc-40" style="width:40%"></div></div>
+      <div class="unc-factors">
+        <div class="unc-factor">📉 H2H &lt; 3 confrontos → +20</div>
+        <div class="unc-factor">🔀 Forma inconsistente nos dois times → +10</div>
+        <div class="unc-factor">🏆 Copa Rodada 1 → +10</div>
+        <div class="unc-factor">✅ UI=40 &lt; 60 — probabilidades NÃO achatadas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORMA RECENTE -->
+  <div class="card">
+    <div class="card-title">📈 Forma Recente (últimos 10 jogos)</div>
+    <div style="margin-bottom:20px">
+      <div class="forma-row">
+        <div class="forma-team">🇲🇽 México</div>
+        <div class="forma-badges">
+          <div class="forma-badge f-D">E</div><div class="forma-badge f-D">E</div><div class="forma-badge f-L">D</div>
+          <div class="forma-badge f-W">V</div><div class="forma-badge f-W">V</div><div class="forma-badge f-W">V</div>
+          <div class="forma-badge f-D">E</div><div class="forma-badge f-D">E</div><div class="forma-badge f-W">V</div><div class="forma-badge f-W">V</div>
+        </div>
+      </div>
+      <div class="forma-games">
+        <div class="forma-game-row"><span class="fg-date">15/10/2025</span><span class="fg-adv">vs Ecuador</span><span class="fg-score" style="color:#f59e0b">1–1</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">16/11/2025</span><span class="fg-adv">vs Uruguai</span><span class="fg-score" style="color:#f59e0b">0–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">19/11/2025</span><span class="fg-adv">vs Paraguai</span><span class="fg-score" style="color:#ef4444">1–2</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">23/01/2026</span><span class="fg-adv">vs Panamá</span><span class="fg-score" style="color:#22c55e">1–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">25/01/2026</span><span class="fg-adv">vs Bolívia</span><span class="fg-score" style="color:#22c55e">1–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">26/02/2026</span><span class="fg-adv">vs Islândia</span><span class="fg-score" style="color:#22c55e">4–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">29/03/2026</span><span class="fg-adv">vs Portugal</span><span class="fg-score" style="color:#f59e0b">0–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">01/04/2026</span><span class="fg-adv">vs Bélgica</span><span class="fg-score" style="color:#f59e0b">1–1</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">23/05/2026</span><span class="fg-adv">vs Gana</span><span class="fg-score" style="color:#22c55e">2–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">31/05/2026</span><span class="fg-adv">vs Austrália</span><span class="fg-score" style="color:#22c55e">1–0</span><span class="fg-comp">Amistoso</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="forma-row">
+        <div class="forma-team">🇿🇦 África do Sul</div>
+        <div class="forma-badges">
+          <div class="forma-badge f-W">V</div><div class="forma-badge f-W">V</div><div class="forma-badge f-W">V</div><div class="forma-badge f-W">V</div>
+          <div class="forma-badge f-L">D</div><div class="forma-badge f-W">V</div><div class="forma-badge f-L">D</div>
+          <div class="forma-badge f-D">E</div><div class="forma-badge f-L">D</div><div class="forma-badge f-D">E</div>
+        </div>
+      </div>
+      <div class="forma-games">
+        <div class="forma-game-row"><span class="fg-date">14/10/2025</span><span class="fg-adv">vs Ruanda</span><span class="fg-score" style="color:#22c55e">3–0</span><span class="fg-comp">Qualif. Copa</span></div>
+        <div class="forma-game-row"><span class="fg-date">15/11/2025</span><span class="fg-adv">vs Zâmbia</span><span class="fg-score" style="color:#22c55e">3–1</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">16/12/2025</span><span class="fg-adv">vs Gana B</span><span class="fg-score" style="color:#22c55e">1–0</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">22/12/2025</span><span class="fg-adv">vs Angola</span><span class="fg-score" style="color:#22c55e">2–1</span><span class="fg-comp">AFCON</span></div>
+        <div class="forma-game-row"><span class="fg-date">26/12/2025</span><span class="fg-adv">vs Egito</span><span class="fg-score" style="color:#ef4444">0–1</span><span class="fg-comp">AFCON</span></div>
+        <div class="forma-game-row"><span class="fg-date">29/12/2025</span><span class="fg-adv">vs Zimbabwe</span><span class="fg-score" style="color:#22c55e">3–2</span><span class="fg-comp">AFCON</span></div>
+        <div class="forma-game-row"><span class="fg-date">04/01/2026</span><span class="fg-adv">vs Camarões</span><span class="fg-score" style="color:#ef4444">1–2</span><span class="fg-comp">AFCON</span></div>
+        <div class="forma-game-row"><span class="fg-date">27/03/2026</span><span class="fg-adv">vs Panamá</span><span class="fg-score" style="color:#f59e0b">1–1</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">31/03/2026</span><span class="fg-adv">vs Panamá</span><span class="fg-score" style="color:#ef4444">1–2</span><span class="fg-comp">Amistoso</span></div>
+        <div class="forma-game-row"><span class="fg-date">29/05/2026</span><span class="fg-adv">vs Nicarágua</span><span class="fg-score" style="color:#f59e0b">0–0</span><span class="fg-comp">Amistoso</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- H2H -->
+  <div class="card">
+    <div class="card-title">🤝 Histórico H2H</div>
+    <div class="h2h-summary">
+      <div class="h2h-stat"><div class="h2h-num" style="color:#3b82f6">0</div><div class="h2h-lbl">Vitórias México</div></div>
+      <div class="h2h-div"></div>
+      <div class="h2h-stat"><div class="h2h-num" style="color:#f59e0b">1</div><div class="h2h-lbl">Empates</div></div>
+      <div class="h2h-div"></div>
+      <div class="h2h-stat"><div class="h2h-num" style="color:#6366f1">0</div><div class="h2h-lbl">Vitórias África</div></div>
+    </div>
+    <div class="h2h-row">
+      <div class="h2h-date">11/06/2010</div>
+      <div class="h2h-teams">África do Sul × México</div>
+      <div class="h2h-score" style="color:#f59e0b">1 × 1</div>
+      <div class="h2h-comp">Copa do Mundo</div>
+    </div>
+    <div class="source-line" style="margin-top:10px">⚠️ 1 confronto apenas — confiança H2H = 0.85 (penalização de 15% no score final)</div>
+  </div>
+
+</div>
+
+<footer>
+  Dados: API-Football v3 · The Odds API · Wikipedia FIFA Rankings · Seed Copa 2026<br>
+  Modelos: Dixon-Coles · Skellam · Fat Tail (Student-t ν=4) · Context Engine · Tail Risk (Taleb)<br>
+  Ratings: Elo (fallback — eloratings.net é SPA) · Pi-rating · FIFA Ranking · Normalização Regional<br>
+  <a href="https://palpitesdaia.lovable.app/partida/mexico-south-africa" target="_blank">palpitesdaia.lovable.app/partida/mexico-south-africa</a><br><br>
+  ⚠️ Arquivo de teste estático v2. Probabilidades do modelo divergem do Pinnacle por home advantage não modelado.
+</footer>
+</body>
+</html>

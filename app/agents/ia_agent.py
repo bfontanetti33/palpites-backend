@@ -39,79 +39,182 @@ VALUE_MIN    = 0.05     # value mínimo para recomendar (5%)
 ELO_CENTER   = 1500.0   # centro de normalização do Elo
 ELO_SCALE    = 200.0    # escala (±1 SD ≈ 200 pontos)
 
-# Elo de referência para todos os 48 times da Copa 2026
-# Fonte: eloratings.net histórico + tendências recentes (fallback quando scraping falha)
+# ── PONTO 3: Elo fallback abrangente para todos os 48 times da Copa 2026 ─────
+# eloratings.net é um SPA (Single Page App) — não retorna dados no HTML estático.
+# Fallback calculado com base em valores históricos públicos (Elo World Football, abril/2026).
 _ELO_FALLBACK: dict[str, float] = {
-    "Argentina":            2142, "France":          2003, "Spain":           1989,
-    "England":              1972, "Portugal":        1946, "Germany":         1930,
-    "Netherlands":          1907, "Brazil":          1900, "Belgium":         1874,
-    "Colombia":             1874, "Uruguay":         1867, "Morocco":         1856,
-    "United States":        1853, "Japan":           1849, "Mexico":          1841,
-    "Croatia":              1838, "Senegal":         1825, "Switzerland":     1824,
-    "Ecuador":              1788, "South Korea":     1782, "Australia":       1781,
-    "Austria":              1780, "Norway":          1779, "Ukraine":         1778,
-    "Turkey":               1770, "Türkiye":         1770, "Iran":            1760,
-    "Canada":               1756, "Denmark":         1750, "Sweden":          1745,
-    "Ivory Coast":          1740, "Serbia":          1738, "Poland":          1730,
-    "Algeria":              1720, "Paraguay":        1718, "Egypt":           1715,
-    "Ghana":                1700, "Tunisia":         1698, "Saudi Arabia":    1695,
-    "Czech Republic":       1694, "Czechia":         1694, "Scotland":        1690,
-    "South Africa":         1641, "Bolivia":         1610, "Panama":          1605,
-    "New Zealand":          1598, "Jordan":          1590, "Iraq":            1585,
-    "Haiti":                1560, "Cape Verde Islands": 1555, "Curaçao":      1540,
-    "Qatar":                1530, "Uzbekistan":      1525, "Bosnia & Herzegovina": 1520,
-    "Congo DR":             1515, "Rwanda":          1500, "Zimbabwe":        1490,
+    "Argentina": 2142, "France": 2003, "Spain": 1989, "England": 1972,
+    "Portugal": 1946, "Germany": 1930, "Netherlands": 1907, "Brazil": 1900,
+    "Belgium": 1874, "Colombia": 1874, "Uruguay": 1867, "Morocco": 1856,
+    "USA": 1853, "United States": 1853, "Japan": 1849, "Mexico": 1841,
+    "Croatia": 1838, "Senegal": 1825, "Switzerland": 1824, "Ecuador": 1788,
+    "South Korea": 1782, "Australia": 1781, "Austria": 1780, "Norway": 1779,
+    "Türkiye": 1770, "Turkey": 1770, "Iran": 1760, "Canada": 1756,
+    "Sweden": 1745, "Ivory Coast": 1740, "Algeria": 1720, "Paraguay": 1718,
+    "Egypt": 1715, "Ghana": 1700, "Tunisia": 1698, "Saudi Arabia": 1695,
+    "Czech Republic": 1694, "Czechia": 1694, "Scotland": 1690,
+    "South Africa": 1641, "Panama": 1605, "New Zealand": 1598,
+    "Jordan": 1590, "Iraq": 1585, "Haiti": 1560,
+    "Cape Verde Islands": 1555, "Curaçao": 1540, "Qatar": 1530,
+    "Uzbekistan": 1525, "Bosnia & Herzegovina": 1520, "Congo DR": 1515,
 }
 
-# Cache simples para Elo (dura a sessão)
+# ── PONTO 4: Mapeamento confederação → times da Copa 2026 ─────────────────────
+_CONFEDERACAO: dict[str, str] = {
+    # CONMEBOL
+    "Brazil": "CONMEBOL", "Argentina": "CONMEBOL", "Colombia": "CONMEBOL",
+    "Ecuador": "CONMEBOL", "Paraguay": "CONMEBOL", "Uruguay": "CONMEBOL",
+    # UEFA
+    "Germany": "UEFA", "France": "UEFA", "Spain": "UEFA", "England": "UEFA",
+    "Portugal": "UEFA", "Netherlands": "UEFA", "Belgium": "UEFA",
+    "Switzerland": "UEFA", "Croatia": "UEFA", "Austria": "UEFA",
+    "Sweden": "UEFA", "Norway": "UEFA", "Scotland": "UEFA",
+    "Bosnia & Herzegovina": "UEFA", "Czech Republic": "UEFA", "Czechia": "UEFA",
+    "Türkiye": "UEFA", "Turkey": "UEFA",
+    # CONCACAF
+    "Mexico": "CONCACAF", "USA": "CONCACAF", "United States": "CONCACAF",
+    "Canada": "CONCACAF", "Panama": "CONCACAF", "Haiti": "CONCACAF",
+    "Curaçao": "CONCACAF",
+    # CAF
+    "Morocco": "CAF", "Senegal": "CAF", "Ivory Coast": "CAF", "Egypt": "CAF",
+    "Tunisia": "CAF", "Ghana": "CAF", "South Africa": "CAF", "Congo DR": "CAF",
+    "Algeria": "CAF", "Cape Verde Islands": "CAF",
+    # AFC
+    "Japan": "AFC", "South Korea": "AFC", "Saudi Arabia": "AFC", "Iran": "AFC",
+    "Iraq": "AFC", "Australia": "AFC", "Qatar": "AFC", "Uzbekistan": "AFC",
+    "Jordan": "AFC",
+    # OFC
+    "New Zealand": "OFC",
+}
+
+# ── PONTO 2: FIFA Ranking dos 48 times da Copa 2026 ──────────────────────────
+# Fontes: Wikipedia FIFA World Rankings + estimativas (abril/2026).
+# posição MUNDIAL (1 = melhor do mundo). Normalização usa posição ENTRE OS 48 DA COPA.
+_FIFA_RANKING: dict[str, int] = {
+    "France": 1, "Spain": 2, "Argentina": 3, "England": 4,
+    "Portugal": 5, "Brazil": 6, "Netherlands": 7, "Morocco": 8,
+    "Belgium": 9, "Germany": 10, "Croatia": 11, "Colombia": 13,
+    "Senegal": 14, "Mexico": 15, "Uruguay": 16, "Switzerland": 19,
+    "USA": 11, "United States": 11, "Japan": 17, "South Korea": 22,
+    "Australia": 23, "Austria": 24, "Norway": 23, "Türkiye": 27,
+    "Turkey": 27, "Algeria": 30, "Sweden": 34, "Czech Republic": 36,
+    "Czechia": 36, "Tunisia": 38, "Iran": 44, "Saudi Arabia": 48,
+    "Ivory Coast": 51, "Paraguay": 52, "Qatar": 53, "Uzbekistan": 58,
+    "Egypt": 40, "Scotland": 40, "Bosnia & Herzegovina": 58,
+    "Ghana": 62, "Cape Verde Islands": 64, "Jordan": 66, "Iraq": 66,
+    "South Africa": 68, "Panama": 75, "Congo DR": 76, "Haiti": 83,
+    "Curaçao": 85, "New Zealand": 101, "Canada": 48,
+    "Ecuador": 44,
+}
+
+# Pré-computa stats regionais (Elo) para os 48 times da Copa 2026
+def _stats_regionais() -> dict[str, dict]:
+    """Média e desvio do Elo de cada confederação entre os 48 times da Copa."""
+    conf_elos: dict[str, list[float]] = {}
+    for team, conf in _CONFEDERACAO.items():
+        elo = _ELO_FALLBACK.get(team)
+        if elo is not None:
+            conf_elos.setdefault(conf, []).append(elo)
+    result: dict[str, dict] = {}
+    for conf, elos in conf_elos.items():
+        media = statistics.mean(elos)
+        std   = statistics.stdev(elos) if len(elos) > 1 else 1.0
+        result[conf] = {"media": round(media, 1), "std": round(std, 1), "n": len(elos)}
+    return result
+
+_STATS_REGIONAIS = _stats_regionais()
+
+def _copa_fifa_rank() -> dict[str, int]:
+    """
+    Ordena os 48 times pelo FIFA Ranking mundial e atribui posição 1-48 entre eles.
+    Times não encontrados ficam em último.
+    """
+    copa_times = list({t for t in _CONFEDERACAO if t in _FIFA_RANKING})
+    copa_times.sort(key=lambda t: _FIFA_RANKING[t])
+    return {team: pos + 1 for pos, team in enumerate(copa_times)}
+
+_COPA_FIFA_RANK = _copa_fifa_rank()
+
+# Cache para scraping Wikipedia (dura a sessão)
+_wiki_rankings: dict[str, int] | None = None
+
+
+async def _buscar_fifa_ranking_wikipedia() -> dict[str, int]:
+    """
+    Extrai o FIFA ranking da Wikipedia.
+    Retorna dict {nome_time: posicao_mundial} ou {} se falhar.
+    """
+    global _wiki_rankings
+    if _wiki_rankings is not None:
+        return _wiki_rankings
+    try:
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as c:
+            r = await c.get(
+                "https://en.wikipedia.org/wiki/FIFA_World_Rankings",
+                headers={"User-Agent": "Mozilla/5.0 (compatible; bot)"},
+            )
+        html = r.text
+        rows = re.findall(
+            r'<tr[^>]*>.*?<td[^>]*>\s*(\d{1,3})\s*</td>.*?title="([^"]+)">([^<]+)</a>.*?</tr>',
+            html, re.DOTALL
+        )
+        result = {}
+        for rank_str, _, country in rows:
+            rank = int(rank_str)
+            if 1 <= rank <= 210:
+                result[country.strip()] = rank
+        _wiki_rankings = result
+        return result
+    except Exception:
+        _wiki_rankings = {}
+        return {}
+
+
+# Cache de Elo (sessão)
 _elo_cache: dict[str, float | None] = {}
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# CAMADA 1 — Rating Dinâmico
+# CAMADA 1 — Rating Dinâmico (Elo + Pi-rating + FIFA Ranking + Normalização Regional)
 # ════════════════════════════════════════════════════════════════════════════════
 
-async def _buscar_elo_web(team_name: str) -> float | None:
-    """Scraping de eloratings.net. Retorna None se falhar."""
+async def _buscar_elo_web(team_name: str) -> tuple[float | None, str]:
+    """
+    PONTO 3: Tenta scraping de eloratings.net.
+    O site é um SPA — retorna HTML shell de 1.8KB sem dados.
+    Detecta SPA e usa fallback imediatamente.
+    Retorna (valor, fonte).
+    """
     if team_name in _elo_cache:
-        return _elo_cache[team_name]
+        val = _elo_cache[team_name]
+        fonte = "eloratings.net" if val else "fallback"
+        return _ELO_FALLBACK.get(team_name, val), fonte
+
     try:
-        async with httpx.AsyncClient(timeout=8, follow_redirects=True) as c:
-            r = await c.get(
-                "https://www.eloratings.net/World",
-                headers={"User-Agent": "Mozilla/5.0"},
-            )
-            html = r.text
-        # A página lista times com padrão: nome do time seguido do rating na mesma linha/tabela
-        # Tentativa 1: regex específico para a tabela do site
-        pattern = rf"{re.escape(team_name)}[\s\S]{{0,200}}?(\d{{4}})"
-        m = re.search(pattern, html, re.IGNORECASE)
+        async with httpx.AsyncClient(timeout=6, follow_redirects=True) as c:
+            r = await c.get("https://www.eloratings.net/World",
+                            headers={"User-Agent": "Mozilla/5.0"})
+        # SPA detection: página real tem >50KB; shell tem ~1.8KB
+        if len(r.text) < 5000:
+            raise ValueError("SPA detectado — sem dados no HTML estático")
+        # Tenta extrair pelo nome do time
+        pattern = rf"{re.escape(team_name)}[\s\S]{{0,150}}?(\d{{4}})"
+        m = re.search(pattern, r.text, re.IGNORECASE)
         if m:
-            rating = float(m.group(1))
-            if 1000 <= rating <= 2300:   # sanity check
-                _elo_cache[team_name] = rating
-                return rating
+            val = float(m.group(1))
+            if 1200 <= val <= 2400:
+                _elo_cache[team_name] = val
+                return val, "eloratings.net"
     except Exception:
         pass
-    _elo_cache[team_name] = None
-    return None
 
-
-def _elo_para_time(team_name: str, elo_web: float | None) -> tuple[float | None, str]:
-    """Resolve Elo: web → fallback → None. Retorna (valor, fonte)."""
-    if elo_web is not None:
-        return elo_web, "eloratings.net"
+    # Fallback dict
     fb = _ELO_FALLBACK.get(team_name)
-    if fb is not None:
-        return fb, "fallback"
-    return None, "indisponível"
+    _elo_cache[team_name] = fb
+    return fb, "fallback"
 
 
 def _calcular_pi_rating(forma: list[EntradaForma], data_jogo: str) -> float:
-    """
-    Pi-rating simplificado: média ponderada de (gols_marcados − gols_sofridos) / GLOBAL_AVG.
-    Decaimento = 0.98^dias. Positivo = melhor que a média global.
-    """
     ref = datetime.strptime(data_jogo[:10], "%Y-%m-%d").date()
     total_w = total_v = 0.0
     for j in forma:
@@ -132,22 +235,75 @@ async def _calcular_rating(
     team_name: str,
     forma: list[EntradaForma],
     data_jogo: str,
+    wiki_rankings: dict[str, int] | None = None,
 ) -> RatingDinamico:
-    elo_web = await _buscar_elo_web(team_name)
-    elo, fonte = _elo_para_time(team_name, elo_web)
+    """
+    PONTO 2+3+4: Calcula rating dinâmico completo.
+    Componentes: 50% Elo + 30% Pi-rating + 20% FIFA Ranking normalizado.
+    Inclui normalização regional (z-score dentro da confederação na Copa).
+    """
+    # Elo
+    elo, fonte_elo = await _buscar_elo_web(team_name)
     pi = _calcular_pi_rating(forma, data_jogo)
 
-    if elo is not None:
-        elo_norm = (elo - ELO_CENTER) / ELO_SCALE
-        combinado = round(0.6 * elo_norm + 0.4 * pi, 3)
+    # FIFA Ranking (PONTO 2)
+    # Tenta Wikipedia primeiro, depois fallback hardcoded
+    fifa_mundial: int | None = None
+    if wiki_rankings:
+        fifa_mundial = wiki_rankings.get(team_name)
+    if fifa_mundial is None:
+        fifa_mundial = _FIFA_RANKING.get(team_name)
+
+    fifa_copa_pos = _COPA_FIFA_RANK.get(team_name)
+    fifa_norm: float | None = None
+    if fifa_copa_pos is not None:
+        fifa_norm = round((48 - fifa_copa_pos) / 47, 3)
+    fifa_disponivel = fifa_mundial is not None
+
+    # Normalização regional (PONTO 4)
+    conf = _CONFEDERACAO.get(team_name, "")
+    stats_reg = _STATS_REGIONAIS.get(conf, {})
+    elo_z: float | None = None
+    elo_rank_reg: int | None = None
+    if elo is not None and stats_reg:
+        elo_z = round((elo - stats_reg["media"]) / max(stats_reg["std"], 1.0), 3)
+        # Rank dentro da confederação (1 = melhor Elo da conf na Copa)
+        conf_times = [(t, _ELO_FALLBACK[t]) for t, c in _CONFEDERACAO.items()
+                      if c == conf and t in _ELO_FALLBACK]
+        conf_times.sort(key=lambda x: -x[1])
+        rank_map = {t: i+1 for i, (t, _) in enumerate(conf_times)}
+        elo_rank_reg = rank_map.get(team_name)
+
+    # Rating combinado
+    elo_norm = (elo - ELO_CENTER) / ELO_SCALE if elo is not None else 0.0
+
+    if elo is not None and fifa_norm is not None:
+        # FIFA normalizado está em [0,1]; converte para escala similar ao elo_norm (~[-1,+2])
+        fifa_escala = (fifa_norm * 3.0) - 1.0  # 0→-1.0, 0.5→0.5, 1.0→2.0
+        combinado = round(0.50 * elo_norm + 0.30 * pi + 0.20 * fifa_escala, 3)
+        formula = "50% Elo + 30% Pi + 20% FIFA"
+    elif elo is not None:
+        combinado = round(0.60 * elo_norm + 0.40 * pi, 3)
+        formula = "60% Elo + 40% Pi (sem FIFA)"
     else:
         combinado = round(pi, 3)
+        formula = "100% Pi (sem Elo nem FIFA)"
 
     return RatingDinamico(
         elo_score=elo,
-        fonte_elo=fonte,
+        fonte_elo=fonte_elo,
         pi_rating=pi,
+        fifa_ranking=fifa_mundial,
+        fifa_ranking_copa=fifa_copa_pos,
+        fifa_normalizado=fifa_norm,
+        fifa_ranking_disponivel=fifa_disponivel,
+        confederacao=conf,
+        elo_rank_regional=elo_rank_reg,
+        media_elo_regiao=stats_reg.get("media"),
+        std_elo_regiao=stats_reg.get("std"),
+        elo_z_regional=elo_z,
         rating_combinado=combinado,
+        formula_usada=formula,
     )
 
 
@@ -988,12 +1144,19 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     Orquestra as 5 camadas e retorna RecomendacaoIA completo.
     Dados brutos da API (partida.*) nunca são alterados.
     """
-    # Camada 1 — Ratings em paralelo
+    # Camada 1 — Ratings + Wikipedia FIFA ranking em paralelo
     import asyncio
-    rating_c, rating_f = await asyncio.gather(
+    wiki_rankings, rating_c, rating_f = await asyncio.gather(
+        _buscar_fifa_ranking_wikipedia(),
         _calcular_rating(partida.time_casa_nome, partida.forma_casa, partida.horario),
         _calcular_rating(partida.time_fora_nome, partida.forma_fora, partida.horario),
     )
+    # Re-calcula ratings com Wikipedia se trouxe dados extras
+    if wiki_rankings:
+        rating_c, rating_f = await asyncio.gather(
+            _calcular_rating(partida.time_casa_nome, partida.forma_casa, partida.horario, wiki_rankings),
+            _calcular_rating(partida.time_fora_nome, partida.forma_fora, partida.horario, wiki_rankings),
+        )
 
     # Camada 2 — Modelo de gols
     modelo = _calcular_modelo_gols(

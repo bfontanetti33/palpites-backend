@@ -110,11 +110,30 @@ class Partida(PartidaResumo):
 # ── Modelos do agente estatístico ─────────────────────────────────────────────
 
 class RatingDinamico(BaseModel):
-    """Camada 1 — Rating combinado (Elo + Pi-rating)."""
-    elo_score: float | None = None        # scraped de eloratings.net
-    fonte_elo: str = "indisponível"       # "eloratings.net" ou "fallback" ou "indisponível"
-    pi_rating: float = 0.0               # média ponderada de (gols_marcados - gols_sofridos) / global_avg
-    rating_combinado: float = 0.0        # 60% Elo normalizado + 40% Pi (ou 100% Pi se sem Elo)
+    """Camada 1 — Rating combinado (Elo + Pi-rating + FIFA Ranking)."""
+    # Elo rating
+    elo_score: float | None = None        # de eloratings.net (fallback se SPA)
+    fonte_elo: str = "indisponível"       # "eloratings.net" | "fallback" | "indisponível"
+
+    # Pi-rating (desempenho recente ponderado)
+    pi_rating: float = 0.0
+
+    # FIFA Ranking
+    fifa_ranking: int | None = None       # posição no ranking FIFA mundial
+    fifa_ranking_copa: int | None = None  # posição entre os 48 times da Copa
+    fifa_normalizado: float | None = None # (48 - copa_pos) / 47 → 0.0 a 1.0
+    fifa_ranking_disponivel: bool = False
+
+    # Normalização regional
+    confederacao: str = ""
+    elo_rank_regional: int | None = None  # posição dentro da confederação (na Copa)
+    media_elo_regiao: float | None = None
+    std_elo_regiao: float | None = None
+    elo_z_regional: float | None = None  # z-score dentro da confederação
+
+    # Rating final
+    rating_combinado: float = 0.0
+    formula_usada: str = ""               # ex: "50% Elo + 30% Pi + 20% FIFA"
 
 
 class ModeloGols(BaseModel):
