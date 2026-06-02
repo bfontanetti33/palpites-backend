@@ -540,6 +540,39 @@ def _calcular_value_bets(modelo: ModeloGols, odds: dict | None) -> tuple[bool, l
     return True, results
 
 
+# ── Home advantage — países-sede Copa 2026 ───────────────────────────────────
+# Quando USA, México ou Canadá jogam EM CASA, campo_neutro = False.
+# Fator de ajuste baseado em pesquisa de home advantage em Copas:
+#   λ_home × 1.25 — time da casa marca ~25% mais (altitude, torcida, familiaridade)
+#   λ_away × 0.80 — visitante sofre ~20% de penalidade
+# Altitude de 2240m (Cidade do México) está implícita no fator do visitante.
+HOME_BOOST   = 1.25
+AWAY_PENALTY = 0.80
+
+# Selecões que são países-sede da Copa 2026
+_HOST_NATIONS = {"Mexico", "USA", "United States", "Canada"}
+
+# Mapeamento cidade → país-sede (baseado nos estádios do seed)
+_CIDADE_PARA_PAIS_SEDE: dict[str, str] = {
+    # México
+    "Mexico City": "Mexico", "Zapopan": "Mexico",
+    "Monterrey": "Mexico", "Guadalajara": "Mexico",
+    # Canadá
+    "Toronto": "Canada", "Vancouver": "Canada",
+    # EUA
+    "Los Angeles": "USA", "Inglewood": "USA",
+    "San Jose": "USA", "Santa Clara": "USA",
+    "Seattle": "USA", "Arlington": "USA", "Dallas": "USA",
+    "Houston": "USA", "Kansas City": "USA",
+    "Philadelphia": "USA", "East Rutherford": "USA",
+    "Foxborough": "USA", "Boston": "USA",
+    "Miami": "USA", "Miami Gardens": "USA", "Atlanta": "USA",
+}
+
+def _pais_sede_da_cidade(cidade: str) -> str | None:
+    return _CIDADE_PARA_PAIS_SEDE.get(cidade)
+
+
 # ════════════════════════════════════════════════════════════════════════════════
 # CAMADA 4 — Context Engine
 # ════════════════════════════════════════════════════════════════════════════════
@@ -577,6 +610,25 @@ def _calcular_contexto(
     fad_c = fadiga(partida.forma_casa)
     fad_f = fadiga(partida.forma_fora)
 
+    # Home advantage — país-sede jogando em casa
+    pais_sede = _pais_sede_da_cidade(partida.cidade or "")
+    home_adv  = False
+    home_time = ""
+    lam_boost   = 1.0
+    away_pen    = 1.0
+
+    if pais_sede:
+        home_nome = partida.time_casa_nome
+        away_nome = partida.time_fora_nome
+        # Time da casa é o país-sede?
+        if home_nome in _HOST_NATIONS or home_nome == pais_sede:
+            home_adv  = True
+            home_time = home_nome
+            lam_boost   = HOME_BOOST
+            away_pen    = AWAY_PENALTY
+        # Time visitante é o país-sede jogando fora (não tem vantagem extra)
+        # — nenhum ajuste necessário
+
     # Primeira rodada
     primeira = "Rodada 1" in partida.rodada
 
@@ -605,8 +657,14 @@ def _calcular_contexto(
     # Aplica ajustes ao modelo
     lam = modelo.lambda_casa
     mu  = modelo.lambda_fora
-    if fad_c: lam *= 0.95
-    if fad_f: mu  *= 0.95
+
+    # Home advantage (país-sede) — aplicado antes da fadiga
+    if home_adv:
+        lam = round(lam * lam_boost, 3)
+        mu  = round(mu  * away_pen,  3)
+
+    if fad_c: lam = round(lam * 0.95, 3)
+    if fad_f: mu  = round(mu  * 0.95, 3)
 
     ajuste_under = 0.0
     over25_adj = modelo.prob_over25
@@ -616,22 +674,23 @@ def _calcular_contexto(
         over25_adj   = round(over25_adj - ajuste_under, 1)
         under25_adj  = round(100 - over25_adj, 1)
 
-    # Reconstrói modelo com ajustes (se houve mudança de lambda)
-    from app.agents.football_agent import _calcular_probabilidades, _calcular_placares_provaveis
+    # Reconstrói modelo sempre que algum lambda mudou (home advantage ou fadiga)
+    lam_adj = round(max(0.3, lam), 3)
+    mu_adj  = round(max(0.3, mu),  3)
     modelo_adj = modelo
-    if fad_c or fad_f:
+
+    if lam_adj != modelo.lambda_casa or mu_adj != modelo.lambda_fora:
         from app.agents import football_agent as fa
-        lam_adj = round(max(0.3, lam), 3)
-        mu_adj  = round(max(0.3, mu), 3)
         try:
-            probs_adj = fa._calcular_probabilidades(lam_adj, mu_adj)
-            # Atualiza só os campos de 1X2 e mantém o resto
+            probs_adj  = fa._calcular_probabilidades(lam_adj, mu_adj)
+            placares   = fa._calcular_placares_provaveis(lam_adj, mu_adj, top=3)
             modelo_adj = modelo.model_copy(update={
-                "lambda_casa":      lam_adj,
-                "lambda_fora":      mu_adj,
+                "lambda_casa":       lam_adj,
+                "lambda_fora":       mu_adj,
                 "prob_vitoria_casa": probs_adj.vitoria_casa,
                 "prob_empate":       probs_adj.empate,
                 "prob_vitoria_fora": probs_adj.vitoria_fora,
+                "placares_provaveis": placares,
             })
         except Exception:
             pass
@@ -643,7 +702,11 @@ def _calcular_contexto(
         })
 
     ctx = FatorContexto(
-        campo_neutro=True,
+        campo_neutro=not home_adv,
+        home_advantage=home_adv,
+        home_advantage_time=home_time,
+        home_lambda_boost=lam_boost if home_adv else 0.0,
+        away_lambda_penalty=away_pen if home_adv else 0.0,
         fadiga_casa=fad_c,
         fadiga_fora=fad_f,
         primeira_rodada=primeira,

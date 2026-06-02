@@ -163,6 +163,10 @@ class ModeloGols(BaseModel):
 class FatorContexto(BaseModel):
     """Camada 4 — fatores contextuais aplicados ao modelo."""
     campo_neutro: bool = True
+    home_advantage: bool = False          # True quando país-sede joga em casa
+    home_advantage_time: str = ""         # nome do time com vantagem de mando
+    home_lambda_boost: float = 0.0        # fator aplicado ao lambda da casa (ex: 1.25)
+    away_lambda_penalty: float = 0.0      # fator aplicado ao lambda do visitante (ex: 0.80)
     fadiga_casa: bool = False
     fadiga_fora: bool = False
     primeira_rodada: bool = False
