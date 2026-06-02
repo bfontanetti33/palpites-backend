@@ -41,37 +41,69 @@ TOP_POR_CAT   = 2   # top N por categoria
 # stat_ajustada = stat_p90 × LSS
 # Benchmark: Premier League = 1.00
 _LSS: dict[str, float] = {
-    "Champions League":       1.10,
-    "UEFA Champions League":  1.10,
-    "Premier League":         1.00,
-    "La Liga":                0.97,
-    "Bundesliga":             0.94,
-    "Serie A":                0.93,
-    "Ligue 1":                0.90,
-    "Europa League":          0.88,
-    "UEFA Europa League":     0.88,
-    "Brasileirão Série A":    0.78,
-    "Serie A BR":             0.78,
-    "Eredivisie":             0.76,
-    "Liga MX":                0.75,
-    "Liga Portugal":          0.74,
-    "Liga NOS":               0.74,
-    "Primeira Liga":          0.74,
-    "Campeonato Argentino":   0.72,
-    "Primera División":       0.72,
-    "Turkish Süper Lig":      0.71,
-    "Süper Lig":              0.71,
-    "Scottish Premiership":   0.68,
-    "Belgian Pro League":     0.67,
-    "First Division A":       0.67,
-    "MLS":                    0.62,
-    "Major League Soccer":    0.62,
-    "Saudi Pro League":       0.60,
+    # Ligas de clubes — nível máximo
+    "Champions League":          1.10,
+    "UEFA Champions League":     1.10,
+    "Premier League":            1.00,
+    "La Liga":                   0.97,
+    "Bundesliga":                0.94,
+    "Serie A":                   0.93,
+    "Ligue 1":                   0.90,
+    "Europa League":             0.88,
+    "UEFA Europa League":        0.88,
+    "Conference League":         0.80,
+    "Brasileirão Série A":       0.78,
+    "Serie A BR":                0.78,
+    "Eredivisie":                0.76,
+    "Liga MX":                   0.75,
+    "Liga Portugal":             0.74,
+    "Liga NOS":                  0.74,
+    "Primeira Liga":             0.74,
+    "Campeonato Argentino":      0.72,
+    "Primera División":          0.72,
+    "Turkish Süper Lig":         0.71,
+    "Süper Lig":                 0.71,
+    "Scottish Premiership":      0.68,
+    "Belgian Pro League":        0.67,
+    "First Division A":          0.67,
+    "MLS":                       0.62,
+    "Major League Soccer":       0.62,
+    "Saudi Pro League":          0.60,
     "Saudi Professional League": 0.60,
+    # Copas domésticas — menos jogos, médias infladas
+    "FA Cup":                    0.75,
+    "Copa del Rey":              0.76,
+    "DFB Pokal":                 0.76,
+    "Copa do Brasil":            0.68,
+    "League Cup":                0.72,
+    "EFL Cup":                   0.72,
+    "Carabao Cup":               0.72,
+    "Copa de la Liga MX":        0.65,
+    "Copa MX":                   0.65,
+    # Ligas africanas
+    "Premier Soccer League":     0.42,
+    "PSL":                       0.42,
+    "South African PSL":         0.42,
+    "NFD":                       0.32,           # 2ª divisão África do Sul
+    "CAF Champions League":      0.58,
+    "AFCON":                     0.65,
+    "Africa Cup of Nations":     0.65,
+    "African Nations Championship": 0.55,
 }
-_LSS_OUTROS_EUROPA  = 0.58
-_LSS_OUTROS_AMERICA = 0.52
-_LSS_FALLBACK       = 0.50
+
+# Copas nacionais: têm poucos jogos e distorcem métricas ofensivas
+# Jogadores com stats exclusivamente de copa são marcados como copa_apenas=True
+_LSS_COPA_FALLBACK   = 0.65   # fallback para nome que contenha "Cup" / "Copa"
+_LSS_LIGA_FALLBACK   = 0.50   # fallback para nome que contenha "League" / "Liga"
+_LSS_OUTROS_EUROPA   = 0.58
+_LSS_OUTROS_AMERICA  = 0.52
+_LSS_FALLBACK        = 0.50
+
+# Palavras que indicam copa doméstica (estatísticas infladas, poucos jogos)
+# "8 Cup", "10 Cup" etc são nomes de torneios africanos de copa
+_COPA_KEYWORDS = {"cup", "copa", "pokal", "coupe", "coppa", "taca", "taça",
+                  "supercup", "supercopa", "shield", "community",
+                  "campeón de campeones", "campeones"}
 
 # Ligas europeias conhecidas (para fallback "outros Europa")
 _EUROPA_KEYWORDS = {"league", "liga", "ligue", "serie", "premiership",
@@ -83,17 +115,27 @@ _AMERICA_KEYWORDS = {"brasileirão", "argentina", "chile", "colombia", "ecuador"
 
 def _lss_da_liga(nome_liga: str) -> float:
     """Retorna o League Strength Score para o nome da liga retornado pela API."""
-    # Procura match exato primeiro
-    for key, val in _LSS.items():
-        if key.lower() in nome_liga.lower() or nome_liga.lower() in key.lower():
-            return val
-    # Fallback por região
     nl = nome_liga.lower()
+    # Match parcial bidirecional na tabela principal
+    for key, val in _LSS.items():
+        if key.lower() in nl or nl in key.lower():
+            return val
+    # Fallbacks por tipo de competição
+    if any(kw in nl for kw in _COPA_KEYWORDS):
+        return _LSS_COPA_FALLBACK
     if any(kw in nl for kw in _EUROPA_KEYWORDS):
         return _LSS_OUTROS_EUROPA
     if any(kw in nl for kw in _AMERICA_KEYWORDS):
         return _LSS_OUTROS_AMERICA
+    if "league" in nl or "liga" in nl:
+        return _LSS_LIGA_FALLBACK
     return _LSS_FALLBACK
+
+
+def _e_copa(nome_liga: str) -> bool:
+    """Retorna True se a competição é uma copa doméstica (poucos jogos, stats infladas)."""
+    nl = nome_liga.lower()
+    return any(kw in nl for kw in _COPA_KEYWORDS)
 
 
 CATEGORIAS = [
@@ -269,7 +311,8 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
         "minutes": 0, "appearances": 0,
         "clube_nome": "", "clube_logo": "",
         "liga_nome": "", "liga_lss": _LSS_FALLBACK,
-        "_lss_min_weighted": 0.0,   # acumulador ponderado
+        "_lss_min_weighted": 0.0,
+        "_minutos_liga": 0,   # minutos em ligas (não copas) — para detectar copa_apenas
     }
     found = False
     for entry in response_list:
@@ -288,6 +331,8 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
             total["minutes"]             += mins
             total["appearances"]         += g.get("appearences") or 0
             total["_lss_min_weighted"]   += lss * mins
+            if not _e_copa(liga_nm):
+                total["_minutos_liga"]   += mins  # só conta minutos de liga
             gl = st.get("goals", {})
             total["goals"]        += gl.get("total") or 0
             total["assists"]      += gl.get("assists") or 0
@@ -308,8 +353,10 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
                 total["liga_lss"]   = lss
 
     if found and total["minutes"] > 0:
-        # LSS médio ponderado por minutos
         total["liga_lss"] = round(total["_lss_min_weighted"] / total["minutes"], 3)
+        # Marca se TODOS os minutos vieram de copas domésticas
+        # (uso: exclui do ranking ofensivo — poucos jogos distorcem P90)
+        total["copa_apenas"] = total.get("_minutos_liga", 0) == 0
 
     return total if found else None
 
@@ -335,61 +382,103 @@ async def _buscar_club_id(client: httpx.AsyncClient, clube: str) -> int | None:
     return None
 
 
+def _score_nome(api_name: str, nome_busca: str) -> int:
+    """Score de similaridade de nome: palavras em comum (case-insensitive)."""
+    words_api  = set(api_name.lower().split())
+    words_nome = set(nome_busca.lower().split())
+    return len(words_api & words_nome)
+
+
 async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
     """
-    Passo 2: Busca stats da temporada 2025/26 do jogador no clube.
-    Estratégia:
-      1. Busca team_id do clube via /teams?name={clube}
-      2. Busca todos os jogadores do clube via /players?team={id}&season={season}
-      3. Encontra o jogador pelo nome (match parcial)
-    A API não permite /players?search sem team ou league.
+    Passo 2 (Ajuste 2): Busca stats do jogador em 3 tentativas em cascata.
+
+    Tentativa 1: /players?search={nome}&team={club_id}&season={season}
+      → Busca direta por nome dentro do clube — mais precisa.
+
+    Tentativa 2: /players?team={club_id}&season={season} → match por nome
+      → Fallback: varre todos os jogadores do clube.
+
+    Tentativa 3: /players?search={nome}&season={season} (qualquer liga)
+      → Último recurso para clubes menos conhecidos.
+
+    Após encontrar o player_id, pode-se usar /players?id={id}&season={season}
+    para obter stats mais completas se necessário.
     """
     nome_busca = nome.split("(")[0].strip()
 
     try:
         async with httpx.AsyncClient(timeout=12) as client:
             club_id = await _buscar_club_id(client, clube)
-            if not club_id:
+
+            # ── Tentativa 1: search + team (mais preciso) ─────────────────────
+            entry = None
+            if club_id:
+                d1 = await _api_get(client, "/players", {
+                    "search": nome_busca,
+                    "team":   club_id,
+                    "season": SEASON,
+                })
+                for e in d1.get("response", []):
+                    if _score_nome(e.get("player", {}).get("name", ""), nome_busca) > 0:
+                        entry = e
+                        break
+
+            # ── Tentativa 2: todos os jogadores do clube ───────────────────────
+            if not entry and club_id:
+                d2 = await _api_get(client, "/players", {
+                    "team":   club_id,
+                    "season": SEASON,
+                })
+                melhor_score = 0
+                for e in d2.get("response", []):
+                    sc = _score_nome(e.get("player", {}).get("name", ""), nome_busca)
+                    if sc > melhor_score:
+                        melhor_score = sc
+                        entry = e
+                if melhor_score == 0:
+                    entry = None
+
+            # ── Tentativa 3: search global (qualquer clube) ─────────────────────
+            if not entry:
+                # Requer league; tenta com ligas mais comuns
+                for league_id in [39, 140, 78, 135, 61, 262, 288]:  # PL,LaLiga,BL,SerieA,L1,LigaMX,PSL
+                    d3 = await _api_get(client, "/players", {
+                        "search": nome_busca,
+                        "league": league_id,
+                        "season": SEASON,
+                    })
+                    for e in d3.get("response", []):
+                        if _score_nome(e.get("player", {}).get("name", ""), nome_busca) > 0:
+                            entry = e
+                            break
+                    if entry:
+                        break
+
+            if not entry:
                 return None
 
-            # Busca todos os jogadores do clube na temporada
-            data = await _api_get(client, "/players", {
-                "team":   club_id,
-                "season": SEASON,
-            })
+            # ── Busca stats completas pelo player_id ────────────────────────────
+            player_id = entry.get("player", {}).get("id")
+            if player_id:
+                d_full = await _api_get(client, "/players", {
+                    "id":     player_id,
+                    "season": SEASON,
+                })
+                full_entries = d_full.get("response", [])
+                if full_entries:
+                    entry = full_entries[0]  # stats completas de todas as ligas
+
     except Exception:
         return None
 
-    results = data.get("response", [])
-    if not results:
-        return None
-
-    # Encontra o jogador pelo nome (match case-insensitive, parcial)
-    nome_lower = nome_busca.lower()
-    melhor = None
-    melhor_score = 0
-
-    for entry in results:
-        api_name = entry.get("player", {}).get("name", "").lower()
-        # Score de similaridade simples: palavras em comum
-        words_api  = set(api_name.split())
-        words_nome = set(nome_lower.split())
-        score = len(words_api & words_nome)
-        if score > melhor_score:
-            melhor_score = score
-            melhor = entry
-
-    if not melhor or melhor_score == 0:
-        return None
-
-    agregado = _agregar_stats([melhor])
+    agregado = _agregar_stats([entry])
     if not agregado:
         return None
 
-    player_info = melhor.get("player", {})
+    player_info = entry.get("player", {})
     agregado["foto"]     = player_info.get("photo", "")
     agregado["api_nome"] = player_info.get("name", nome)
-
     return agregado
 
 
@@ -418,10 +507,13 @@ def calcular_p90(raw: dict) -> dict:
         val = p90(campo)
         return round(val * lss, 2) if val is not None else None
 
+    copa_apenas = raw.get("copa_apenas", False)
+
     return {
         "minutes":              mins,
         "appearances":          raw.get("appearances", 0),
         "amostra_insuficiente": not ok,
+        "copa_apenas":          copa_apenas,
         "clube_nome":           raw.get("clube_nome", ""),
         "clube_logo":           raw.get("clube_logo", ""),
         "foto":                 raw.get("foto", ""),
@@ -513,7 +605,10 @@ def selecionar_destaques(
         if len(resultado) >= MAX_JUGADORES:
             break
 
-        # Candidatos com P90 ajustado (LSS) e amostra suficiente
+        # Categorias ofensivas que não devem usar jogadores copa_apenas
+        CATEGORIAS_OFENSIVAS = {"goleadores", "assistentes", "chutadores", "passes_chave"}
+        exclui_copa = cat_key in CATEGORIAS_OFENSIVAS
+
         candidatos = []
         for p in squad:
             nome = p["nome"]
@@ -522,7 +617,9 @@ def selecionar_destaques(
             st = stats_map.get(nome)
             if not st or st.get("amostra_insuficiente"):
                 continue
-            # Ordena pelo valor ajustado (P90 × LSS)
+            # Ajuste 3: exclui copa_apenas de categorias ofensivas
+            if exclui_copa and st.get("copa_apenas"):
+                continue
             val = st.get(f"{campo}_p90_adj") or st.get(f"{campo}_p90")
             if val is None or val <= 0:
                 continue
