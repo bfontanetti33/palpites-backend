@@ -387,7 +387,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     away_id     = jogo["time_fora_id"]
     fixture_id  = jogo["api_fixture_id"]
 
-    # ── 8 chamadas paralelas à API ────────────────────────────────────────────
+    # ── 8 chamadas paralelas à API + jogadores (paralelo separado) ───────────
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             (
@@ -413,6 +413,29 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         h2h = []
         arb = None
         odds = None
+
+    # Jogadores em paralelo (não bloqueia os dados do jogo)
+    from app.agents.players_agent import buscar_jogadores_destaque
+    from app.models.schemas import JogadoresDestaque, JogadorDestaque
+    try:
+        dest_casa_raw, dest_fora_raw = await asyncio.gather(
+            buscar_jogadores_destaque(home["name"]),
+            buscar_jogadores_destaque(away["name"]),
+        )
+        def _to_destaque(raw: dict) -> JogadoresDestaque:
+            jogadores = [JogadorDestaque(**j) for j in raw.get("jogadores", [])]
+            return JogadoresDestaque(
+                time_nome=raw["time_nome"],
+                jogadores=jogadores,
+                total_squad=raw.get("total_squad", 0),
+                fonte_squad=raw.get("fonte_squad", ""),
+                jogadores_analisados=raw.get("jogadores_analisados", 0),
+                dados_insuficientes=raw.get("dados_insuficientes", True),
+            )
+        dest_casa = _to_destaque(dest_casa_raw)
+        dest_fora = _to_destaque(dest_fora_raw)
+    except Exception:
+        dest_casa = dest_fora = None
 
     # ── Enriquece stats com BTTS/Over calculados da forma recente ─────────────
     stats_casa = _enriquecer_btts_over(stats_casa_raw, forma_casa)
@@ -468,6 +491,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         placares_provaveis=placares_provaveis,
         arbitro=arb,
         odds=odds,
+        jogadores_destaque_casa=dest_casa,
+        jogadores_destaque_fora=dest_fora,
         dados_insuficientes=(
             stats_casa.dados_insuficientes
             or stats_fora.dados_insuficientes
