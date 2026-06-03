@@ -54,6 +54,72 @@ async def admin_stats():
     }
 
 
+@router.get("/admin/test-supabase", tags=["Admin"])
+async def test_supabase():
+    """Teste de conexão Supabase — insere, busca e remove usuário de teste."""
+    import uuid, os, httpx
+    url = os.getenv("SUPABASE_URL", "")
+    key = os.getenv("SUPABASE_KEY", "")
+    result: dict = {
+        "supabase_url_configurada": bool(url),
+        "supabase_key_configurada": bool(key),
+        "insert": None, "select": None, "delete": None, "erro": None,
+    }
+    if not url or not key:
+        result["erro"] = "SUPABASE_URL ou SUPABASE_KEY não configurados"
+        return result
+
+    headers = {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation",
+    }
+    test_id    = str(uuid.uuid4())
+    test_email = f"test-{test_id[:8]}@palpitesdaia-test.com"
+
+    async with httpx.AsyncClient(timeout=10) as c:
+        # INSERT
+        try:
+            r = await c.post(f"{url}/rest/v1/users", headers=headers,
+                json={"id": test_id, "email": test_email})
+            result["insert"] = {"status": r.status_code, "ok": r.status_code in (200, 201)}
+            if r.status_code not in (200, 201):
+                result["erro"] = f"INSERT falhou: {r.status_code} — {r.text[:200]}"
+                return result
+        except Exception as e:
+            result["erro"] = f"INSERT exception: {e}"
+            return result
+
+        # SELECT
+        try:
+            r = await c.get(f"{url}/rest/v1/users", headers=headers,
+                params={"id": f"eq.{test_id}", "select": "id,email,is_premium,avulso_credits"})
+            data = r.json()
+            result["select"] = {
+                "status": r.status_code,
+                "ok": r.status_code == 200 and len(data) == 1,
+                "row": data[0] if data else None,
+            }
+        except Exception as e:
+            result["select"] = {"ok": False, "erro": str(e)}
+
+        # DELETE
+        try:
+            r = await c.delete(f"{url}/rest/v1/users", headers=headers,
+                params={"id": f"eq.{test_id}"})
+            result["delete"] = {"status": r.status_code, "ok": r.status_code in (200, 204)}
+        except Exception as e:
+            result["delete"] = {"ok": False, "erro": str(e)}
+
+    result["conexao_ok"] = (
+        result["insert"]["ok"] and
+        result["select"]["ok"] and
+        result["delete"]["ok"]
+    )
+    return result
+
+
 @router.get("/admin/health-check")
 async def health_check(authorization: str | None = Header(default=None)):
     """
