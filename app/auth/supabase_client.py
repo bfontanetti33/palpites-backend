@@ -53,12 +53,10 @@ async def ping() -> dict:
         return result
     try:
         async with httpx.AsyncClient(timeout=5, follow_redirects=True) as c:
-            r = await c.get(
-                f"{url}/rest/v1/",
-                headers={"apikey": key, "Authorization": f"Bearer {key}"},
-            )
+            # /auth/v1/health é público (não exige auth) — confirma que o projeto existe
+            r = await c.get(f"{url}/auth/v1/health")
         result["status_code"] = r.status_code
-        result["conectado"] = r.status_code in (200, 201, 404)
+        result["conectado"] = r.status_code == 200
     except Exception as e:
         result["erro"] = str(e)[:200]
     return result
