@@ -1,16 +1,23 @@
 {
-  "timestamp": "2026-06-03T09:25:56.138627",
+  "timestamp": "2026-06-03T14:43:36.606753",
   "resultado_geral": "APROVADO COM RESSALVAS",
   "exit_code": 0,
   "n_criticos": 0,
-  "n_warnings": 5,
+  "n_warnings": 12,
   "criticos": [],
   "warnings": [
     "Apenas 9 seleções (esperado >= 40 das 48)",
+    "Não foi possível verificar quota: 'list' object has no attribute 'get'",
+    "Mexico: apenas 0 jogos na forma (esperado >= 3)",
+    "South Africa: apenas 0 jogos na forma (esperado >= 3)",
+    "Mexico: stats_insuficientes (sem histórico internacional encontrado)",
+    "Brazil: apenas 0 jogos na forma (esperado >= 3)",
+    "Morocco: apenas 0 jogos na forma (esperado >= 3)",
+    "Brazil: stats_insuficientes (sem histórico internacional encontrado)",
     "France: apenas 0 jogos na forma (esperado >= 3)",
     "Senegal: apenas 0 jogos na forma (esperado >= 3)",
     "France: stats_insuficientes (sem histórico internacional encontrado)",
-    "Odds API não acessível: "
+    "Odds API retornou HTTP 401: {\"message\":\"Usage quota has been reached. See usage plans at https://the-odds-api.com\",\"error_code\":\"OUT_OF_USAGE_CREDITS\",\"details_url\":\"https://the-odds-api.com/liveapi/guides/v4/api-error-codes.htm"
   ],
   "blocos": {
     "seed": {
@@ -48,19 +55,23 @@
     "api_football": {
       "status": "ok",
       "problemas": [],
-      "quota_restante": "?/?",
+      "quota_restante": "?",
       "tempos_resposta": {
-        "status": 252
+        "status": 301
       },
       "times_sem_dados": [
         "Senegal",
+        "Mexico",
+        "Morocco",
+        "Brazil",
+        "South Africa",
         "France"
       ]
     },
     "odds_api": {
       "status": "ok",
       "problemas": [],
-      "requests_remaining": "?",
+      "requests_remaining": "0",
       "jogos_com_odds": 0,
       "shin_ok": false,
       "zscore_ok": true,
