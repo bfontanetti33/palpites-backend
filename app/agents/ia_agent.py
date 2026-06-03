@@ -3,8 +3,8 @@ Agente estatístico avançado — 5 camadas + 4B.
 
 CAMADA 1   Rating Dinâmico  : Elo (eloratings.net scraping + fallback) + Pi-rating próprio
 CAMADA 2   Modelo de Gols   : Dixon-Coles + Skellam + calibração
-CAMADA 3   Value Bet        : só com odds REAIS da API — nunca simula
-CAMADA 4   Context Engine   : fadiga, rodada, zebra, H2H, campo neutro
+CAMADA 3   Odds Engine      : Shin Method + consensus ponderado + z-score + value bets
+CAMADA 4   Context Engine   : fadiga, rodada, zebra (critérios robustos), H2H, campo neutro
 CAMADA 4B  Tail Risk Engine : Fat Tail (Taleb), Fragility, Uncertainty, Barbell
 CAMADA 5   Claude (narrativa): só texto, nunca inventa dados
 
@@ -589,10 +589,12 @@ def _calcular_contexto(
     rating_casa: RatingDinamico,
     rating_fora: RatingDinamico,
     modelo: ModeloGols,
+    odds_engine_result: dict | None = None,
 ) -> tuple[FatorContexto, ModeloGols]:
     """
     Detecta fatores contextuais e aplica ajustes ao ModeloGols.
     Retorna (contexto, modelo_ajustado).
+    odds_engine_result: output do processar_odds (Camada 3) para critérios robustos de zebra.
     """
     data_jogo = datetime.strptime(partida.horario[:10], "%Y-%m-%d").date()
 
@@ -632,23 +634,83 @@ def _calcular_contexto(
     # Primeira rodada
     primeira = "Rodada 1" in partida.rodada
 
-    # Zebra: Elo diff > 150 + underdog com forma > 60%
+    # ── Zebra: critérios robustos (Camada 3 + Elo + forma) ─────────────────────
     zebra = False
     zebra_desc = ""
-    elo_c = rating_casa.elo_score or ELO_CENTER
-    elo_f = rating_fora.elo_score or ELO_CENTER
+    elo_c    = rating_casa.elo_score or ELO_CENTER
+    elo_f    = rating_fora.elo_score or ELO_CENTER
     elo_diff = abs(elo_c - elo_f)
-    if elo_diff > 150:
-        underdog_nome = partida.time_fora_nome if elo_c > elo_f else partida.time_casa_nome
-        underdog_forma = partida.forma_fora if elo_c > elo_f else partida.forma_casa
-        wr = _win_rate_last_n(underdog_forma, 5)
-        if wr > 0.60:
-            zebra = True
-            zebra_desc = (
-                f"{underdog_nome} é o azarão (Elo {min(elo_c, elo_f):.0f} vs {max(elo_c, elo_f):.0f}, "
-                f"diferença {elo_diff:.0f}pts) mas tem {wr*100:.0f}% de vitórias nos últimos 5 jogos. "
-                f"Em Copas do Mundo, zebras ocorrem com frequência 2× maior que em ligas domésticas."
-            )
+
+    azarao_e_fora  = elo_c > elo_f
+    underdog_nome  = partida.time_fora_nome if azarao_e_fora else partida.time_casa_nome
+    favorito_nome  = partida.time_casa_nome if azarao_e_fora else partida.time_fora_nome
+    underdog_forma = partida.forma_fora     if azarao_e_fora else partida.forma_casa
+    favorito_forma = partida.forma_casa     if azarao_e_fora else partida.forma_fora
+    wr_underdog    = _win_rate_last_n(underdog_forma, 5)
+    fad_favorito   = fadiga(favorito_forma)
+
+    # Prob do modelo para o azarão (em [0, 1])
+    prob_az = (modelo.prob_vitoria_fora if azarao_e_fora else modelo.prob_vitoria_casa) / 100.0
+
+    # Critério 2 (obrigatório): prob_modelo azarão > 25%
+    crit2 = prob_az > 0.25
+
+    # Critério 3 (pelo menos 1): evidência que azarão pode ganhar
+    crit3 = wr_underdog > 0.60 or elo_diff < 150 or fad_favorito
+
+    # Critério 4: dados suficientes (>= 3 jogos na forma do azarão)
+    crit4 = len(underdog_forma) >= 3
+
+    # Critério 1 + sharp money (requer odds_engine)
+    crit1          = False
+    sharp_confirma = False
+    sharp_rejeita  = False
+    value_score_az = None
+    z_score_az     = None
+
+    if odds_engine_result and odds_engine_result.get("odds_disponiveis"):
+        resultado_az = "away" if azarao_e_fora else "home"
+        div = (odds_engine_result.get("divergencia") or {}).get(resultado_az, {})
+        z_score_az     = div.get("z_score")
+        # Busca value_score no value_bets
+        for vb in odds_engine_result.get("value_bets", []):
+            if vb.get("resultado") == resultado_az:
+                value_score_az = vb.get("value_score", 0)
+                break
+        crit1 = (
+            (value_score_az or 0) > 0.15
+            and (z_score_az or 0) > 1.96
+        )
+        # Sharp money
+        sharp = odds_engine_result.get("sharp_money", {})
+        if sharp.get("detectado"):
+            if sharp.get("direcao") == resultado_az:
+                sharp_confirma = True
+            else:
+                sharp_rejeita  = True
+
+    # Detecta zebra
+    if crit2 and crit3 and crit4 and not sharp_rejeita:
+        if odds_engine_result and odds_engine_result.get("odds_disponiveis"):
+            # Com odds: exige value + z_score significativos (Condição 1)
+            zebra = crit1
+        else:
+            # Sem odds: usa critérios clássicos (Elo diff > 150 + forma > 60%)
+            zebra = elo_diff > 150 and wr_underdog > 0.60
+
+    if zebra:
+        elo_az = min(elo_c, elo_f)
+        elo_fav = max(elo_c, elo_f)
+        prioridade = " 🔥 Sharp money confirma!" if sharp_confirma else ""
+        vs_txt = (
+            f"value={value_score_az:+.2f}, z={z_score_az:.2f}" if value_score_az is not None
+            else f"Elo diff={elo_diff:.0f}pts, forma={wr_underdog*100:.0f}%"
+        )
+        zebra_desc = (
+            f"{underdog_nome} é o azarão (Elo {elo_az:.0f} vs {elo_fav:.0f}) "
+            f"mas o modelo identifica edge real: {vs_txt}. "
+            f"Em Copas do Mundo, zebras ocorrem 2× mais que em ligas domésticas.{prioridade}"
+        )
 
     # H2H sample
     n_h2h = len(partida.head_to_head)
@@ -1228,11 +1290,27 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         partida.forma_casa, partida.forma_fora,
     )
 
-    # Camada 3 — Value bets (só com odds reais da API)
-    odds_disp, value_bets = _calcular_value_bets(modelo, partida.odds)
+    # Camada 3 — Odds Engine (Shin + consensus + z-score + value bets)
+    from app.agents.odds_engine import processar_odds as _processar_odds
+    _prob_modelo_01 = {
+        "vitoria_casa": modelo.prob_vitoria_casa / 100.0,
+        "empate":       modelo.prob_empate       / 100.0,
+        "vitoria_fora": modelo.prob_vitoria_fora / 100.0,
+        "btts":         modelo.prob_btts         / 100.0,
+        "over15":       modelo.prob_over15       / 100.0,
+        "under15":      modelo.prob_under15      / 100.0,
+        "over25":       modelo.prob_over25       / 100.0,
+        "under25":      modelo.prob_under25      / 100.0,
+        "over35":       modelo.prob_over35       / 100.0,
+        "under35":      modelo.prob_under35      / 100.0,
+    }
+    odds_result = _processar_odds(partida.odds, _prob_modelo_01)
+    odds_disp   = odds_result["odds_disponiveis"]
+    # value_bets legado (formato _LABELS + "entrada") para _score_final
+    _, value_bets = _calcular_value_bets(modelo, partida.odds)
 
-    # Camada 4 — Contexto + ajustes
-    ctx, modelo_c4 = _calcular_contexto(partida, rating_c, rating_f, modelo)
+    # Camada 4 — Contexto + ajustes (recebe odds_engine para zebra robusta)
+    ctx, modelo_c4 = _calcular_contexto(partida, rating_c, rating_f, modelo, odds_result)
 
     # Camada 4B — Tail Risk
     tail_risk, modelo_final = _calcular_tail_risk(
@@ -1265,6 +1343,7 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         modelo_gols=modelo_final,
         odds_disponiveis=odds_disp,
         value_bets=value_bets,
+        odds_analise=odds_result,
         contexto=ctx,
         tail_risk=tail_risk,
         top3=top3,

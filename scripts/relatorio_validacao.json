@@ -1,0 +1,94 @@
+{
+  "timestamp": "2026-06-03T02:06:19.642439",
+  "resultado_geral": "REPROVADO",
+  "exit_code": 1,
+  "n_criticos": 1,
+  "n_warnings": 7,
+  "criticos": [
+    "france-senegal: probs somam 0.0%"
+  ],
+  "warnings": [
+    "Apenas 9 seleções (esperado >= 40 das 48)",
+    "france-senegal: apenas 0 placares (esperado >= 3)",
+    "Status endpoint retornou HTTP 429",
+    "France: apenas 0 jogos na forma (esperado >= 3)",
+    "Senegal: apenas 0 jogos na forma (esperado >= 3)",
+    "France: stats_insuficientes (sem histórico internacional encontrado)",
+    "29 evento(s) com margem > 15% — casas recreativas"
+  ],
+  "blocos": {
+    "seed": {
+      "status": "ok",
+      "problemas": [],
+      "stats": {
+        "total_jogos": 72,
+        "grupos": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "I",
+          "J",
+          "K",
+          "L"
+        ],
+        "total_times": 48,
+        "total_cidades": 16
+      }
+    },
+    "squads": {
+      "status": "ok",
+      "problemas": [],
+      "stats": {
+        "total_selecoes": 9,
+        "total_jogadores": 233,
+        "media_por_selecao": 25.9
+      }
+    },
+    "api_football": {
+      "status": "ok",
+      "problemas": [],
+      "quota_restante": "?",
+      "tempos_resposta": {
+        "status": 35
+      },
+      "times_sem_dados": [
+        "France",
+        "Senegal"
+      ]
+    },
+    "odds_api": {
+      "status": "ok",
+      "problemas": [],
+      "requests_remaining": "172",
+      "jogos_com_odds": 72,
+      "shin_ok": true,
+      "zscore_ok": true,
+      "odds_engine_importado": true
+    },
+    "modelo": {
+      "status": "ok",
+      "testes_passaram": 37,
+      "testes_falharam": 0,
+      "detalhes": []
+    },
+    "end_to_end": {
+      "status": "warning",
+      "problemas": [
+        "probs somam 0.0% (esperado 100%)",
+        "lambda <= 0"
+      ],
+      "jogos_testados": {
+        "mexico-south-africa": true,
+        "brazil-morocco": true,
+        "france-senegal": false
+      },
+      "zebra_ok": true,
+      "bingo_ok": true
+    }
+  }
+}

@@ -274,9 +274,10 @@ class RecomendacaoIA(BaseModel):
     # Camada 2
     modelo_gols: ModeloGols
 
-    # Camada 3
+    # Camada 3 — legado + odds_engine
     odds_disponiveis: bool
     value_bets: list[dict]
+    odds_analise: dict | None = None   # output completo do odds_engine (Shin, consensus, z-score)
 
     # Camada 4
     contexto: FatorContexto

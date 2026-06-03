@@ -161,6 +161,23 @@ async def buscar_odds_evento(event_id: str) -> dict | None:
         elif key == "totals":
             odds.update(_parsear_totals(mercado))
 
+    # Coleta h2h de TODOS os bookmakers para consensus (odds_engine)
+    bookmakers_h2h = []
+    for bm_all in bookmakers:
+        for mkt in bm_all.get("markets", []):
+            if mkt.get("key") != "h2h":
+                continue
+            h2h = _parsear_h2h(mkt)
+            if "vitoria_casa" in h2h and "empate" in h2h and "vitoria_fora" in h2h:
+                bookmakers_h2h.append({
+                    "key":  bm_all["key"],
+                    "home": h2h["vitoria_casa"],
+                    "draw": h2h["empate"],
+                    "away": h2h["vitoria_fora"],
+                })
+    if bookmakers_h2h:
+        odds["bookmakers_h2h"] = bookmakers_h2h
+
     return odds if len(odds) > 2 else None  # retorna None se só tem metadados
 
 

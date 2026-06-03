@@ -497,24 +497,19 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     dest_fora = _to_destaque(dest_fora_raw) if dest_fora_raw else None
 
     # ── Probabilidades e top 3 placares via Poisson ───────────────────────────
-    probabilidades   = None
     placares_provaveis: list[PlacarProvavel] = []
 
-    # Prefere médias dos últimos 10 jogos (mais representativas) sobre histórico de Copa
+    # Prefere médias dos últimos 10 jogos (mais representativas) sobre histórico de Copa.
+    # Fallback de 1.2 gols/jogo (média histórica internacional) quando stats indisponíveis.
     lc_raw = stats_casa.media_gols_marcados_recente or stats_casa.media_gols_marcados
     lf_raw = stats_fora.media_gols_marcados_recente or stats_fora.media_gols_marcados
+    lc = lc_raw if lc_raw is not None else 1.2
+    lf = lf_raw if lf_raw is not None else 1.2
 
-    if lc_raw is not None and lf_raw is not None:
-        lc = lc_raw
-        lf = lf_raw
-        probabilidades     = _calcular_probabilidades(lc, lf)
-        placares_provaveis = _calcular_placares_provaveis(lc, lf, top=3)
-    else:
-        probabilidades = Probabilidades(
-            vitoria_casa=0, empate=0, vitoria_fora=0,
-            lambda_casa=0.0, lambda_fora=0.0,
-            dados_insuficientes=True,
-        )
+    probabilidades     = _calcular_probabilidades(lc, lf)
+    if lc_raw is None or lf_raw is None:
+        probabilidades = probabilidades.model_copy(update={"dados_insuficientes": True})
+    placares_provaveis = _calcular_placares_provaveis(lc, lf, top=3)
 
     return Partida(
         id=fixture_id,
