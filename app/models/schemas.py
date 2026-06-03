@@ -173,6 +173,10 @@ class Partida(PartidaResumo):
     jogadores_destaque_casa: JogadoresDestaque | None = None
     jogadores_destaque_fora: JogadoresDestaque | None = None
     dados_insuficientes: bool = False
+    # Insights textuais gerados a partir dos dados (sem chamada Claude)
+    insight_forma_casa: str = ""
+    insight_forma_fora: str = ""
+    insight_probabilidades: str = ""
 
 
 # ── Modelos do agente estatístico ─────────────────────────────────────────────

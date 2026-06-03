@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Header, Request
+from fastapi import APIRouter, HTTPException, Header, Request, Response
 from app.agents.football_agent import buscar_todos_jogos_copa, buscar_detalhe_partida
 from app.agents.ia_agent import gerar_recomendacao
 from app.models.schemas import RespostaCopa, Partida, RecomendacaoIA
@@ -11,19 +11,20 @@ PREMIUM_TOKEN = os.getenv("PREMIUM_TOKEN", "token-secreto-troque-isso")
 
 
 @router.get("/copa/jogos", response_model=RespostaCopa)
-@limiter.limit("30/minute")
-async def listar_jogos_copa(request: Request):
+@limiter.limit("60/minute")
+async def listar_jogos_copa(request: Request, response: Response):
     """
     Lista todos os jogos da Copa do Mundo FIFA 2026.
     Retorna status atual (NS/FT/1H/...) e placar quando disponível.
     dados_insuficientes na lista individual indica dados parciais.
     """
+    response.headers["Cache-Control"] = "public, max-age=14400"  # 4h — dados estáticos do seed
     partidas = await buscar_todos_jogos_copa()
     return RespostaCopa(total=len(partidas), temporada=2026, partidas=partidas)
 
 
 @router.get("/copa/jogos/{slug}", response_model=Partida)
-@limiter.limit("10/minute")
+@limiter.limit("30/minute")
 async def detalhe_jogo(request: Request, slug: str):
     """
     Detalhes completos de um jogo da Copa 2026.

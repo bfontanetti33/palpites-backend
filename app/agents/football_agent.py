@@ -43,7 +43,8 @@ _INTL_LEAGUES: list[tuple[int, list[int], str]] = [
     (5,  [2024, 2022, 2020],       "Nations League"),  # UEFA Nations League
 ]
 
-_cache: TTLCache = TTLCache(maxsize=400, ttl=3600)
+_cache: TTLCache = TTLCache(maxsize=400, ttl=14400)   # 4h — chamadas individuais API-Football
+_partida_cache: TTLCache = TTLCache(maxsize=72, ttl=14400)  # 4h — resposta completa por slug
 
 
 # ── Seed ─────────────────────────────────────────────────────────────────────
@@ -391,6 +392,56 @@ def _jogo_para_resumo(j: dict) -> PartidaResumo:
     )
 
 
+# ── Geração de insights textuais (rule-based, zero chamadas externas) ─────────
+
+def _gerar_insight_forma(nome: str, forma: list[EntradaForma]) -> str:
+    if not forma:
+        return f"Dados de forma de {nome} indisponíveis — sem jogos recentes na API."
+    ultimos = forma[-5:]
+    v = sum(1 for j in ultimos if j.resultado == "W")
+    e = sum(1 for j in ultimos if j.resultado == "D")
+    d = sum(1 for j in ultimos if j.resultado == "L")
+    gols_pro = [j.placar_proprio for j in ultimos if j.placar_proprio is not None]
+    media = round(sum(gols_pro) / len(gols_pro), 1) if gols_pro else 0.0
+    if v >= 4:
+        avaliacao = "excelente momento"
+    elif v >= 3:
+        avaliacao = "boa fase"
+    elif d >= 4:
+        avaliacao = "má fase preocupante"
+    elif d >= 3:
+        avaliacao = "fase difícil"
+    else:
+        avaliacao = "forma irregular"
+    return (
+        f"{nome} chega em {avaliacao}: {v}V {e}E {d}D nos últimos {len(ultimos)} jogos, "
+        f"média de {media} gols marcados por partida."
+    )
+
+
+def _gerar_insight_probabilidades(
+    nome_casa: str, nome_fora: str, prob: "Probabilidades | None"
+) -> str:
+    if not prob:
+        return "Probabilidades indisponíveis."
+    if prob.dados_insuficientes:
+        return (
+            f"Probabilidades estimadas com fallback histórico (1.2 gols/jogo): "
+            f"{nome_casa} {prob.vitoria_casa}% · Empate {prob.empate}% · {nome_fora} {prob.vitoria_fora}%."
+        )
+    vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
+    lc, lf = prob.lambda_casa, prob.lambda_fora
+    if vc >= 55:
+        lider = f"{nome_casa} é favorito com {vc}% de vitória"
+    elif vf >= 55:
+        lider = f"{nome_fora} é favorito com {vf}% de vitória"
+    elif vc >= 45:
+        lider = f"{nome_casa} tem leve vantagem ({vc}% vs {vf}%)"
+    else:
+        lider = f"Confronto equilibrado — {nome_casa} {vc}% · Empate {emp}% · {nome_fora} {vf}%"
+    return f"{lider}. Gols esperados: {lc} (casa) e {lf} (fora). Empate: {emp}%."
+
+
 # ── API pública ───────────────────────────────────────────────────────────────
 
 async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
@@ -399,6 +450,9 @@ async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
 
 
 async def buscar_detalhe_partida(slug: str) -> Partida | None:
+    if slug in _partida_cache:
+        return _partida_cache[slug]
+
     jogo = _POR_SLUG.get(slug)
     if not jogo:
         return None
@@ -511,7 +565,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         probabilidades = probabilidades.model_copy(update={"dados_insuficientes": True})
     placares_provaveis = _calcular_placares_provaveis(lc, lf, top=3)
 
-    return Partida(
+    partida = Partida(
         id=fixture_id,
         slug=jogo["slug"],
         rodada=jogo["rodada"],
@@ -546,4 +600,11 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
             or len(forma_casa) == 0
             or len(forma_fora) == 0
         ),
+        insight_forma_casa=_gerar_insight_forma(jogo["time_casa"], forma_casa),
+        insight_forma_fora=_gerar_insight_forma(jogo["time_fora"], forma_fora),
+        insight_probabilidades=_gerar_insight_probabilidades(
+            jogo["time_casa"], jogo["time_fora"], probabilidades
+        ),
     )
+    _partida_cache[slug] = partida
+    return partida
