@@ -32,6 +32,17 @@ BASE_URL   = "https://v3.football.api-sports.io"
 HEADERS    = {"x-apisports-key": os.getenv("API_FOOTBALL_KEY", "")}
 WC_SEASONS = [2022, 2018, 2014, 2010]
 
+# Competições internacionais tentadas em cascata quando time não tem histórico de Copa.
+# Ordem importa: tenta WC primeiro, depois confederações por relevância.
+_INTL_LEAGUES: list[tuple[int, list[int], str]] = [
+    (4,  [2024, 2021, 2016],       "Euro"),           # UEFA Euro
+    (9,  [2024, 2021, 2019, 2016], "Copa América"),    # CONMEBOL Copa América
+    (29, [2023, 2021, 2019, 2017], "AFCON"),           # Africa Cup of Nations
+    (17, [2023, 2021, 2019, 2017], "Gold Cup"),        # CONCACAF Gold Cup
+    (6,  [2023, 2019, 2015],       "Asian Cup"),       # AFC Asian Cup
+    (5,  [2024, 2022, 2020],       "Nations League"),  # UEFA Nations League
+]
+
 _cache: TTLCache = TTLCache(maxsize=400, ttl=3600)
 
 
@@ -105,14 +116,23 @@ def _calcular_placares_provaveis(lc: float, lf: float, top: int = 3) -> list[Pla
 
 async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTemporada:
     """
-    Busca estatísticas históricas do time nas Copas anteriores (2022→2010).
-    Casa/fora são IGNORADOS pois a Copa é disputada em campo neutro.
-    BTTS/Over/médias recentes são preenchidos depois via _enriquecer_btts_over.
+    Busca estatísticas históricas do time em competições internacionais.
+    Tenta Copa do Mundo primeiro (melhor fonte), depois confederações em cascata:
+    Euro → Copa América → AFCON → Gold Cup → Asian Cup → Nations League.
+    Casa/fora são IGNORADOS pois todas são disputadas em campo neutro.
     """
-    for season in WC_SEASONS:
+    # Monta lista de (league_id, season, fonte_label) para tentar em ordem
+    candidates: list[tuple[int, int, str]] = [
+        (1, s, f"Copa {s}") for s in WC_SEASONS
+    ]
+    for league_id, seasons, label in _INTL_LEAGUES:
+        for season in seasons:
+            candidates.append((league_id, season, f"{label} {season}"))
+
+    for league_id, season, fonte_label in candidates:
         try:
             data  = await _get(client, "/teams/statistics", {
-                "league": 1, "season": season, "team": team_id,
+                "league": league_id, "season": season, "team": team_id,
             })
             resp  = data.get("response", {})
             jogos = resp.get("fixtures", {}).get("played", {}).get("total") or 0
@@ -133,9 +153,9 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
             )
 
             return EstatisticasTemporada(
-                fonte=f"Copa {season}",
+                fonte=fonte_label,
                 dados_insuficientes=False,
-                sede_neutra=True,          # Copa = campo neutro, sem split casa/fora
+                sede_neutra=True,
                 casa=None,
                 fora=None,
                 jogos=jogos,
@@ -158,7 +178,7 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
     return EstatisticasTemporada(dados_insuficientes=True)
 
 
-# ── Forma recente (últimos 10 jogos, apenas masculino sênior) ─────────────────
+# ── Forma recente (últimos 5 jogos, apenas masculino sênior) ──────────────────
 
 # Termos que indicam competição não-sênior ou feminina — excluídos do cálculo
 _EXCLUIR_LIGA = (
@@ -174,12 +194,12 @@ def _e_jogo_senior_masculino(f: dict) -> bool:
 
 async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[EntradaForma]:
     """
-    Últimos 10 jogos profissionais masculinos do time em qualquer competição
+    Últimos 5 jogos da seleção masculina profissional em qualquer competição
     (amistosos, eliminatórias, copa continental, etc.).
-    Filtra competições femininas e de base.
+    Busca 20 candidatos da API para garantir 5 após filtrar feminino/base/olímpicos.
     """
     try:
-        data     = await _get(client, "/fixtures", {"team": team_id, "last": 10})
+        data     = await _get(client, "/fixtures", {"team": team_id, "last": 20})
         fixtures = [
             f for f in data.get("response", [])
             if _e_jogo_senior_masculino(f)
@@ -203,7 +223,7 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
             resultado=resultado,
             competicao=f["league"]["name"],
         ))
-    return forma
+    return forma[-5:]
 
 
 # ── Enriquece stats com BTTS/Over/médias dos últimos 10 jogos ────────────────
@@ -484,12 +504,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     lc_raw = stats_casa.media_gols_marcados_recente or stats_casa.media_gols_marcados
     lf_raw = stats_fora.media_gols_marcados_recente or stats_fora.media_gols_marcados
 
-    if (
-        not stats_casa.dados_insuficientes
-        and not stats_fora.dados_insuficientes
-        and lc_raw is not None
-        and lf_raw is not None
-    ):
+    if lc_raw is not None and lf_raw is not None:
         lc = lc_raw
         lf = lf_raw
         probabilidades     = _calcular_probabilidades(lc, lf)
@@ -535,6 +550,5 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
             or stats_fora.dados_insuficientes
             or len(forma_casa) == 0
             or len(forma_fora) == 0
-            or len(h2h) == 0
         ),
     )
