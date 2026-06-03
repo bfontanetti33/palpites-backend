@@ -58,7 +58,12 @@ app.add_middleware(
         "http://localhost:3000",
         "http://localhost:5173",
     ],
-    allow_origin_regex=r"https://.*\.lovable\.app|https://.*\.lovableproject\.com",
+    allow_origin_regex=(
+        r"https://.*\.lovable\.app|"
+        r"https://.*\.lovableproject\.com|"
+        r"https://palpitesdaia\.com\.br|"
+        r"https://www\.palpitesdaia\.com\.br"
+    ),
     allow_credentials=True,
     allow_methods=["GET"],
     allow_headers=["Authorization", "Content-Type"],
