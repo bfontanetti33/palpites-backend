@@ -424,14 +424,19 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     from app.agents.ia_agent import _calcular_rating, _buscar_fifa_ranking_wikipedia
     from app.models.schemas import JogadoresDestaque, JogadorDestaque
 
+    async def _timed(coro, t):
+        try:
+            return await asyncio.wait_for(coro, timeout=t)
+        except Exception as e:
+            return e
+
     resultados = await asyncio.gather(
-        _odds_api(home_nome, away_nome),
-        buscar_jogadores_destaque(home_nome),
-        buscar_jogadores_destaque(away_nome),
-        _buscar_fifa_ranking_wikipedia(),
-        _calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"]),
-        _calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"]),
-        return_exceptions=True,
+        _timed(_odds_api(home_nome, away_nome), 15),
+        _timed(buscar_jogadores_destaque(home_nome), 25),
+        _timed(buscar_jogadores_destaque(away_nome), 25),
+        _timed(_buscar_fifa_ranking_wikipedia(), 8),
+        _timed(_calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"]), 10),
+        _timed(_calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"]), 10),
     )
 
     def _safe(val):
