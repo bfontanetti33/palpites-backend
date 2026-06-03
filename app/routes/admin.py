@@ -71,7 +71,7 @@ async def health_check(authorization: str | None = Header(default=None)):
     cutoff = agora - timedelta(hours=24)
     erros_24h = len([t for t in state.erros_timestamps if t > cutoff])
 
-    supabase_ok = await supabase_ping()
+    sb = await supabase_ping()
     telegram_ok = bool(
         os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")
     )
@@ -79,7 +79,11 @@ async def health_check(authorization: str | None = Header(default=None)):
     return {
         "status": "ok",
         "timestamp": agora.isoformat() + "Z",
-        "supabase_connected": supabase_ok,
+        "supabase_connected": sb["conectado"],
+        "supabase_url_configurada": sb["url_configurada"],
+        "supabase_key_configurada": sb["key_configurada"],
+        "supabase_ping_status": sb.get("status_code"),
+        "supabase_erro": sb.get("erro"),
         "telegram_configured": telegram_ok,
         "quota_api_football": state.quota_api_football,
         "quota_odds_api": state.quota_odds_api,

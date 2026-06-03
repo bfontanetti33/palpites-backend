@@ -32,19 +32,36 @@ _HEADERS = {
 }
 
 
-async def ping() -> bool:
-    """Verifica conectividade com o Supabase. Usado pelo health-check."""
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        return False
+async def ping() -> dict:
+    """
+    Verifica conectividade com o Supabase.
+    Lê os.getenv() ao ser chamado (não variáveis de módulo) para capturar
+    vars adicionadas após o import.
+    Retorna dict com diagnóstico completo.
+    """
+    url = os.getenv("SUPABASE_URL", "")
+    key = os.getenv("SUPABASE_KEY", "")
+    result = {
+        "url_configurada": bool(url),
+        "key_configurada": bool(key),
+        "conectado": False,
+        "status_code": None,
+        "erro": None,
+    }
+    if not url or not key:
+        result["erro"] = "SUPABASE_URL ou SUPABASE_KEY ausentes"
+        return result
     try:
-        async with httpx.AsyncClient(timeout=5) as c:
+        async with httpx.AsyncClient(timeout=5, follow_redirects=True) as c:
             r = await c.get(
-                f"{SUPABASE_URL}/rest/v1/",
-                headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+                f"{url}/rest/v1/",
+                headers={"apikey": key, "Authorization": f"Bearer {key}"},
             )
-            return r.status_code in (200, 404)  # 404 = conectado, sem tabela na raiz
-    except Exception:
-        return False
+        result["status_code"] = r.status_code
+        result["conectado"] = r.status_code in (200, 201, 404)
+    except Exception as e:
+        result["erro"] = str(e)[:200]
+    return result
 
 
 # ── JWT ───────────────────────────────────────────────────────────────────────
