@@ -7,3 +7,5 @@ pydantic==2.11.5
 pydantic-core==2.33.2
 cachetools==5.3.3
 slowapi==0.1.9
+python-jose[cryptography]==3.5.0
+sentry-sdk==2.61.1

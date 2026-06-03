@@ -27,6 +27,8 @@ class MonitorState:
     quota_odds_api: str = "?"
     ultimo_erro_500: Optional[dict] = None
     erros_timestamps: list = field(default_factory=list)
+    startup_time: datetime = field(default_factory=datetime.utcnow)
+    requests_timestamps: list = field(default_factory=list)  # janela de 24h
 
 
 state = MonitorState()
