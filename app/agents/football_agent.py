@@ -400,6 +400,26 @@ def _jogo_para_resumo(j: dict) -> PartidaResumo:
     )
 
 
+# ── Pré-cache de todos os jogos (chamado no startup) ─────────────────────────
+
+async def precalcular_todos_jogos(delay: float = 1.5) -> int:
+    """
+    Itera pelos 72 slugs do seed e chama buscar_detalhe_partida para cada um.
+    Popula _partida_cache e captura quota da API-Football.
+    Retorna número de slugs cacheados com sucesso.
+    Roda em background — não bloqueia o startup.
+    """
+    ok = 0
+    for jogo in _JOGOS:
+        try:
+            await buscar_detalhe_partida(jogo["slug"])
+            ok += 1
+        except Exception:
+            pass
+        await asyncio.sleep(delay)
+    return ok
+
+
 # ── Geração de insights textuais (rule-based, zero chamadas externas) ─────────
 
 def _gerar_insight_forma(nome: str, forma: list[EntradaForma]) -> str:

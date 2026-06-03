@@ -93,8 +93,12 @@ app.include_router(mp_router,       prefix="/api/v1", tags=["Pagamentos"])
 @app.on_event("startup")
 async def startup():
     from app.monitoring.telegram_bot import loop_resumo_diario, state
+    from app.agents.football_agent import precalcular_todos_jogos
     state.startup_time = datetime.utcnow()
     asyncio.create_task(loop_resumo_diario())
+    # Pré-cache em background — não bloqueia o startup.
+    # Popula _partida_cache (72 jogos) e atualiza quota_api_football.
+    asyncio.create_task(precalcular_todos_jogos())
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
