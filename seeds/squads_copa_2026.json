@@ -1461,6 +1461,426 @@
         "gols_int": 1,
         "clube": "Bournemouth"
       }
+    ],
+    "France": [
+      {
+        "no": 1,
+        "pos": "GK",
+        "nome": "Brice Samba",
+        "caps": 4,
+        "gols_int": 0,
+        "clube": "Rennes"
+      },
+      {
+        "no": 2,
+        "pos": "DF",
+        "nome": "Malo Gusto",
+        "caps": 9,
+        "gols_int": 0,
+        "clube": "Chelsea"
+      },
+      {
+        "no": 3,
+        "pos": "DF",
+        "nome": "Lucas Digne",
+        "caps": 56,
+        "gols_int": 0,
+        "clube": "Aston Villa"
+      },
+      {
+        "no": 4,
+        "pos": "DF",
+        "nome": "Dayot Upamecano",
+        "caps": 36,
+        "gols_int": 2,
+        "clube": "Bayern Munich"
+      },
+      {
+        "no": 5,
+        "pos": "DF",
+        "nome": "Jules Koundé",
+        "caps": 46,
+        "gols_int": 0,
+        "clube": "Barcelona"
+      },
+      {
+        "no": 6,
+        "pos": "MF",
+        "nome": "Manu Koné",
+        "caps": 12,
+        "gols_int": 0,
+        "clube": "Roma"
+      },
+      {
+        "no": 7,
+        "pos": "FW",
+        "nome": "Ousmane Dembélé",
+        "caps": 58,
+        "gols_int": 7,
+        "clube": "Paris Saint-Germain"
+      },
+      {
+        "no": 8,
+        "pos": "MF",
+        "nome": "Aurélien Tchouaméni",
+        "caps": 44,
+        "gols_int": 3,
+        "clube": "Real Madrid"
+      },
+      {
+        "no": 9,
+        "pos": "FW",
+        "nome": "Marcus Thuram",
+        "caps": 33,
+        "gols_int": 3,
+        "clube": "Inter Milan"
+      },
+      {
+        "no": 10,
+        "pos": "FW",
+        "nome": "Kylian Mbappé",
+        "caps": 96,
+        "gols_int": 56,
+        "clube": "Real Madrid"
+      },
+      {
+        "no": 11,
+        "pos": "FW",
+        "nome": "Michael Olise",
+        "caps": 15,
+        "gols_int": 4,
+        "clube": "Bayern Munich"
+      },
+      {
+        "no": 12,
+        "pos": "FW",
+        "nome": "Bradley Barcola",
+        "caps": 18,
+        "gols_int": 3,
+        "clube": "Paris Saint-Germain"
+      },
+      {
+        "no": 13,
+        "pos": "MF",
+        "nome": "N'Golo Kanté",
+        "caps": 67,
+        "gols_int": 2,
+        "clube": "Fenerbahçe"
+      },
+      {
+        "no": 14,
+        "pos": "MF",
+        "nome": "Adrien Rabiot",
+        "caps": 57,
+        "gols_int": 7,
+        "clube": "Milan"
+      },
+      {
+        "no": 15,
+        "pos": "DF",
+        "nome": "Ibrahima Konaté",
+        "caps": 27,
+        "gols_int": 0,
+        "clube": "Liverpool"
+      },
+      {
+        "no": 16,
+        "pos": "GK",
+        "nome": "Mike Maignan",
+        "caps": 38,
+        "gols_int": 0,
+        "clube": "Milan"
+      },
+      {
+        "no": 17,
+        "pos": "DF",
+        "nome": "William Saliba",
+        "caps": 31,
+        "gols_int": 0,
+        "clube": "Arsenal"
+      },
+      {
+        "no": 18,
+        "pos": "MF",
+        "nome": "Warren Zaïre-Emery",
+        "caps": 10,
+        "gols_int": 1,
+        "clube": "Paris Saint-Germain"
+      },
+      {
+        "no": 19,
+        "pos": "DF",
+        "nome": "Théo Hernandez",
+        "caps": 42,
+        "gols_int": 2,
+        "clube": "Al-Hilal"
+      },
+      {
+        "no": 20,
+        "pos": "FW",
+        "nome": "Désiré Doué",
+        "caps": 6,
+        "gols_int": 2,
+        "clube": "Paris Saint-Germain"
+      },
+      {
+        "no": 21,
+        "pos": "DF",
+        "nome": "Lucas Hernandez",
+        "caps": 41,
+        "gols_int": 0,
+        "clube": "Paris Saint-Germain"
+      },
+      {
+        "no": 22,
+        "pos": "FW",
+        "nome": "Jean-Philippe Mateta",
+        "caps": 3,
+        "gols_int": 2,
+        "clube": "Crystal Palace"
+      },
+      {
+        "no": 23,
+        "pos": "GK",
+        "nome": "Robin Risser",
+        "caps": 0,
+        "gols_int": 0,
+        "clube": "Lens"
+      },
+      {
+        "no": 24,
+        "pos": "MF",
+        "nome": "Rayan Cherki",
+        "caps": 5,
+        "gols_int": 1,
+        "clube": "Manchester City"
+      },
+      {
+        "no": 25,
+        "pos": "MF",
+        "nome": "Maghnes Akliouche",
+        "caps": 7,
+        "gols_int": 1,
+        "clube": "Monaco"
+      },
+      {
+        "no": 26,
+        "pos": "DF",
+        "nome": "Maxence Lacroix",
+        "caps": 2,
+        "gols_int": 0,
+        "clube": "Crystal Palace"
+      }
+    ],
+    "Senegal": [
+      {
+        "no": 1,
+        "pos": "GK",
+        "nome": "Yehvann Diouf",
+        "caps": 2,
+        "gols_int": 0,
+        "clube": "Nice"
+      },
+      {
+        "no": 2,
+        "pos": "DF",
+        "nome": "Mamadou Sarr",
+        "caps": 7,
+        "gols_int": 0,
+        "clube": "Chelsea"
+      },
+      {
+        "no": 3,
+        "pos": "DF",
+        "nome": "Kalidou Koulibaly",
+        "caps": 102,
+        "gols_int": 2,
+        "clube": "Al-Hilal"
+      },
+      {
+        "no": 4,
+        "pos": "DF",
+        "nome": "Abdoulaye Seck",
+        "caps": 22,
+        "gols_int": 4,
+        "clube": "Maccabi Haifa"
+      },
+      {
+        "no": 5,
+        "pos": "MF",
+        "nome": "Idrissa Gueye",
+        "caps": 130,
+        "gols_int": 7,
+        "clube": "Everton"
+      },
+      {
+        "no": 6,
+        "pos": "MF",
+        "nome": "Pathé Ciss",
+        "caps": 29,
+        "gols_int": 0,
+        "clube": "Rayo Vallecano"
+      },
+      {
+        "no": 7,
+        "pos": "FW",
+        "nome": "Assane Diao",
+        "caps": 5,
+        "gols_int": 0,
+        "clube": "Como"
+      },
+      {
+        "no": 8,
+        "pos": "MF",
+        "nome": "Lamine Camara",
+        "caps": 32,
+        "gols_int": 7,
+        "clube": "Monaco"
+      },
+      {
+        "no": 9,
+        "pos": "FW",
+        "nome": "Bamba Dieng",
+        "caps": 22,
+        "gols_int": 2,
+        "clube": "Lorient"
+      },
+      {
+        "no": 10,
+        "pos": "FW",
+        "nome": "Sadio Mané",
+        "caps": 127,
+        "gols_int": 55,
+        "clube": "Al-Nassr"
+      },
+      {
+        "no": 11,
+        "pos": "FW",
+        "nome": "Nicolas Jackson",
+        "caps": 32,
+        "gols_int": 8,
+        "clube": "Bayern Munich"
+      },
+      {
+        "no": 12,
+        "pos": "FW",
+        "nome": "Cherif Ndiaye",
+        "caps": 18,
+        "gols_int": 4,
+        "clube": "Samsunspor"
+      },
+      {
+        "no": 13,
+        "pos": "FW",
+        "nome": "Iliman Ndiaye",
+        "caps": 39,
+        "gols_int": 4,
+        "clube": "Everton"
+      },
+      {
+        "no": 14,
+        "pos": "DF",
+        "nome": "Ismail Jakobs",
+        "caps": 29,
+        "gols_int": 0,
+        "clube": "Galatasaray"
+      },
+      {
+        "no": 15,
+        "pos": "DF",
+        "nome": "Krépin Diatta",
+        "caps": 60,
+        "gols_int": 2,
+        "clube": "Monaco"
+      },
+      {
+        "no": 16,
+        "pos": "GK",
+        "nome": "Édouard Mendy",
+        "caps": 56,
+        "gols_int": 0,
+        "clube": "Al-Ahli"
+      },
+      {
+        "no": 17,
+        "pos": "MF",
+        "nome": "Pape Matar Sarr",
+        "caps": 39,
+        "gols_int": 4,
+        "clube": "Tottenham Hotspur"
+      },
+      {
+        "no": 18,
+        "pos": "FW",
+        "nome": "Ismaïla Sarr",
+        "caps": 82,
+        "gols_int": 19,
+        "clube": "Crystal Palace"
+      },
+      {
+        "no": 19,
+        "pos": "DF",
+        "nome": "Moussa Niakhaté",
+        "caps": 30,
+        "gols_int": 0,
+        "clube": "Lyon"
+      },
+      {
+        "no": 20,
+        "pos": "FW",
+        "nome": "Ibrahim Mbaye",
+        "caps": 10,
+        "gols_int": 3,
+        "clube": "Paris Saint-Germain"
+      },
+      {
+        "no": 21,
+        "pos": "MF",
+        "nome": "Habib Diarra",
+        "caps": 20,
+        "gols_int": 4,
+        "clube": "Sunderland"
+      },
+      {
+        "no": 22,
+        "pos": "MF",
+        "nome": "Bara Sapoko Ndiaye",
+        "caps": 1,
+        "gols_int": 0,
+        "clube": "Bayern Munich"
+      },
+      {
+        "no": 23,
+        "pos": "GK",
+        "nome": "Mory Diaw",
+        "caps": 5,
+        "gols_int": 0,
+        "clube": "Le Havre"
+      },
+      {
+        "no": 24,
+        "pos": "DF",
+        "nome": "Antoine Mendy",
+        "caps": 6,
+        "gols_int": 0,
+        "clube": "Nice"
+      },
+      {
+        "no": 25,
+        "pos": "DF",
+        "nome": "El Hadji Malick Diouf",
+        "caps": 19,
+        "gols_int": 1,
+        "clube": "West Ham United"
+      },
+      {
+        "no": 26,
+        "pos": "MF",
+        "nome": "Pape Gueye",
+        "caps": 41,
+        "gols_int": 5,
+        "clube": "Villarreal"
+      }
     ]
   }
 }
