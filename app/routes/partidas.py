@@ -61,4 +61,7 @@ async def recomendacao_ia(
     partida = await buscar_detalhe_partida(slug)
     if not partida:
         raise HTTPException(status_code=404, detail="Partida não encontrada.")
-    return await gerar_recomendacao(partida)
+    try:
+        return await gerar_recomendacao(partida)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")

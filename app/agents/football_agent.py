@@ -427,6 +427,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     async def _timed(coro, t):
         try:
             return await asyncio.wait_for(coro, timeout=t)
+        except asyncio.CancelledError:
+            raise  # propaga cancelamento externo — não engolir
         except Exception as e:
             return e
 
