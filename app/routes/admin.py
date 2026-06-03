@@ -57,21 +57,30 @@ async def admin_stats():
 @router.get("/admin/health-check")
 async def health_check(authorization: str | None = Header(default=None)):
     """
-    Status detalhado do sistema: quotas, cache, último erro.
+    Status detalhado do sistema: quotas, cache, último erro, conectividade.
     Protegido por Authorization: Bearer <ADMIN_TOKEN> se configurado.
     """
     _checar_token(authorization)
 
+    import os
     from app.agents.football_agent import _partida_cache, _cache as _fb_cache
     from app.monitoring.telegram_bot import state
+    from app.auth.supabase_client import ping as supabase_ping
 
     agora = datetime.utcnow()
     cutoff = agora - timedelta(hours=24)
     erros_24h = len([t for t in state.erros_timestamps if t > cutoff])
 
+    supabase_ok = await supabase_ping()
+    telegram_ok = bool(
+        os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")
+    )
+
     return {
         "status": "ok",
         "timestamp": agora.isoformat() + "Z",
+        "supabase_connected": supabase_ok,
+        "telegram_configured": telegram_ok,
         "quota_api_football": state.quota_api_football,
         "quota_odds_api": state.quota_odds_api,
         "jogos_em_cache": len(_partida_cache),

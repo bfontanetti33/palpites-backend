@@ -17,12 +17,34 @@ SUPABASE_URL        = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY        = os.getenv("SUPABASE_KEY", "")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET", "")
 
+if not SUPABASE_URL or not SUPABASE_KEY:
+    import logging
+    logging.getLogger(__name__).warning(
+        "Supabase não configurado — auth desativado. "
+        "Defina SUPABASE_URL e SUPABASE_KEY nas variáveis de ambiente."
+    )
+
 _HEADERS = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
     "Content-Type": "application/json",
     "Prefer": "return=minimal",
 }
+
+
+async def ping() -> bool:
+    """Verifica conectividade com o Supabase. Usado pelo health-check."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(
+                f"{SUPABASE_URL}/rest/v1/",
+                headers={"apikey": SUPABASE_KEY, "Authorization": f"Bearer {SUPABASE_KEY}"},
+            )
+            return r.status_code in (200, 404)  # 404 = conectado, sem tabela na raiz
+    except Exception:
+        return False
 
 
 # ── JWT ───────────────────────────────────────────────────────────────────────
