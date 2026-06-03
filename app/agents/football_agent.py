@@ -383,11 +383,13 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     if not jogo:
         return None
 
-    home_id     = jogo["time_casa_id"]
-    away_id     = jogo["time_fora_id"]
-    fixture_id  = jogo["api_fixture_id"]
+    home_id    = jogo["time_casa_id"]
+    away_id    = jogo["time_fora_id"]
+    fixture_id = jogo["api_fixture_id"]
+    home_nome  = jogo["time_casa"]
+    away_nome  = jogo["time_fora"]
 
-    # ── 8 chamadas paralelas à API + jogadores (paralelo separado) ───────────
+    # ── 6 chamadas paralelas à API-Football ──────────────────────────────────
     try:
         async with httpx.AsyncClient(timeout=20) as client:
             (
@@ -397,7 +399,6 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 forma_fora,
                 h2h,
                 arb,
-                odds,
             ) = await asyncio.gather(
                 _stats_time(client, home_id),
                 _stats_time(client, away_id),
@@ -405,41 +406,68 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 _forma_recente(client, away_id),
                 _h2h(client, home_id, away_id),
                 _arbitro(client, fixture_id),
-                _buscar_odds(client, fixture_id),
             )
     except Exception:
         stats_casa_raw = stats_fora_raw = EstatisticasTemporada(dados_insuficientes=True)
         forma_casa = forma_fora = []
         h2h = []
         arb = None
-        odds = None
-
-    # Jogadores em paralelo (não bloqueia os dados do jogo)
-    from app.agents.players_agent import buscar_jogadores_destaque
-    from app.models.schemas import JogadoresDestaque, JogadorDestaque
-    try:
-        dest_casa_raw, dest_fora_raw = await asyncio.gather(
-            buscar_jogadores_destaque(home["name"]),
-            buscar_jogadores_destaque(away["name"]),
-        )
-        def _to_destaque(raw: dict) -> JogadoresDestaque:
-            jogadores = [JogadorDestaque(**j) for j in raw.get("jogadores", [])]
-            return JogadoresDestaque(
-                time_nome=raw["time_nome"],
-                jogadores=jogadores,
-                total_squad=raw.get("total_squad", 0),
-                fonte_squad=raw.get("fonte_squad", ""),
-                jogadores_analisados=raw.get("jogadores_analisados", 0),
-                dados_insuficientes=raw.get("dados_insuficientes", True),
-            )
-        dest_casa = _to_destaque(dest_casa_raw)
-        dest_fora = _to_destaque(dest_fora_raw)
-    except Exception:
-        dest_casa = dest_fora = None
 
     # ── Enriquece stats com BTTS/Over calculados da forma recente ─────────────
     stats_casa = _enriquecer_btts_over(stats_casa_raw, forma_casa)
     stats_fora = _enriquecer_btts_over(stats_fora_raw, forma_fora)
+
+    # ── Odds + Jogadores + Ratings em paralelo ────────────────────────────────
+    # Separado do gather principal: cada um usa cliente próprio.
+    from app.agents.odds_agent import buscar_odds_partida as _odds_api
+    from app.agents.players_agent import buscar_jogadores_destaque
+    from app.agents.ia_agent import _calcular_rating, _buscar_fifa_ranking_wikipedia
+    from app.models.schemas import JogadoresDestaque, JogadorDestaque
+
+    resultados = await asyncio.gather(
+        _odds_api(home_nome, away_nome),
+        buscar_jogadores_destaque(home_nome),
+        buscar_jogadores_destaque(away_nome),
+        _buscar_fifa_ranking_wikipedia(),
+        _calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"]),
+        _calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"]),
+        return_exceptions=True,
+    )
+
+    def _safe(val):
+        return None if isinstance(val, Exception) else val
+
+    odds          = _safe(resultados[0])
+    dest_casa_raw = _safe(resultados[1])
+    dest_fora_raw = _safe(resultados[2])
+    wiki          = _safe(resultados[3]) or {}
+    rating_c      = _safe(resultados[4])
+    rating_f      = _safe(resultados[5])
+
+    # Re-calcula ratings com Wikipedia se disponível
+    if wiki and rating_c is not None and rating_f is not None:
+        try:
+            rating_c, rating_f = await asyncio.gather(
+                _calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"], wiki),
+                _calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"], wiki),
+            )
+        except Exception:
+            pass
+
+    # Processa jogadores
+    def _to_destaque(raw: dict) -> JogadoresDestaque:
+        jogadores = [JogadorDestaque(**j) for j in raw.get("jogadores", [])]
+        return JogadoresDestaque(
+            time_nome=raw["time_nome"],
+            jogadores=jogadores,
+            total_squad=raw.get("total_squad", 0),
+            fonte_squad=raw.get("fonte_squad", ""),
+            jogadores_analisados=raw.get("jogadores_analisados", 0),
+            dados_insuficientes=raw.get("dados_insuficientes", True),
+        )
+
+    dest_casa = _to_destaque(dest_casa_raw) if dest_casa_raw else None
+    dest_fora = _to_destaque(dest_fora_raw) if dest_fora_raw else None
 
     # ── Probabilidades e top 3 placares via Poisson ───────────────────────────
     probabilidades   = None
@@ -482,6 +510,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         time_fora_id=away_id,
         gols_casa=jogo.get("gols_casa"),
         gols_fora=jogo.get("gols_fora"),
+        rating_casa=rating_c,
+        rating_fora=rating_f,
         stats_casa=stats_casa,
         stats_fora=stats_fora,
         forma_casa=forma_casa,

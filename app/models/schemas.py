@@ -109,42 +109,7 @@ class JogadoresDestaque(BaseModel):
     dados_insuficientes: bool = False
 
 
-# ── Modelos de partida ────────────────────────────────────────────────────────
-
-class PartidaResumo(BaseModel):
-    id: int
-    slug: str
-    rodada: str
-    horario: str
-    status: str
-    estadio: str
-    cidade: str
-    time_casa_nome: str
-    time_casa_logo: str
-    time_fora_nome: str
-    time_fora_logo: str
-    gols_casa: int | None = None
-    gols_fora: int | None = None
-
-
-class Partida(PartidaResumo):
-    time_casa_id: int
-    time_fora_id: int
-    stats_casa: EstatisticasTemporada = EstatisticasTemporada(dados_insuficientes=True)
-    stats_fora: EstatisticasTemporada = EstatisticasTemporada(dados_insuficientes=True)
-    forma_casa: list[EntradaForma] = []
-    forma_fora: list[EntradaForma] = []
-    head_to_head: list[dict] = []
-    probabilidades: Probabilidades | None = None
-    placares_provaveis: list[PlacarProvavel] = []
-    arbitro: Arbitro | None = None
-    odds: dict | None = None
-    jogadores_destaque_casa: JogadoresDestaque | None = None
-    jogadores_destaque_fora: JogadoresDestaque | None = None
-    dados_insuficientes: bool = False
-
-
-# ── Modelos do agente estatístico ─────────────────────────────────────────────
+# ── Rating Dinâmico (deve vir antes de Partida) ───────────────────────────────
 
 class RatingDinamico(BaseModel):
     """Camada 1 — Rating combinado (Elo + Pi-rating + FIFA Ranking)."""
@@ -172,6 +137,45 @@ class RatingDinamico(BaseModel):
     rating_combinado: float = 0.0
     formula_usada: str = ""               # ex: "50% Elo + 30% Pi + 20% FIFA"
 
+
+# ── Modelos de partida ────────────────────────────────────────────────────────
+
+class PartidaResumo(BaseModel):
+    id: int
+    slug: str
+    rodada: str
+    horario: str
+    status: str
+    estadio: str
+    cidade: str
+    time_casa_nome: str
+    time_casa_logo: str
+    time_fora_nome: str
+    time_fora_logo: str
+    gols_casa: int | None = None
+    gols_fora: int | None = None
+
+
+class Partida(PartidaResumo):
+    time_casa_id: int
+    time_fora_id: int
+    rating_casa: RatingDinamico | None = None
+    rating_fora: RatingDinamico | None = None
+    stats_casa: EstatisticasTemporada = EstatisticasTemporada(dados_insuficientes=True)
+    stats_fora: EstatisticasTemporada = EstatisticasTemporada(dados_insuficientes=True)
+    forma_casa: list[EntradaForma] = []
+    forma_fora: list[EntradaForma] = []
+    head_to_head: list[dict] = []
+    probabilidades: Probabilidades | None = None
+    placares_provaveis: list[PlacarProvavel] = []
+    arbitro: Arbitro | None = None
+    odds: dict | None = None
+    jogadores_destaque_casa: JogadoresDestaque | None = None
+    jogadores_destaque_fora: JogadoresDestaque | None = None
+    dados_insuficientes: bool = False
+
+
+# ── Modelos do agente estatístico ─────────────────────────────────────────────
 
 class ModeloGols(BaseModel):
     """Camada 2 — Dixon-Coles + Skellam + probabilidades de mercado."""
