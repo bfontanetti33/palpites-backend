@@ -17,15 +17,13 @@ app = FastAPI(
     version="2.0.0",
 )
 
-# CORS: permite o Lovable chamar a API
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        *os.getenv("ALLOWED_ORIGIN", "https://palpitesdaia.lovable.app").split(","),
-        "https://magic-guess-stream.lovable.app",
         "http://localhost:3000",
         "http://localhost:5173",
     ],
+    allow_origin_regex=r"https://.*\.lovable\.app|https://.*\.lovableproject\.com",
     allow_credentials=True,
     allow_methods=["GET"],
     allow_headers=["Authorization", "Content-Type"],
