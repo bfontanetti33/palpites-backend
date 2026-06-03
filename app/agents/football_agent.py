@@ -409,6 +409,10 @@ async def precalcular_todos_jogos(delay: float = 1.5) -> int:
     Retorna número de slugs cacheados com sucesso.
     Roda em background — não bloqueia o startup.
     """
+    import logging
+    log = logging.getLogger(__name__)
+    total = len(_JOGOS)
+    log.info(f"Iniciando pré-cache de {total} jogos em background...")
     ok = 0
     for jogo in _JOGOS:
         try:
@@ -417,6 +421,7 @@ async def precalcular_todos_jogos(delay: float = 1.5) -> int:
         except Exception:
             pass
         await asyncio.sleep(delay)
+    log.info(f"Pré-cache concluído: {ok}/{total} jogos cacheados")
     return ok
 
 
