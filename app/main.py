@@ -1,10 +1,10 @@
+from dotenv import load_dotenv
+load_dotenv()  # antes de qualquer import que leia os.getenv() no nível de módulo
+
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 from app.routes.partidas import router as partidas_router
-
-load_dotenv()
 
 app = FastAPI(
     title="Palpites da IA — Copa do Mundo 2026",

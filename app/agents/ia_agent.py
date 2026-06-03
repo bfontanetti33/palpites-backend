@@ -20,7 +20,7 @@ import statistics
 from datetime import datetime, date
 
 import httpx
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 
 from app.models.schemas import (
     EntradaForma, FatorContexto, MercadoRecomendado,
@@ -28,7 +28,7 @@ from app.models.schemas import (
     TailRiskResult,
 )
 
-_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+_client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""), timeout=45.0)
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 GLOBAL_AVG   = 1.2      # média de gols por time por jogo no futebol internacional
@@ -1247,7 +1247,7 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         partida, rating_c, rating_f, modelo_final,
         odds_disp, value_bets, ctx, top3, tail_risk,
     )
-    msg    = _client.messages.create(
+    msg    = await _client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=900,
         system=_SYSTEM,
