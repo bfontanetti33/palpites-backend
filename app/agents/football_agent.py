@@ -66,6 +66,14 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     if key in _cache:
         return _cache[key]
     resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
+    # Captura quota restante para o monitoring
+    remaining = resp.headers.get("x-ratelimit-requests-remaining")
+    if remaining is not None:
+        try:
+            from app.monitoring.telegram_bot import atualizar_quota_api_football
+            atualizar_quota_api_football(remaining)
+        except Exception:
+            pass
     resp.raise_for_status()
     data = resp.json()
     _cache[key] = data

@@ -1,20 +1,16 @@
 {
-  "timestamp": "2026-06-03T02:06:19.642439",
-  "resultado_geral": "REPROVADO",
-  "exit_code": 1,
-  "n_criticos": 1,
-  "n_warnings": 7,
-  "criticos": [
-    "france-senegal: probs somam 0.0%"
-  ],
+  "timestamp": "2026-06-03T09:25:56.138627",
+  "resultado_geral": "APROVADO COM RESSALVAS",
+  "exit_code": 0,
+  "n_criticos": 0,
+  "n_warnings": 5,
+  "criticos": [],
   "warnings": [
     "Apenas 9 seleções (esperado >= 40 das 48)",
-    "france-senegal: apenas 0 placares (esperado >= 3)",
-    "Status endpoint retornou HTTP 429",
     "France: apenas 0 jogos na forma (esperado >= 3)",
     "Senegal: apenas 0 jogos na forma (esperado >= 3)",
     "France: stats_insuficientes (sem histórico internacional encontrado)",
-    "29 evento(s) com margem > 15% — casas recreativas"
+    "Odds API não acessível: "
   ],
   "blocos": {
     "seed": {
@@ -52,21 +48,21 @@
     "api_football": {
       "status": "ok",
       "problemas": [],
-      "quota_restante": "?",
+      "quota_restante": "?/?",
       "tempos_resposta": {
-        "status": 35
+        "status": 252
       },
       "times_sem_dados": [
-        "France",
-        "Senegal"
+        "Senegal",
+        "France"
       ]
     },
     "odds_api": {
       "status": "ok",
       "problemas": [],
-      "requests_remaining": "172",
-      "jogos_com_odds": 72,
-      "shin_ok": true,
+      "requests_remaining": "?",
+      "jogos_com_odds": 0,
+      "shin_ok": false,
       "zscore_ok": true,
       "odds_engine_importado": true
     },
@@ -77,15 +73,12 @@
       "detalhes": []
     },
     "end_to_end": {
-      "status": "warning",
-      "problemas": [
-        "probs somam 0.0% (esperado 100%)",
-        "lambda <= 0"
-      ],
+      "status": "ok",
+      "problemas": [],
       "jogos_testados": {
         "mexico-south-africa": true,
         "brazil-morocco": true,
-        "france-senegal": false
+        "france-senegal": true
       },
       "zebra_ok": true,
       "bingo_ok": true

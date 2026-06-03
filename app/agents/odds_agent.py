@@ -39,7 +39,13 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict = {}) -> dict 
     r = await client.get(f"{BASE}{path}", params=params)
     r.raise_for_status()
     remaining = r.headers.get("x-requests-remaining", "?")
-    used      = r.headers.get("x-requests-used", "?")
+    # Atualiza monitoring com quota restante
+    if remaining != "?":
+        try:
+            from app.monitoring.telegram_bot import atualizar_quota_odds
+            atualizar_quota_odds(remaining)
+        except Exception:
+            pass
     data = r.json()
     _cache[key] = data
     return data
