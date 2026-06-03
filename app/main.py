@@ -21,9 +21,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        os.getenv("ALLOWED_ORIGIN", "https://palpitesdaia.lovable.app"),
-        "http://localhost:3000",   # dev local do Lovable
-        "http://localhost:5173",   # Vite dev server
+        *os.getenv("ALLOWED_ORIGIN", "https://palpitesdaia.lovable.app").split(","),
+        "https://magic-guess-stream.lovable.app",
+        "http://localhost:3000",
+        "http://localhost:5173",
     ],
     allow_credentials=True,
     allow_methods=["GET"],
