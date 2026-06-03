@@ -53,10 +53,13 @@ async def ping() -> dict:
         return result
     try:
         async with httpx.AsyncClient(timeout=5, follow_redirects=True) as c:
-            # /auth/v1/health é público (não exige auth) — confirma que o projeto existe
-            r = await c.get(f"{url}/auth/v1/health")
+            r = await c.get(
+                f"{url}/auth/v1/health",
+                headers={"apikey": key},
+            )
         result["status_code"] = r.status_code
-        result["conectado"] = r.status_code == 200
+        # Qualquer resposta HTTP = servidor acessível (401 = auth, não indisponível)
+        result["conectado"] = r.status_code < 500
     except Exception as e:
         result["erro"] = str(e)[:200]
     return result
