@@ -1261,77 +1261,185 @@ def _parse_claude(texto: str) -> dict:
 
 
 # ════════════════════════════════════════════════════════════════════════════════
+# Helpers de fallback (usados quando APIs externas falham)
+# ════════════════════════════════════════════════════════════════════════════════
+
+def _modelo_gols_fallback() -> "ModeloGols":
+    """ModeloGols mínimo usando GLOBAL_AVG quando dados reais estão indisponíveis."""
+    lam = mu = GLOBAL_AVG
+    matrix = _dc_matrix(lam, mu)
+    probs  = _market_probs(matrix, lam, mu)
+    sk_v, sk_e, sk_d = _skellam_1x2(lam, mu)
+    top5 = sorted(
+        [{"placar": k, "prob": v} for k, v in matrix.items()],
+        key=lambda x: -x["prob"],
+    )[:5]
+    return ModeloGols(
+        lambda_casa=lam, lambda_fora=mu,
+        prob_vitoria_casa=probs["vitoria_casa"],
+        prob_empate=probs["empate"],
+        prob_vitoria_fora=probs["vitoria_fora"],
+        prob_btts=probs["btts"],
+        prob_over15=probs["over15"],  prob_under15=probs["under15"],
+        prob_over25=probs["over25"],  prob_under25=probs["under25"],
+        prob_over35=probs["over35"],  prob_under35=probs["under35"],
+        top5_placares=top5,
+        skellam_vitoria=sk_v, skellam_empate=sk_e, skellam_derrota=sk_d,
+    )
+
+
+def _tail_risk_fallback(m: "ModeloGols") -> "TailRiskResult":
+    """TailRiskResult neutro quando cálculo falha ou dados são insuficientes."""
+    zeros = {"vitoria_casa": 0.0, "empate": 0.0, "vitoria_fora": 0.0,
+             "over25": 0.0, "under25": 0.0, "over35": 0.0}
+    return TailRiskResult(
+        prob_vitoria_casa_antes=m.prob_vitoria_casa,
+        prob_empate_antes=m.prob_empate,
+        prob_vitoria_fora_antes=m.prob_vitoria_fora,
+        prob_vitoria_casa_depois=m.prob_vitoria_casa,
+        prob_empate_depois=m.prob_empate,
+        prob_vitoria_fora_depois=m.prob_vitoria_fora,
+        over25_antes=m.prob_over25,  over25_depois=m.prob_over25,
+        over35_antes=m.prob_over35,  over35_depois=m.prob_over35,
+        fat_tail_delta=zeros,
+        fragility_score_casa=50.0, fragility_score_fora=50.0,
+        fragility_impacto="moderado",
+        uncertainty_index=50.0,
+        uncertainty_fatores=["Dados insuficientes — análise com GLOBAL_AVG (1.2 gols/jogo)"],
+        probabilidades_achatadas=False,
+        achatamento_alpha=0.0,
+        barbell_sugerido=False,
+    )
+
+
+# ════════════════════════════════════════════════════════════════════════════════
 # Ponto de entrada
 # ════════════════════════════════════════════════════════════════════════════════
 
 async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     """
     Orquestra as 5 camadas e retorna RecomendacaoIA completo.
+    NUNCA lança exceção — usa fallbacks GLOBAL_AVG quando APIs externas falham.
     Dados brutos da API (partida.*) nunca são alterados.
     """
-    # Camada 1 — Ratings + Wikipedia FIFA ranking em paralelo
     import asyncio
-    wiki_rankings, rating_c, rating_f = await asyncio.gather(
-        _buscar_fifa_ranking_wikipedia(),
-        _calcular_rating(partida.time_casa_nome, partida.forma_casa, partida.horario),
-        _calcular_rating(partida.time_fora_nome, partida.forma_fora, partida.horario),
-    )
-    # Re-calcula ratings com Wikipedia se trouxe dados extras
-    if wiki_rankings:
-        rating_c, rating_f = await asyncio.gather(
-            _calcular_rating(partida.time_casa_nome, partida.forma_casa, partida.horario, wiki_rankings),
-            _calcular_rating(partida.time_fora_nome, partida.forma_fora, partida.horario, wiki_rankings),
-        )
+    import logging
+    log = logging.getLogger(__name__)
 
-    # Camada 2 — Modelo de gols
-    modelo = _calcular_modelo_gols(
-        rating_c, rating_f,
-        partida.stats_casa, partida.stats_fora,
-        partida.forma_casa, partida.forma_fora,
-    )
+    nome_c = partida.time_casa_nome
+    nome_f = partida.time_fora_nome
 
-    # Camada 3 — Odds Engine (Shin + consensus + z-score + value bets)
-    from app.agents.odds_engine import processar_odds as _processar_odds
-    _prob_modelo_01 = {
-        "vitoria_casa": modelo.prob_vitoria_casa / 100.0,
-        "empate":       modelo.prob_empate       / 100.0,
-        "vitoria_fora": modelo.prob_vitoria_fora / 100.0,
-        "btts":         modelo.prob_btts         / 100.0,
-        "over15":       modelo.prob_over15       / 100.0,
-        "under15":      modelo.prob_under15      / 100.0,
-        "over25":       modelo.prob_over25       / 100.0,
-        "under25":      modelo.prob_under25      / 100.0,
-        "over35":       modelo.prob_over35       / 100.0,
-        "under35":      modelo.prob_under35      / 100.0,
+    # ── Valores iniciais (fallback se camadas falharem) ───────────────────────
+    rating_c = RatingDinamico()
+    rating_f = RatingDinamico()
+    modelo   = _modelo_gols_fallback()
+    modelo_final = modelo
+    odds_disp: bool = False
+    value_bets: list[dict] = []
+    odds_result: dict = {"odds_disponiveis": False}
+    ctx = FatorContexto()
+    tail_risk = _tail_risk_fallback(modelo)
+    top3: list = []
+    texto_completo = ""
+    parsed: dict = {
+        "NARRATIVA":        f"{nome_c} e {nome_f} se enfrentam na Copa do Mundo 2026.",
+        "RESUMO_RAPIDO":    "Análise estatística gerada com dados disponíveis.",
+        "ALERTAS":          "API externa com dados limitados — análise via GLOBAL_AVG",
+        "ANALISE_COMPLETA": (
+            f"Análise baseada em modelo Dixon-Coles com fallback GLOBAL_AVG "
+            f"(1.2 gols/jogo). Dados da API-Football temporariamente indisponíveis."
+        ),
     }
-    odds_result = _processar_odds(partida.odds, _prob_modelo_01)
-    odds_disp   = odds_result["odds_disponiveis"]
-    # value_bets legado (formato _LABELS + "entrada") para _score_final
-    _, value_bets = _calcular_value_bets(modelo, partida.odds)
 
-    # Camada 4 — Contexto + ajustes (recebe odds_engine para zebra robusta)
-    ctx, modelo_c4 = _calcular_contexto(partida, rating_c, rating_f, modelo, odds_result)
+    # ── Camada 1 — Ratings ────────────────────────────────────────────────────
+    try:
+        wiki_rankings, rc, rf = await asyncio.gather(
+            _buscar_fifa_ranking_wikipedia(),
+            _calcular_rating(nome_c, partida.forma_casa, partida.horario),
+            _calcular_rating(nome_f, partida.forma_fora, partida.horario),
+        )
+        rating_c, rating_f = rc, rf
+        if wiki_rankings:
+            rating_c, rating_f = await asyncio.gather(
+                _calcular_rating(nome_c, partida.forma_casa, partida.horario, wiki_rankings),
+                _calcular_rating(nome_f, partida.forma_fora, partida.horario, wiki_rankings),
+            )
+    except Exception as e:
+        log.error("gerar_recomendacao camada1 falhou (%s x %s): %s", nome_c, nome_f, e)
 
-    # Camada 4B — Tail Risk
-    tail_risk, modelo_final = _calcular_tail_risk(
-        modelo_c4, partida, rating_c, rating_f, ctx, odds_disp, value_bets
-    )
+    # ── Camada 2 — Modelo de gols ─────────────────────────────────────────────
+    try:
+        modelo = _calcular_modelo_gols(
+            rating_c, rating_f,
+            partida.stats_casa, partida.stats_fora,
+            partida.forma_casa, partida.forma_fora,
+        )
+        modelo_final = modelo
+    except Exception as e:
+        log.error("gerar_recomendacao camada2 falhou (%s x %s): %s", nome_c, nome_f, e)
 
-    # Score final (usa modelo com tail risk aplicado)
-    top3 = _score_final(modelo_final, odds_disp, value_bets, ctx, partida.odds)
+    # ── Camada 3 — Odds Engine ────────────────────────────────────────────────
+    try:
+        from app.agents.odds_engine import processar_odds as _processar_odds
+        _prob_modelo_01 = {
+            "vitoria_casa": modelo.prob_vitoria_casa / 100.0,
+            "empate":       modelo.prob_empate       / 100.0,
+            "vitoria_fora": modelo.prob_vitoria_fora / 100.0,
+            "btts":         modelo.prob_btts         / 100.0,
+            "over15":       modelo.prob_over15       / 100.0,
+            "under15":      modelo.prob_under15      / 100.0,
+            "over25":       modelo.prob_over25       / 100.0,
+            "under25":      modelo.prob_under25      / 100.0,
+            "over35":       modelo.prob_over35       / 100.0,
+            "under35":      modelo.prob_under35      / 100.0,
+        }
+        odds_result = _processar_odds(partida.odds, _prob_modelo_01)
+        odds_disp   = odds_result["odds_disponiveis"]
+        _, value_bets = _calcular_value_bets(modelo, partida.odds)
+    except Exception as e:
+        log.error("gerar_recomendacao camada3 falhou (%s x %s): %s", nome_c, nome_f, e)
 
-    # Camada 5 — Claude narrativa
-    prompt = _montar_prompt(
-        partida, rating_c, rating_f, modelo_final,
-        odds_disp, value_bets, ctx, top3, tail_risk,
-    )
-    msg    = await _client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=900,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    parsed = _parse_claude(msg.content[0].text)
+    # ── Camada 4 — Contexto ───────────────────────────────────────────────────
+    modelo_c4 = modelo
+    try:
+        ctx, modelo_c4 = _calcular_contexto(partida, rating_c, rating_f, modelo, odds_result)
+        modelo_final = modelo_c4
+    except Exception as e:
+        log.error("gerar_recomendacao camada4 falhou (%s x %s): %s", nome_c, nome_f, e)
+
+    # ── Camada 4B — Tail Risk ─────────────────────────────────────────────────
+    try:
+        tail_risk, modelo_final = _calcular_tail_risk(
+            modelo_c4, partida, rating_c, rating_f, ctx, odds_disp, value_bets
+        )
+    except Exception as e:
+        log.error("gerar_recomendacao camada4b falhou (%s x %s): %s", nome_c, nome_f, e)
+        tail_risk    = _tail_risk_fallback(modelo_c4)
+        modelo_final = modelo_c4
+
+    # ── Score final ───────────────────────────────────────────────────────────
+    try:
+        top3 = _score_final(modelo_final, odds_disp, value_bets, ctx, partida.odds)
+    except Exception as e:
+        log.error("gerar_recomendacao score_final falhou (%s x %s): %s", nome_c, nome_f, e)
+
+    # ── Camada 5 — Claude narrativa ───────────────────────────────────────────
+    try:
+        prompt = _montar_prompt(
+            partida, rating_c, rating_f, modelo_final,
+            odds_disp, value_bets, ctx, top3, tail_risk,
+        )
+        msg = await _client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=900,
+            system=_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        texto_completo = msg.content[0].text
+        parsed = _parse_claude(texto_completo)
+    except Exception as e:
+        log.error("gerar_recomendacao camada5/claude falhou (%s x %s): %s", nome_c, nome_f, e)
+        # parsed já tem texto de fallback inicializado acima
 
     alertas = [a.strip() for a in parsed["ALERTAS"].split("|") if a.strip()]
     top1    = top3[0] if top3 else None
@@ -1356,5 +1464,5 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         entrada=top1.entrada     if top1 else "—",
         confianca=top1.confianca if top1 else "Baixa",
         analise=parsed["ANALISE_COMPLETA"] or parsed["NARRATIVA"],
-        texto_completo=msg.content[0].text,
+        texto_completo=texto_completo,
     )

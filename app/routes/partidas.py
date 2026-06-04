@@ -1,9 +1,14 @@
+import logging
+import os
+
 from fastapi import APIRouter, HTTPException, Header, Request, Response
+
 from app.agents.football_agent import buscar_todos_jogos_copa, buscar_detalhe_partida
 from app.agents.ia_agent import gerar_recomendacao
 from app.models.schemas import RespostaCopa, Partida, RecomendacaoIA
 from app.limiter import limiter
-import os
+
+log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -102,12 +107,26 @@ async def recomendacao_ia(
     """
     Gera recomendação de aposta via IA (Claude). Endpoint PREMIUM.
     Aceita: PREMIUM_TOKEN fixo (admin) ou JWT Supabase (usuário premium/avulso).
+    Nunca retorna 500 — usa fallback GLOBAL_AVG quando APIs externas estão indisponíveis.
     """
     await _verificar_acesso_recomendacao(authorization, slug)
-    partida = await buscar_detalhe_partida(slug)
+
+    try:
+        partida = await buscar_detalhe_partida(slug)
+    except Exception as e:
+        log.error("buscar_detalhe_partida falhou para %s: %s", slug, e, exc_info=True)
+        partida = None
+
     if not partida:
         raise HTTPException(status_code=404, detail="Partida não encontrada.")
+
+    # gerar_recomendacao nunca lança exceção — usa fallback por camada.
+    # O try/except abaixo é segurança extra para erros verdadeiramente inesperados.
     try:
         return await gerar_recomendacao(partida)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+        log.error("gerar_recomendacao falhou para %s: %s", slug, e, exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
+        )

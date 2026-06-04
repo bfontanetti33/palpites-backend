@@ -92,13 +92,20 @@ app.include_router(mp_router,       prefix="/api/v1", tags=["Pagamentos"])
 
 @app.on_event("startup")
 async def startup():
-    from app.monitoring.telegram_bot import loop_resumo_diario, state
+    from app.monitoring.telegram_bot import loop_resumo_diario, send_telegram, state
     from app.agents.football_agent import precalcular_todos_jogos
     state.startup_time = datetime.utcnow()
     asyncio.create_task(loop_resumo_diario())
     # Pré-cache em background — não bloqueia o startup.
     # Popula _partida_cache (72 jogos) e atualiza quota_api_football.
     asyncio.create_task(precalcular_todos_jogos())
+    # Notifica deploy no Telegram
+    asyncio.create_task(send_telegram(
+        "✅ <b>Deploy OK — Palpites da IA</b>\n"
+        "Fix: /recomendacao agora usa fallback GLOBAL_AVG quando API-Football ou Claude estão indisponíveis.\n"
+        "Endpoint nunca retorna 500. Dados insuficientes → análise com 1.2 gols/jogo.\n"
+        f"⏰ {datetime.utcnow().strftime('%d/%m %H:%M')} UTC"
+    ))
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
