@@ -45,6 +45,91 @@ async def telegram_test():
     }
 
 
+# ── Telegram resumo completo ─────────────────────────────────────────────────
+
+@router.get("/admin/telegram-resumo", tags=["Admin"])
+async def telegram_resumo():
+    """
+    Dispara o resumo diário completo agora.
+    Retorna o diagnóstico detalhado da API do Telegram se falhar.
+    """
+    import httpx
+    from app.monitoring.telegram_bot import (
+        enviar_resumo_diario, TELEGRAM_TOKEN, TELEGRAM_CHAT,
+    )
+    from app.agents.football_agent import _partida_cache
+    from app.monitoring.telegram_bot import state
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat  = os.getenv("TELEGRAM_CHAT_ID", "")
+
+    # Diagnóstico direto na API do Telegram antes de tentar enviar
+    diag: dict = {
+        "token_set":    bool(token),
+        "chat_id_set":  bool(chat),
+        "chat_id_valor": chat,
+        "bot_info":     None,
+        "send_result":  None,
+        "enviado":      False,
+        "erro":         None,
+    }
+
+    if not token or not chat:
+        diag["erro"] = "TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID ausentes"
+        return diag
+
+    async with httpx.AsyncClient(timeout=10) as c:
+        # 1. Verifica se o bot existe
+        r = await c.get(f"https://api.telegram.org/bot{token}/getMe")
+        if r.status_code == 200:
+            bot = r.json().get("result", {})
+            diag["bot_info"] = f"@{bot.get('username')} (id={bot.get('id')})"
+        else:
+            diag["erro"] = f"Token inválido: {r.status_code} {r.text[:200]}"
+            return diag
+
+        # 2. Monta e envia o resumo
+        agora = datetime.utcnow()
+        n_cache = len(_partida_cache)
+
+        def _to_int(v):
+            try: return int(v)
+            except: return v
+
+        msg = (
+            f"🏆 <b>Palpites da IA — Resumo {agora.strftime('%d/%m/%Y')}</b>\n"
+            f"─────────────────────────\n"
+            f"🌐 Status: ✅ Online\n"
+            f"⚽ API-Football: {_to_int(state.quota_api_football)} req restantes\n"
+            f"💰 Odds API: {_to_int(state.quota_odds_api)} req restantes\n"
+            f"🤖 Jogos em cache: {n_cache}/72\n"
+            f"❌ Erros últimas 24h: {len(state.erros_timestamps)}\n"
+            f"─────────────────────────\n"
+            f"🔧 Vars configuradas:\n"
+            f"  ANTHROPIC: {'✅' if os.getenv('ANTHROPIC_API_KEY') else '❌'} | "
+            f"API-Football: {'✅' if os.getenv('API_FOOTBALL_KEY') else '❌'} | "
+            f"Supabase: {'✅' if os.getenv('SUPABASE_URL') else '❌'}\n"
+            f"─────────────────────────\n"
+            f"palpitesdaia.com.br"
+        )
+
+        r2 = await c.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat, "text": msg, "parse_mode": "HTML"},
+        )
+        diag["send_result"] = {"status": r2.status_code, "body": r2.json()}
+        diag["enviado"] = r2.status_code == 200
+
+        if not diag["enviado"]:
+            err = r2.json()
+            diag["erro"] = (
+                f"sendMessage falhou ({r2.status_code}): "
+                f"{err.get('description', r2.text[:200])}"
+            )
+
+    return diag
+
+
 # ── T2: Supabase CRUD test ────────────────────────────────────────────────────
 
 @router.get("/admin/supabase-test", tags=["Admin"])
