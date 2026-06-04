@@ -736,8 +736,20 @@ async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
 
 
 async def buscar_detalhe_partida(slug: str) -> Partida | None:
+    # L1 — in-memory TTL
     if slug in _partida_cache:
         return _partida_cache[slug]
+
+    # L2 — disk cache (sobrevive redeploys sem consumir quota)
+    try:
+        from app.cache import static_cache
+        partida_dict = static_cache.get_partida(slug)
+        if partida_dict:
+            partida = Partida.model_validate(partida_dict)
+            _partida_cache[slug] = partida
+            return partida
+    except Exception:
+        pass
 
     jogo = _POR_SLUG.get(slug)
     if not jogo:
@@ -925,4 +937,9 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         ),
     )
     _partida_cache[slug] = partida
+    try:
+        from app.cache import static_cache
+        static_cache.put_partida(slug, partida.model_dump(mode="json"))
+    except Exception:
+        pass
     return partida

@@ -1424,27 +1424,45 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         log.error("gerar_recomendacao score_final falhou (%s x %s): %s", nome_c, nome_f, e)
 
     # ── Camada 5 — Claude narrativa ───────────────────────────────────────────
+    # Verifica cache disco para evitar chamada Claude quando narrativa ainda é válida
+    _claude_cache_hit = False
     try:
-        prompt = _montar_prompt(
-            partida, rating_c, rating_f, modelo_final,
-            odds_disp, value_bets, ctx, top3, tail_risk,
-        )
-        msg = await _client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=900,
-            system=_SYSTEM,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        texto_completo = msg.content[0].text
-        parsed = _parse_claude(texto_completo)
-    except Exception as e:
-        log.error("gerar_recomendacao camada5/claude falhou (%s x %s): %s", nome_c, nome_f, e)
-        # parsed já tem texto de fallback inicializado acima
+        from app.cache import static_cache as _sc
+        _cached_rec = _sc.get_recomendacao(partida.slug)
+        if _cached_rec:
+            texto_completo = _cached_rec.get("texto_completo", "")
+            parsed = {
+                "NARRATIVA":        _cached_rec.get("narrativa", ""),
+                "RESUMO_RAPIDO":    _cached_rec.get("resumo_rapido", ""),
+                "ALERTAS":          "|".join(_cached_rec.get("alertas") or []),
+                "ANALISE_COMPLETA": _cached_rec.get("analise_completa", ""),
+            }
+            _claude_cache_hit = True
+    except Exception:
+        pass
+
+    if not _claude_cache_hit:
+        try:
+            prompt = _montar_prompt(
+                partida, rating_c, rating_f, modelo_final,
+                odds_disp, value_bets, ctx, top3, tail_risk,
+            )
+            msg = await _client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=900,
+                system=_SYSTEM,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            texto_completo = msg.content[0].text
+            parsed = _parse_claude(texto_completo)
+        except Exception as e:
+            log.error("gerar_recomendacao camada5/claude falhou (%s x %s): %s", nome_c, nome_f, e)
+            # parsed já tem texto de fallback inicializado acima
 
     alertas = [a.strip() for a in parsed["ALERTAS"].split("|") if a.strip()]
     top1    = top3[0] if top3 else None
 
-    return RecomendacaoIA(
+    result = RecomendacaoIA(
         partida_id=partida.id,
         rating_casa=rating_c,
         rating_fora=rating_f,
@@ -1466,3 +1484,13 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         analise=parsed["ANALISE_COMPLETA"] or parsed["NARRATIVA"],
         texto_completo=texto_completo,
     )
+
+    # Persiste narrativa em disco para evitar chamada Claude no próximo acesso
+    if not _claude_cache_hit:
+        try:
+            from app.cache import static_cache as _sc
+            _sc.put_recomendacao(partida.slug, result.model_dump(mode="json"))
+        except Exception:
+            pass
+
+    return result
