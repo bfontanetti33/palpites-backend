@@ -1,13 +1,15 @@
 """
-Cache dinâmico de odds — memória (TTL 30min, max 16 jogos).
+Cache dinâmico de odds — memória (TTL 25h, max 16 jogos).
 
 Só armazena odds para jogos hoje/amanhã (janela de interesse real).
-Atualizado pelo cron job a cada 30 minutos.
+Intervalo de atualização via cron é tiered por proximidade do jogo:
+  > 12h → 1×/dia | 2h–12h → 1×/hora | < 2h → a cada 30min
 """
 from cachetools import TTLCache
 from datetime import datetime, timezone, timedelta
 
-_odds_cache: TTLCache = TTLCache(maxsize=16, ttl=1800)  # 30min
+_odds_cache: TTLCache = TTLCache(maxsize=16, ttl=90000)  # 25h — cron controla frequência
+_last_updated: dict[str, datetime] = {}  # rastreia quando cada slug foi buscado na API
 
 
 def get_odds_dinamicas(slug: str) -> dict | None:
@@ -16,10 +18,16 @@ def get_odds_dinamicas(slug: str) -> dict | None:
 
 def set_odds_dinamicas(slug: str, odds_dict: dict) -> None:
     _odds_cache[slug] = odds_dict
+    _last_updated[slug] = datetime.now(timezone.utc)
+
+
+def get_last_updated(slug: str) -> datetime | None:
+    return _last_updated.get(slug)
 
 
 def invalidate(slug: str) -> None:
     _odds_cache.pop(slug, None)
+    _last_updated.pop(slug, None)
 
 
 def get_today_tomorrow_slugs() -> list[str]:
