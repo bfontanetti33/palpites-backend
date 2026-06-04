@@ -532,20 +532,21 @@ async def _buscar_odds(client: httpx.AsyncClient, fixture_id: int) -> dict | Non
 def _favorito_e_prob(
     nome_casa: str, nome_fora: str, prob: "Probabilidades | None"
 ) -> tuple[str, float | None]:
-    """Retorna (nome_favorito, prob_favorito) a partir das probabilidades."""
-    if not prob or prob.dados_insuficientes:
+    """Retorna (nome_favorito, prob_favorito) a partir das probabilidades.
+    Funciona com probabilidades estimadas (dados_insuficientes=True) desde que existam valores."""
+    if not prob:
         return "", None
     vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
-    if vc >= vf and vc >= emp:
+    if vc > vf and vc > emp:
         return nome_casa, float(vc)
-    if vf > vc and vf >= emp:
+    if vf > vc and vf > emp:
         return nome_fora, float(vf)
     return "Empate", float(emp)
 
 
 def _insight_curto(nome_casa: str, nome_fora: str, prob: "Probabilidades | None") -> str:
     """Gera 1 frase curtíssima sobre o confronto sem chamar Claude."""
-    if not prob or prob.dados_insuficientes:
+    if not prob:
         return f"{nome_casa} x {nome_fora}"
     vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
     if vc >= 55:
@@ -629,6 +630,48 @@ async def precalcular_proximos_jogos(n: int = 8, delay: float = 1.5) -> int:
             pass
         await asyncio.sleep(delay)
     log.info("Pré-cache concluído: %d/%d jogos cacheados", ok, len(proximos))
+    # Re-processa entradas para garantir que probabilidades usam Elo (não GLOBAL_AVG simétrico)
+    await recalcular_proximos_com_elo(n)
+    return ok
+
+
+async def recalcular_proximos_com_elo(n: int = 8) -> int:
+    """
+    Apaga as entradas do _partida_cache dos próximos N jogos e re-executa
+    buscar_detalhe_partida usando dados já em _cache (sem chamadas novas à API).
+    Garante que probabilidades reflitam o Elo de cada time em vez de GLOBAL_AVG simétrico.
+    """
+    import logging
+    from datetime import datetime, timezone
+    log = logging.getLogger(__name__)
+
+    agora = datetime.now(timezone.utc)
+
+    def _parse_dt(s: str) -> datetime:
+        try:
+            return datetime.fromisoformat(s)
+        except Exception:
+            return datetime.max.replace(tzinfo=timezone.utc)
+
+    jogos_futuros = [j for j in _JOGOS if _parse_dt(j["data_hora_brasilia"]) > agora]
+    jogos_futuros.sort(key=lambda j: _parse_dt(j["data_hora_brasilia"]))
+    proximos = jogos_futuros[:n]
+
+    ok = 0
+    for jogo in proximos:
+        slug = jogo["slug"]
+        try:
+            del _partida_cache[slug]
+        except KeyError:
+            pass
+        try:
+            await buscar_detalhe_partida(slug)
+            ok += 1
+        except Exception as e:
+            log.error("recalcular_proximos_com_elo falhou para %s: %s", slug, e)
+        await asyncio.sleep(0.1)  # yield para não bloquear o event loop
+
+    log.info("recalcular_proximos_com_elo: %d/%d jogos reprocessados com Elo", ok, len(proximos))
     return ok
 
 
@@ -666,7 +709,7 @@ def _gerar_insight_probabilidades(
         return "Probabilidades indisponíveis."
     if prob.dados_insuficientes:
         return (
-            f"Probabilidades estimadas com fallback histórico (1.2 gols/jogo): "
+            f"Probabilidades estimadas via modelo Elo: "
             f"{nome_casa} {prob.vitoria_casa}% · Empate {prob.empate}% · {nome_fora} {prob.vitoria_fora}%."
         )
     vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
@@ -804,11 +847,24 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     placares_provaveis: list[PlacarProvavel] = []
 
     # Prefere médias dos últimos 10 jogos (mais representativas) sobre histórico de Copa.
-    # Fallback de 1.2 gols/jogo (média histórica internacional) quando stats indisponíveis.
+    # Fallback 1: usa Elo ratings (já em memória) → lambdas diferenciadas por time.
+    # Fallback 2: GLOBAL_AVG simétrico (1.2) só quando nem stats nem ratings disponíveis.
     lc_raw = stats_casa.media_gols_marcados_recente or stats_casa.media_gols_marcados
     lf_raw = stats_fora.media_gols_marcados_recente or stats_fora.media_gols_marcados
-    lc = lc_raw if lc_raw is not None else 1.2
-    lf = lf_raw if lf_raw is not None else 1.2
+
+    if lc_raw is not None and lf_raw is not None:
+        lc, lf = lc_raw, lf_raw
+    elif rating_c is not None and rating_f is not None:
+        # Elo fallback: ajusta GLOBAL_AVG pela força relativa de cada time
+        _GAV = 1.2
+        _at_c = max(0.5, 1.0 + rating_c.rating_combinado * 0.10)
+        _at_f = max(0.5, 1.0 + rating_f.rating_combinado * 0.10)
+        _def_f = max(0.5, 1.0 - rating_f.rating_combinado * 0.08)
+        _def_c = max(0.5, 1.0 - rating_c.rating_combinado * 0.08)
+        lc = round(max(0.3, min(_GAV * _at_c * _def_f, 4.0)), 3)
+        lf = round(max(0.3, min(_GAV * _at_f * _def_c, 4.0)), 3)
+    else:
+        lc, lf = 1.2, 1.2
 
     probabilidades     = _calcular_probabilidades(lc, lf)
     if lc_raw is None or lf_raw is None:

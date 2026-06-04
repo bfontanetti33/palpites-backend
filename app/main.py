@@ -96,13 +96,13 @@ async def startup():
     from app.agents.football_agent import precalcular_proximos_jogos
     state.startup_time = datetime.utcnow()
     asyncio.create_task(loop_resumo_diario())
-    # Pré-cache em background — cacha apenas os próximos 8 jogos (por data) para
-    # economizar quota da API-Football. Scripts de árbitros e squads são manuais.
+    # Pré-cache em background — cacha os próximos 8 jogos e re-processa com Elo.
+    # Scripts de árbitros e squads são manuais (não rodam aqui).
     asyncio.create_task(precalcular_proximos_jogos(n=8))
     # Notifica deploy no Telegram
     asyncio.create_task(send_telegram(
         "✅ <b>Deploy OK — Palpites da IA</b>\n"
-        "Otimizações: pré-cache só próximos 8 jogos · TTL 8h · alerta quota 5k/7.5k.\n"
+        "Fix: favorito/resumo_rapido agora usam Elo quando API-Football sem dados.\n"
         f"⏰ {datetime.utcnow().strftime('%d/%m %H:%M')} UTC"
     ))
 
