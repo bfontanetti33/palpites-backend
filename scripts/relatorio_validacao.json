@@ -1,19 +1,13 @@
 {
-  "timestamp": "2026-06-03T14:43:36.606753",
+  "timestamp": "2026-06-04T00:29:11.872864",
   "resultado_geral": "APROVADO COM RESSALVAS",
   "exit_code": 0,
   "n_criticos": 0,
-  "n_warnings": 12,
+  "n_warnings": 6,
   "criticos": [],
   "warnings": [
     "Apenas 9 seleções (esperado >= 40 das 48)",
-    "Não foi possível verificar quota: 'list' object has no attribute 'get'",
-    "Mexico: apenas 0 jogos na forma (esperado >= 3)",
-    "South Africa: apenas 0 jogos na forma (esperado >= 3)",
-    "Mexico: stats_insuficientes (sem histórico internacional encontrado)",
-    "Brazil: apenas 0 jogos na forma (esperado >= 3)",
-    "Morocco: apenas 0 jogos na forma (esperado >= 3)",
-    "Brazil: stats_insuficientes (sem histórico internacional encontrado)",
+    "Status endpoint retornou HTTP 429",
     "France: apenas 0 jogos na forma (esperado >= 3)",
     "Senegal: apenas 0 jogos na forma (esperado >= 3)",
     "France: stats_insuficientes (sem histórico internacional encontrado)",
@@ -57,14 +51,9 @@
       "problemas": [],
       "quota_restante": "?",
       "tempos_resposta": {
-        "status": 301
+        "status": 36
       },
       "times_sem_dados": [
-        "Senegal",
-        "Mexico",
-        "Morocco",
-        "Brazil",
-        "South Africa",
         "France"
       ]
     },

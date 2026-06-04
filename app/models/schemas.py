@@ -40,9 +40,10 @@ class EstatisticasTemporada(BaseModel):
     under25_pct: int | None = None
     media_gols_marcados_recente: float | None = None
     media_gols_sofridos_recente: float | None = None
-    # estatísticas avançadas (requerem fixture-level API — None quando indisponível)
-    media_escanteios: float | None = None
-    chances_criadas: float | None = None
+    # estatísticas avançadas
+    media_escanteios: float | None = None       # média de escanteios/jogo (últimos 5)
+    chances_criadas: float | None = None         # estimativa de chances criadas/jogo
+    chances_criadas_metodo: str | None = None   # "estimado" — proxy via modelo DC
 
 
 class EntradaForma(BaseModel):
@@ -70,16 +71,17 @@ class Probabilidades(BaseModel):
 
 
 class Arbitro(BaseModel):
-    nome: str
+    nome: str | None = None
     pais: str | None = None
     jogos_apitados: int | None = None
     media_amarelos: float | None = None
     media_vermelhos: float | None = None
     media_penaltis: float | None = None
-    # campos derivados — calculados quando disponíveis
     cartoes_por_jogo: float | None = None   # amarelos + vermelhos por jogo
     penaltis_por_jogo: float | None = None  # pênaltis apitados por jogo
     tendencia: str | None = None            # "Rigoroso" / "Moderado" / "Permissivo"
+    fonte: str | None = None                # "seed" / "api-football" / "media_copa_2026"
+    nota: str | None = None                 # mensagem para o frontend
 
 
 # ── Modelos de jogadores (devem vir antes de Partida) ────────────────────────
