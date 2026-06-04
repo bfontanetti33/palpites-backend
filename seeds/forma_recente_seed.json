@@ -1,0 +1,4134 @@
+{
+  "generated_at": "2026-06-04T03:49:27.152227+00:00",
+  "total_times": 48,
+  "times": {
+    "16": {
+      "nome": "Mexico",
+      "atualizado": "2026-06-04T03:48:04.908668+00:00",
+      "jogos": [
+        {
+          "data": "2025-10-15",
+          "adversario": "Ecuador",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Uruguay",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Paraguay",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-01-23",
+          "adversario": "Panama",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-01-25",
+          "adversario": "Bolivia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-02-26",
+          "adversario": "Iceland",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-29",
+          "adversario": "Portugal",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-04-01",
+          "adversario": "Belgium",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-23",
+          "adversario": "Ghana",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Australia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1531": {
+      "nome": "South Africa",
+      "atualizado": "2026-06-04T03:48:06.635407+00:00",
+      "jogos": [
+        {
+          "data": "2025-10-14",
+          "adversario": "Rwanda",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Zambia",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-16",
+          "adversario": "Ghana B",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-22",
+          "adversario": "Angola",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-26",
+          "adversario": "Egypt",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-29",
+          "adversario": "Zimbabwe",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-04",
+          "adversario": "Cameroon",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Panama",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Panama",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-29",
+          "adversario": "Nicaragua",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "17": {
+      "nome": "South Korea",
+      "atualizado": "2026-06-04T03:48:08.348515+00:00",
+      "jogos": [
+        {
+          "data": "2025-09-06",
+          "adversario": "USA",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-10",
+          "adversario": "Mexico",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Brazil",
+          "placar_proprio": 0,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Paraguay",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Bolivia",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Ghana",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "Ivory Coast",
+          "placar_proprio": 0,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Austria",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Trinidad and Tobago",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-04",
+          "adversario": "El Salvador",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "770": {
+      "nome": "Czech Republic",
+      "atualizado": "2026-06-04T03:48:10.052994+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-09",
+          "adversario": "Croatia",
+          "placar_proprio": 1,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Montenegro",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Croatia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Faroe Islands",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "San Marino",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-17",
+          "adversario": "Gibraltar",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Rep. Of Ireland",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Denmark",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Kosovo",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "5529": {
+      "nome": "Canada",
+      "atualizado": "2026-06-04T03:48:11.768212+00:00",
+      "jogos": [
+        {
+          "data": "2025-09-05",
+          "adversario": "Romania",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Wales",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Australia",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "Colombia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Ecuador",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Venezuela",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-01-18",
+          "adversario": "Guatemala",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "Iceland",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Tunisia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-02",
+          "adversario": "Uzbekistan",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1113": {
+      "nome": "Bosnia & Herzegovina",
+      "atualizado": "2026-06-04T03:48:13.477865+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-10",
+          "adversario": "Slovenia",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "San Marino",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Austria",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Cyprus",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Malta",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Romania",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Austria",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Wales",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Italy",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-05-29",
+          "adversario": "FYR Macedonia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "2384": {
+      "nome": "USA",
+      "atualizado": "2026-06-04T03:48:15.203579+00:00",
+      "jogos": [
+        {
+          "data": "2025-07-06",
+          "adversario": "Mexico",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "CONCACAF Gold Cup"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "South Korea",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Japan",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "Ecuador",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "Australia",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Paraguay",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Uruguay",
+          "placar_proprio": 5,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "Belgium",
+          "placar_proprio": 2,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Portugal",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Senegal",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "2380": {
+      "nome": "Paraguay",
+      "atualizado": "2026-06-04T03:48:16.913232+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-05",
+          "adversario": "Uruguay",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-06-11",
+          "adversario": "Brazil",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Ecuador",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Peru",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Japan",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "South Korea",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "USA",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Mexico",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Greece",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Morocco",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1569": {
+      "nome": "Qatar",
+      "atualizado": "2026-06-04T03:48:18.638116+00:00",
+      "jogos": [
+        {
+          "data": "2025-10-08",
+          "adversario": "Oman",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "United Arab Emirates",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-11-17",
+          "adversario": "Zimbabwe",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-01",
+          "adversario": "Palestine",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-04",
+          "adversario": "Syria",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-07",
+          "adversario": "Tunisia",
+          "placar_proprio": 0,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Serbia",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Argentina",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-21",
+          "adversario": "Sudan",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-28",
+          "adversario": "Rep. Of Ireland",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "15": {
+      "nome": "Switzerland",
+      "atualizado": "2026-06-04T03:48:20.359549+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-11",
+          "adversario": "USA",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Kosovo",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Slovenia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Sweden",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Slovenia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Sweden",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Kosovo",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Germany",
+          "placar_proprio": 3,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Norway",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Jordan",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "6": {
+      "nome": "Brazil",
+      "atualizado": "2026-06-04T03:48:22.082063+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-11",
+          "adversario": "Paraguay",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Chile",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Bolivia",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "South Korea",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Japan",
+          "placar_proprio": 2,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Senegal",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Tunisia",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "France",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-04-01",
+          "adversario": "Croatia",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Panama",
+          "placar_proprio": 6,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "31": {
+      "nome": "Morocco",
+      "atualizado": "2026-06-04T03:48:23.807275+00:00",
+      "jogos": [
+        {
+          "data": "2025-12-26",
+          "adversario": "Mali",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-29",
+          "adversario": "Zambia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-04",
+          "adversario": "Tanzania",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-09",
+          "adversario": "Cameroon",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-14",
+          "adversario": "Nigeria",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-18",
+          "adversario": "Senegal",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Ecuador",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Paraguay",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-26",
+          "adversario": "Burundi",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-02",
+          "adversario": "Madagascar",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "2386": {
+      "nome": "Haiti",
+      "atualizado": "2026-06-04T03:48:25.520460+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-22",
+          "adversario": "USA",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "CONCACAF Gold Cup"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "Honduras",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-09-10",
+          "adversario": "Costa Rica",
+          "placar_proprio": 3,
+          "placar_adversario": 3,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Nicaragua",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Honduras",
+          "placar_proprio": 0,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Costa Rica",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Nicaragua",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2026-03-29",
+          "adversario": "Tunisia",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Iceland",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-03",
+          "adversario": "New Zealand",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1108": {
+      "nome": "Scotland",
+      "atualizado": "2026-06-04T03:48:27.240108+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-09",
+          "adversario": "Liechtenstein",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Denmark",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Belarus",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Greece",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Belarus",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Greece",
+          "placar_proprio": 2,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Denmark",
+          "placar_proprio": 4,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "Japan",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Ivory Coast",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-30",
+          "adversario": "Curaçao",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "20": {
+      "nome": "Australia",
+      "atualizado": "2026-06-04T03:48:28.956412+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-10",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "New Zealand",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "New Zealand",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Canada",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "USA",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Venezuela",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Colombia",
+          "placar_proprio": 0,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Cameroon",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Curaçao",
+          "placar_proprio": 5,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "777": {
+      "nome": "Türkiye",
+      "atualizado": "2026-06-04T03:48:30.677761+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-11",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Georgia",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-07",
+          "adversario": "Spain",
+          "placar_proprio": 0,
+          "placar_adversario": 6,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "Bulgaria",
+          "placar_proprio": 6,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Georgia",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Bulgaria",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Spain",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Romania",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Kosovo",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-06-01",
+          "adversario": "FYR Macedonia",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "25": {
+      "nome": "Germany",
+      "atualizado": "2026-06-04T03:48:32.393609+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-08",
+          "adversario": "France",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "UEFA Nations League"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Slovakia",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-07",
+          "adversario": "Northern Ireland",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Luxembourg",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Northern Ireland",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Luxembourg",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-17",
+          "adversario": "Slovakia",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Switzerland",
+          "placar_proprio": 4,
+          "placar_adversario": 3,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-30",
+          "adversario": "Ghana",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Finland",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "5530": {
+      "nome": "Curaçao",
+      "atualizado": "2026-06-04T03:48:34.107725+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-25",
+          "adversario": "Honduras",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "CONCACAF Gold Cup"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "Trinidad and Tobago",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-09-10",
+          "adversario": "Bermuda",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Jamaica",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Trinidad and Tobago",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Bermuda",
+          "placar_proprio": 7,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Jamaica",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "China",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Australia",
+          "placar_proprio": 1,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-05-30",
+          "adversario": "Scotland",
+          "placar_proprio": 1,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1118": {
+      "nome": "Netherlands",
+      "atualizado": "2026-06-04T03:48:35.826892+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-10",
+          "adversario": "Malta",
+          "placar_proprio": 8,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Poland",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-07",
+          "adversario": "Lithuania",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Malta",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Finland",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Poland",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-17",
+          "adversario": "Lithuania",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Norway",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Ecuador",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-03",
+          "adversario": "Algeria",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "12": {
+      "nome": "Japan",
+      "atualizado": "2026-06-04T03:48:37.544881+00:00",
+      "jogos": [
+        {
+          "data": "2025-07-15",
+          "adversario": "South Korea",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "EAFF E-1 Football Championship"
+        },
+        {
+          "data": "2025-09-07",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "USA",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Paraguay",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Brazil",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Ghana",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Bolivia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "Scotland",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "England",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Iceland",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1501": {
+      "nome": "Ivory Coast",
+      "atualizado": "2026-06-04T03:48:39.255022+00:00",
+      "jogos": [
+        {
+          "data": "2025-10-14",
+          "adversario": "Kenya",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Oman",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-24",
+          "adversario": "Mozambique",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-28",
+          "adversario": "Cameroon",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-31",
+          "adversario": "Gabon",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-06",
+          "adversario": "Burkina Faso",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-10",
+          "adversario": "Egypt",
+          "placar_proprio": 2,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "South Korea",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Scotland",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "2382": {
+      "nome": "Ecuador",
+      "atualizado": "2026-06-04T03:48:40.967673+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-11",
+          "adversario": "Peru",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Paraguay",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Argentina",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "USA",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "Mexico",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Canada",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "New Zealand",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Morocco",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Netherlands",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "5": {
+      "nome": "Sweden",
+      "atualizado": "2026-06-04T03:48:42.682473+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-10",
+          "adversario": "Algeria",
+          "placar_proprio": 4,
+          "placar_adversario": 3,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Slovenia",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Kosovo",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Switzerland",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Kosovo",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Switzerland",
+          "placar_proprio": 1,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Slovenia",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Ukraine",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Poland",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-06-01",
+          "adversario": "Norway",
+          "placar_proprio": 1,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "28": {
+      "nome": "Tunisia",
+      "atualizado": "2026-06-04T03:48:44.395972+00:00",
+      "jogos": [
+        {
+          "data": "2025-12-01",
+          "adversario": "Syria",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-04",
+          "adversario": "Palestine",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-07",
+          "adversario": "Qatar",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-23",
+          "adversario": "Uganda",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-27",
+          "adversario": "Nigeria",
+          "placar_proprio": 2,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-30",
+          "adversario": "Tanzania",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-03",
+          "adversario": "Mali",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-29",
+          "adversario": "Haiti",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Canada",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-01",
+          "adversario": "Austria",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "9": {
+      "nome": "Spain",
+      "atualizado": "2026-06-04T03:48:46.116557+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-08",
+          "adversario": "Portugal",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "UEFA Nations League"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Bulgaria",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-07",
+          "adversario": "Türkiye",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "Georgia",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Bulgaria",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Georgia",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Türkiye",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Argentina",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "CONMEBOL - UEFA Finalissima"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Serbia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Egypt",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1533": {
+      "nome": "Cape Verde Islands",
+      "atualizado": "2026-06-04T03:48:47.836247+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-08",
+          "adversario": "Georgia",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Mauritius",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Cameroon",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-10-08",
+          "adversario": "Libya",
+          "placar_proprio": 3,
+          "placar_adversario": 3,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Eswatini",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "Iran",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-17",
+          "adversario": "Egypt",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Chile",
+          "placar_proprio": 2,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-03-30",
+          "adversario": "Finland",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Serbia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1": {
+      "nome": "Belgium",
+      "atualizado": "2026-06-04T03:48:49.553819+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-09",
+          "adversario": "Wales",
+          "placar_proprio": 4,
+          "placar_adversario": 3,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Liechtenstein",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-07",
+          "adversario": "Kazakhstan",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "FYR Macedonia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Wales",
+          "placar_proprio": 4,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Kazakhstan",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Liechtenstein",
+          "placar_proprio": 7,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "USA",
+          "placar_proprio": 5,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-04-01",
+          "adversario": "Mexico",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-02",
+          "adversario": "Croatia",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "32": {
+      "nome": "Egypt",
+      "atualizado": "2026-06-04T03:48:51.263486+00:00",
+      "jogos": [
+        {
+          "data": "2025-12-22",
+          "adversario": "Zimbabwe",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-26",
+          "adversario": "South Africa",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-29",
+          "adversario": "Angola",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-05",
+          "adversario": "Benin",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-10",
+          "adversario": "Ivory Coast",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-14",
+          "adversario": "Senegal",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-17",
+          "adversario": "Nigeria",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Spain",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-28",
+          "adversario": "Russia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "23": {
+      "nome": "Saudi Arabia",
+      "atualizado": "2026-06-04T03:48:52.976048+00:00",
+      "jogos": [
+        {
+          "data": "2025-11-18",
+          "adversario": "Algeria",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-02",
+          "adversario": "Oman",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-05",
+          "adversario": "Comoros",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-08",
+          "adversario": "Morocco",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-11",
+          "adversario": "Palestine",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-15",
+          "adversario": "Jordan",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-18",
+          "adversario": "United Arab Emirates",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Egypt",
+          "placar_proprio": 0,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Serbia",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Ecuador",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "7": {
+      "nome": "Uruguay",
+      "atualizado": "2026-06-04T03:48:54.686199+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-05",
+          "adversario": "Paraguay",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-06-10",
+          "adversario": "Venezuela",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Peru",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Chile",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Dominican Republic",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Uzbekistan",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "USA",
+          "placar_proprio": 1,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "England",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Algeria",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "22": {
+      "nome": "Iran",
+      "atualizado": "2026-06-04T03:48:56.410715+00:00",
+      "jogos": [
+        {
+          "data": "2025-09-04",
+          "adversario": "Tajikistan",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "CAFA Nations Cup"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Uzbekistan",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "CAFA Nations Cup"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Russia",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Chile",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Tanzania",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "Cape Verde Islands",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Uzbekistan",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Nigeria",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Costa Rica",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-29",
+          "adversario": "Gambia",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "4673": {
+      "nome": "New Zealand",
+      "atualizado": "2026-06-04T03:48:58.125445+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-10",
+          "adversario": "Ukraine",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Australia",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Australia",
+          "placar_proprio": 1,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Poland",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Norway",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Colombia",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Ecuador",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Finland",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-03-30",
+          "adversario": "Chile",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-06-03",
+          "adversario": "Haiti",
+          "placar_proprio": 0,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "2": {
+      "nome": "France",
+      "atualizado": "2026-06-04T03:48:59.842391+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-05",
+          "adversario": "Spain",
+          "placar_proprio": 4,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "UEFA Nations League"
+        },
+        {
+          "data": "2025-06-08",
+          "adversario": "Germany",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "UEFA Nations League"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Ukraine",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Iceland",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-10",
+          "adversario": "Azerbaijan",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Iceland",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "Ukraine",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Azerbaijan",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Brazil",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-29",
+          "adversario": "Colombia",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "13": {
+      "nome": "Senegal",
+      "atualizado": "2026-06-04T03:49:01.564482+00:00",
+      "jogos": [
+        {
+          "data": "2025-12-23",
+          "adversario": "Botswana",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-27",
+          "adversario": "Congo DR",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-30",
+          "adversario": "Benin",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-03",
+          "adversario": "Sudan",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-09",
+          "adversario": "Mali",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-14",
+          "adversario": "Egypt",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-18",
+          "adversario": "Morocco",
+          "placar_proprio": 0,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-28",
+          "adversario": "Peru",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Gambia",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "USA",
+          "placar_proprio": 2,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1567": {
+      "nome": "Iraq",
+      "atualizado": "2026-06-04T03:49:03.275795+00:00",
+      "jogos": [
+        {
+          "data": "2025-10-11",
+          "adversario": "Indonesia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "United Arab Emirates",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "United Arab Emirates",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Asia"
+        },
+        {
+          "data": "2025-12-03",
+          "adversario": "Bahrain",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-06",
+          "adversario": "Sudan",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-09",
+          "adversario": "Algeria",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-12",
+          "adversario": "Jordan",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2026-04-01",
+          "adversario": "Bolivia",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Intercontinental Play-offs"
+        },
+        {
+          "data": "2026-05-29",
+          "adversario": "Andorra",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1090": {
+      "nome": "Norway",
+      "atualizado": "2026-06-04T03:49:04.994533+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-09",
+          "adversario": "Estonia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Finland",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Moldova",
+          "placar_proprio": 11,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "Israel",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "New Zealand",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "Estonia",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Italy",
+          "placar_proprio": 4,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Netherlands",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Switzerland",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-01",
+          "adversario": "Sweden",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "26": {
+      "nome": "Argentina",
+      "atualizado": "2026-06-04T03:49:06.718096+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-11",
+          "adversario": "Colombia",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Venezuela",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Ecuador",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "Venezuela",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "Puerto Rico",
+          "placar_proprio": 6,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Angola",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Spain",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "CONMEBOL - UEFA Finalissima"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Mauritania",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Qatar",
+          "placar_proprio": null,
+          "placar_adversario": null,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Zambia",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1532": {
+      "nome": "Algeria",
+      "atualizado": "2026-06-04T03:49:08.442678+00:00",
+      "jogos": [
+        {
+          "data": "2025-12-09",
+          "adversario": "Iraq",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-12",
+          "adversario": "United Arab Emirates",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-24",
+          "adversario": "Sudan",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-28",
+          "adversario": "Burkina Faso",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-31",
+          "adversario": "Equatorial Guinea",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-06",
+          "adversario": "Congo DR",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-10",
+          "adversario": "Nigeria",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Guatemala",
+          "placar_proprio": 7,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Uruguay",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-03",
+          "adversario": "Netherlands",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "775": {
+      "nome": "Austria",
+      "atualizado": "2026-06-04T03:49:10.197476+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-10",
+          "adversario": "San Marino",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "Cyprus",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Bosnia & Herzegovina",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "San Marino",
+          "placar_proprio": 10,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Romania",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-15",
+          "adversario": "Cyprus",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Bosnia & Herzegovina",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Ghana",
+          "placar_proprio": 5,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "South Korea",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-01",
+          "adversario": "Tunisia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1548": {
+      "nome": "Jordan",
+      "atualizado": "2026-06-04T03:49:11.911262+00:00",
+      "jogos": [
+        {
+          "data": "2025-11-18",
+          "adversario": "Mali",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-03",
+          "adversario": "United Arab Emirates",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-06",
+          "adversario": "Kuwait",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-09",
+          "adversario": "Egypt",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-12",
+          "adversario": "Iraq",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-15",
+          "adversario": "Saudi Arabia",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2025-12-18",
+          "adversario": "Morocco",
+          "placar_proprio": 2,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Arab Cup"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Costa Rica",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Nigeria",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Switzerland",
+          "placar_proprio": 1,
+          "placar_adversario": 4,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "27": {
+      "nome": "Portugal",
+      "atualizado": "2026-06-04T03:49:13.630240+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-04",
+          "adversario": "Germany",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "UEFA Nations League"
+        },
+        {
+          "data": "2025-06-08",
+          "adversario": "Spain",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "UEFA Nations League"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "Armenia",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Hungary",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-11",
+          "adversario": "Rep. Of Ireland",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Hungary",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "Rep. Of Ireland",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Armenia",
+          "placar_proprio": 9,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-29",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "USA",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1508": {
+      "nome": "Congo DR",
+      "atualizado": "2026-06-04T03:49:15.343676+00:00",
+      "jogos": [
+        {
+          "data": "2025-11-13",
+          "adversario": "Cameroon",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Nigeria",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-12-16",
+          "adversario": "Zambia",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-12-23",
+          "adversario": "Benin",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-27",
+          "adversario": "Senegal",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2025-12-30",
+          "adversario": "Botswana",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-01-06",
+          "adversario": "Algeria",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Africa Cup of Nations"
+        },
+        {
+          "data": "2026-03-25",
+          "adversario": "Bermuda",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Jamaica",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Intercontinental Play-offs"
+        },
+        {
+          "data": "2026-06-03",
+          "adversario": "Denmark",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "10": {
+      "nome": "England",
+      "atualizado": "2026-06-04T03:49:17.060722+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-07",
+          "adversario": "Andorra",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-06-10",
+          "adversario": "Senegal",
+          "placar_proprio": 1,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-09-06",
+          "adversario": "Andorra",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Serbia",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Wales",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-14",
+          "adversario": "Latvia",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-13",
+          "adversario": "Serbia",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "Albania",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Uruguay",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "Japan",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "3": {
+      "nome": "Croatia",
+      "atualizado": "2026-06-04T03:49:18.775782+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-09",
+          "adversario": "Czech Republic",
+          "placar_proprio": 5,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-05",
+          "adversario": "Faroe Islands",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Montenegro",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Czech Republic",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Gibraltar",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Faroe Islands",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2025-11-17",
+          "adversario": "Montenegro",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Europe"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Colombia",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-04-01",
+          "adversario": "Brazil",
+          "placar_proprio": 1,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-02",
+          "adversario": "Belgium",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1504": {
+      "nome": "Ghana",
+      "atualizado": "2026-06-04T03:49:20.477100+00:00",
+      "jogos": [
+        {
+          "data": "2025-09-04",
+          "adversario": "Chad",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-09-08",
+          "adversario": "Mali",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-10-08",
+          "adversario": "Central African Republic",
+          "placar_proprio": 5,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Comoros",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification Africa"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Japan",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "South Korea",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Austria",
+          "placar_proprio": 1,
+          "placar_adversario": 5,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-30",
+          "adversario": "Germany",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-23",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-02",
+          "adversario": "Wales",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "11": {
+      "nome": "Panama",
+      "atualizado": "2026-06-04T03:49:22.195931+00:00",
+      "jogos": [
+        {
+          "data": "2025-10-11",
+          "adversario": "El Salvador",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "Suriname",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Guatemala",
+          "placar_proprio": 3,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "El Salvador",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification CONCACAF"
+        },
+        {
+          "data": "2026-01-18",
+          "adversario": "Bolivia",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-01-23",
+          "adversario": "Mexico",
+          "placar_proprio": 0,
+          "placar_adversario": 1,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "South Africa",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-31",
+          "adversario": "South Africa",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-05-31",
+          "adversario": "Brazil",
+          "placar_proprio": 2,
+          "placar_adversario": 6,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-04",
+          "adversario": "Dominican Republic",
+          "placar_proprio": 4,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "1568": {
+      "nome": "Uzbekistan",
+      "atualizado": "2026-06-04T03:49:23.924655+00:00",
+      "jogos": [
+        {
+          "data": "2025-09-08",
+          "adversario": "Iran",
+          "placar_proprio": 1,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "CAFA Nations Cup"
+        },
+        {
+          "data": "2025-10-09",
+          "adversario": "Kuwait",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-13",
+          "adversario": "Uruguay",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-14",
+          "adversario": "Egypt",
+          "placar_proprio": 2,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-18",
+          "adversario": "Iran",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-01-26",
+          "adversario": "China",
+          "placar_proprio": 2,
+          "placar_adversario": 2,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-01-30",
+          "adversario": "FC Urartu",
+          "placar_proprio": 4,
+          "placar_adversario": 2,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-27",
+          "adversario": "Gabon",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-03-30",
+          "adversario": "Venezuela",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "FIFA Series"
+        },
+        {
+          "data": "2026-06-02",
+          "adversario": "Canada",
+          "placar_proprio": 0,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        }
+      ]
+    },
+    "8": {
+      "nome": "Colombia",
+      "atualizado": "2026-06-04T03:49:25.640614+00:00",
+      "jogos": [
+        {
+          "data": "2025-06-11",
+          "adversario": "Argentina",
+          "placar_proprio": 1,
+          "placar_adversario": 1,
+          "resultado": "D",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-04",
+          "adversario": "Bolivia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-09-09",
+          "adversario": "Venezuela",
+          "placar_proprio": 6,
+          "placar_adversario": 3,
+          "resultado": "W",
+          "competicao": "World Cup - Qualification South America"
+        },
+        {
+          "data": "2025-10-12",
+          "adversario": "Mexico",
+          "placar_proprio": 4,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-10-15",
+          "adversario": "Canada",
+          "placar_proprio": 0,
+          "placar_adversario": 0,
+          "resultado": "D",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-16",
+          "adversario": "New Zealand",
+          "placar_proprio": 2,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2025-11-19",
+          "adversario": "Australia",
+          "placar_proprio": 3,
+          "placar_adversario": 0,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-26",
+          "adversario": "Croatia",
+          "placar_proprio": 1,
+          "placar_adversario": 2,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-03-29",
+          "adversario": "France",
+          "placar_proprio": 1,
+          "placar_adversario": 3,
+          "resultado": "L",
+          "competicao": "Friendlies"
+        },
+        {
+          "data": "2026-06-01",
+          "adversario": "Costa Rica",
+          "placar_proprio": 3,
+          "placar_adversario": 1,
+          "resultado": "W",
+          "competicao": "Friendlies"
+        }
+      ]
+    }
+  }
+}

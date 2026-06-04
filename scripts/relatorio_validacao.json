@@ -1,16 +1,13 @@
 {
-  "timestamp": "2026-06-04T00:29:11.872864",
-  "resultado_geral": "APROVADO COM RESSALVAS",
+  "timestamp": "2026-06-04T00:53:40.501630",
+  "resultado_geral": "APROVADO",
   "exit_code": 0,
   "n_criticos": 0,
-  "n_warnings": 6,
+  "n_warnings": 3,
   "criticos": [],
   "warnings": [
-    "Apenas 9 seleções (esperado >= 40 das 48)",
+    "1 problemas nos squads: ['Curaçao: 0 jogadores (esperado 20-26)']",
     "Status endpoint retornou HTTP 429",
-    "France: apenas 0 jogos na forma (esperado >= 3)",
-    "Senegal: apenas 0 jogos na forma (esperado >= 3)",
-    "France: stats_insuficientes (sem histórico internacional encontrado)",
     "Odds API retornou HTTP 401: {\"message\":\"Usage quota has been reached. See usage plans at https://the-odds-api.com\",\"error_code\":\"OUT_OF_USAGE_CREDITS\",\"details_url\":\"https://the-odds-api.com/liveapi/guides/v4/api-error-codes.htm"
   ],
   "blocos": {
@@ -38,12 +35,14 @@
       }
     },
     "squads": {
-      "status": "ok",
-      "problemas": [],
+      "status": "warning",
+      "problemas": [
+        "Curaçao: 0 jogadores (esperado 20-26)"
+      ],
       "stats": {
-        "total_selecoes": 9,
-        "total_jogadores": 233,
-        "media_por_selecao": 25.9
+        "total_selecoes": 48,
+        "total_jogadores": 1220,
+        "media_por_selecao": 25.4
       }
     },
     "api_football": {
@@ -51,11 +50,9 @@
       "problemas": [],
       "quota_restante": "?",
       "tempos_resposta": {
-        "status": 36
+        "status": 37
       },
-      "times_sem_dados": [
-        "France"
-      ]
+      "times_sem_dados": []
     },
     "odds_api": {
       "status": "ok",
