@@ -1,7 +1,7 @@
 {
   "meta": {
     "total": 52,
-    "gerado_em": "2026-06-04T00:34:34.434002",
+    "gerado_em": "2026-06-04T01:14:49.618239",
     "fonte": "FIFA Copa 2026 — lista oficial",
     "nota": "Execute scripts/gerar_seed_arbitros.py para atualizar com dados reais da API-Football",
     "media_copa": {
@@ -14,10 +14,13 @@
     {
       "nome": "Szymon Marciniak",
       "pais": "Poland",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 3.6,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 5,
+      "amarelos_media": 3.4,
+      "vermelhos_media": 0.2
     },
     {
       "nome": "Slavko Vincic",
@@ -30,66 +33,90 @@
     {
       "nome": "Cesar Ramos",
       "pais": "Mexico",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 2.14,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 7,
+      "amarelos_media": 2.14,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Ismail Elfath",
       "pais": "USA",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 5.33,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Rigoroso",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 5.0,
+      "vermelhos_media": 0.33
     },
     {
       "nome": "Facundo Tello",
       "pais": "Argentina",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 3.33,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 3.0,
+      "vermelhos_media": 0.33
     },
     {
       "nome": "Ivan Barton",
       "pais": "El Salvador",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 1.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 1.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Raphael Claus",
       "pais": "Brazil",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 3.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 3.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Victor Gomes",
       "pais": "South Africa",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 3.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 3.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Abdulrahman Al-Jassim",
       "pais": "Qatar",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 4.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 4.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Alireza Faghani",
       "pais": "Australia",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 4.33,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 6,
+      "amarelos_media": 4.33,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Mohammed Abdulla Hassan",
@@ -110,18 +137,24 @@
     {
       "nome": "Jesus Valenzuela",
       "pais": "Venezuela",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 1.5,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 1.5,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Wilton Sampaio",
       "pais": "Brazil",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 3.5,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 4,
+      "amarelos_media": 3.5,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Piero Maza",
@@ -134,18 +167,24 @@
     {
       "nome": "Fernando Rapallini",
       "pais": "Argentina",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 4.67,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Rigoroso",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 4.67,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Michael Oliver",
       "pais": "England",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 6.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Rigoroso",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 6.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Felix Zwayer",
@@ -166,34 +205,46 @@
     {
       "nome": "Clement Turpin",
       "pais": "France",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 2.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 5,
+      "amarelos_media": 2.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Daniele Orsato",
       "pais": "Italy",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 5.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Rigoroso",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 5.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Danny Makkelie",
       "pais": "Netherlands",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 3.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Moderado",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 3.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Anthony Taylor",
       "pais": "England",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 2.5,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 2.5,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Istvan Kovacs",
@@ -238,18 +289,24 @@
     {
       "nome": "Mustapha Ghorbal",
       "pais": "Algeria",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 2.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 2,
+      "amarelos_media": 2.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Janny Sikazwe",
       "pais": "Zambia",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 4.67,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Rigoroso",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 3,
+      "amarelos_media": 4.67,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Bamlak Tessema",
@@ -326,10 +383,13 @@
     {
       "nome": "Stephanie Frappart",
       "pais": "France",
-      "cartoes_por_jogo": null,
-      "penaltis_por_jogo": null,
-      "tendencia": null,
-      "fonte": "pendente"
+      "cartoes_por_jogo": 1.0,
+      "penaltis_por_jogo": 0.15,
+      "tendencia": "Permissivo",
+      "fonte": "api-football-copa2022-2018",
+      "jogos_analisados": 1,
+      "amarelos_media": 1.0,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Edina Alves",
