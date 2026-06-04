@@ -3,11 +3,18 @@
 Popula seeds/arbitros_copa_2026.json com dados reais da API-Football.
 Para cada árbitro, busca últimos 30 jogos e calcula cartões/pênaltis/tendência.
 
+ATENÇÃO: requer API-Football plano Pro ou superior.
+O endpoint /fixtures?referee= não está disponível no plano free.
+
 Uso:
     python scripts/gerar_seed_arbitros.py
 
 Usa ~52 requests da API-Football (um por árbitro).
 Recomendado rodar 1x e fazer commit do seed resultante.
+
+Alternativas sem API Pro:
+  - População manual: edite seeds/arbitros_copa_2026.json diretamente
+  - Os defaults (3.4 cart/jogo, "Moderado") já são retornados corretamente
 """
 import asyncio
 import json
