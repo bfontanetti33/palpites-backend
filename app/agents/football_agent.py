@@ -310,26 +310,51 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro | None
         if not nome_raw:
             return None
 
-        # API retorna "Nome Sobrenome, País" — pega só o nome
-        nome = nome_raw.split(",")[0].strip()
+        # API retorna "Nome Sobrenome, País" — extrai nome e país
+        partes = nome_raw.split(",")
+        nome = partes[0].strip()
+        pais = partes[1].strip() if len(partes) > 1 else None
 
-        # Busca últimos 20 jogos do árbitro para calcular médias
+        # Busca últimos 20 jogos do árbitro
         jogos_data = await _get(client, "/fixtures", {"referee": nome, "last": 20})
         jogos = jogos_data.get("response", [])
 
         if not jogos:
-            return Arbitro(nome=nome)
+            return Arbitro(nome=nome, pais=pais)
 
         total = len(jogos)
+
+        # Calcula cartões/pênaltis a partir do campo statistics da fixture
         total_yellow = total_red = total_pen = 0
-
         for f in jogos:
-            # Cartões e pênaltis estão nos eventos, mas buscar evento por jogo
-            # usaria muita quota. Usamos score como proxy de pênaltis não é confiável.
-            # Retornamos só o total de jogos por enquanto.
-            pass
+            stats = f.get("statistics") or []
+            for s in stats:
+                for item in s.get("statistics", []):
+                    tipo = (item.get("type") or "").lower()
+                    val  = item.get("value") or 0
+                    try: val = int(val)
+                    except (TypeError, ValueError): val = 0
+                    if "yellow" in tipo: total_yellow += val
+                    elif "red"    in tipo: total_red   += val
+                    elif "penalty" in tipo and "scored" in tipo: total_pen += val
 
-        return Arbitro(nome=nome, jogos_apitados=total)
+        cartoes_pg = round((total_yellow + total_red) / total, 2) if total else None
+        pen_pg     = round(total_pen / total, 2) if total else None
+
+        tendencia: str | None = None
+        if cartoes_pg is not None:
+            if   cartoes_pg >= 5: tendencia = "Rigoroso"
+            elif cartoes_pg >= 3: tendencia = "Moderado"
+            else:                  tendencia = "Permissivo"
+
+        return Arbitro(
+            nome=nome,
+            pais=pais,
+            jogos_apitados=total,
+            cartoes_por_jogo=cartoes_pg,
+            penaltis_por_jogo=pen_pg if pen_pg else None,
+            tendencia=tendencia,
+        )
 
     except Exception:
         return None
@@ -382,7 +407,43 @@ async def _buscar_odds(client: httpx.AsyncClient, fixture_id: int) -> dict | Non
 
 # ── Seed → schema ─────────────────────────────────────────────────────────────
 
-def _jogo_para_resumo(j: dict) -> PartidaResumo:
+def _favorito_e_prob(
+    nome_casa: str, nome_fora: str, prob: "Probabilidades | None"
+) -> tuple[str, float | None]:
+    """Retorna (nome_favorito, prob_favorito) a partir das probabilidades."""
+    if not prob or prob.dados_insuficientes:
+        return "", None
+    vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
+    if vc >= vf and vc >= emp:
+        return nome_casa, float(vc)
+    if vf > vc and vf >= emp:
+        return nome_fora, float(vf)
+    return "Empate", float(emp)
+
+
+def _insight_curto(nome_casa: str, nome_fora: str, prob: "Probabilidades | None") -> str:
+    """Gera 1 frase curtíssima sobre o confronto sem chamar Claude."""
+    if not prob or prob.dados_insuficientes:
+        return f"{nome_casa} x {nome_fora}"
+    vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
+    if vc >= 55:
+        return f"{nome_casa} favorito ({vc}%)"
+    if vf >= 55:
+        return f"{nome_fora} favorito ({vf}%)"
+    if vc >= 45:
+        return f"{nome_casa} com leve vantagem ({vc}%)"
+    if vf >= 45:
+        return f"{nome_fora} com leve vantagem ({vf}%)"
+    return f"Confronto equilibrado — {nome_casa} {vc}% / Empate {emp}% / {nome_fora} {vf}%"
+
+
+def _jogo_para_resumo(j: dict, partida: "Partida | None" = None) -> PartidaResumo:
+    nome_casa = j["time_casa"]
+    nome_fora = j["time_fora"]
+    prob = partida.probabilidades if partida else None
+
+    fav, prob_fav = _favorito_e_prob(nome_casa, nome_fora, prob)
+
     return PartidaResumo(
         id=j["api_fixture_id"],
         slug=j["slug"],
@@ -391,12 +452,20 @@ def _jogo_para_resumo(j: dict) -> PartidaResumo:
         status=j.get("status") or "NS",
         estadio=j.get("estadio") or "",
         cidade=j.get("cidade") or "",
-        time_casa_nome=j["time_casa"],
+        time_casa_nome=nome_casa,
         time_casa_logo=j.get("time_casa_logo") or "",
-        time_fora_nome=j["time_fora"],
+        time_fora_nome=nome_fora,
         time_fora_logo=j.get("time_fora_logo") or "",
         gols_casa=j.get("gols_casa"),
         gols_fora=j.get("gols_fora"),
+        # Probabilidades (do cache, se disponível)
+        prob_vitoria_casa=float(prob.vitoria_casa) if prob else None,
+        prob_empate=float(prob.empate)              if prob else None,
+        prob_vitoria_fora=float(prob.vitoria_fora)  if prob else None,
+        favorito=fav,
+        prob_favorito=prob_fav,
+        insight_curto=_insight_curto(nome_casa, nome_fora, prob),
+        resumo_rapido=partida.insight_probabilidades if partida else "",
     )
 
 
@@ -478,8 +547,11 @@ def _gerar_insight_probabilidades(
 # ── API pública ───────────────────────────────────────────────────────────────
 
 async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
-    """72 jogos da fase de grupos — lidos do seed, zero quota."""
-    return [_jogo_para_resumo(j) for j in _JOGOS]
+    """
+    72 jogos da fase de grupos — lidos do seed, zero quota.
+    Enriquece com probabilidades e insights do _partida_cache quando disponível.
+    """
+    return [_jogo_para_resumo(j, _partida_cache.get(j["slug"])) for j in _JOGOS]
 
 
 async def buscar_detalhe_partida(slug: str) -> Partida | None:

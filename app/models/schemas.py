@@ -40,6 +40,9 @@ class EstatisticasTemporada(BaseModel):
     under25_pct: int | None = None
     media_gols_marcados_recente: float | None = None
     media_gols_sofridos_recente: float | None = None
+    # estatísticas avançadas (requerem fixture-level API — None quando indisponível)
+    media_escanteios: float | None = None
+    chances_criadas: float | None = None
 
 
 class EntradaForma(BaseModel):
@@ -68,10 +71,15 @@ class Probabilidades(BaseModel):
 
 class Arbitro(BaseModel):
     nome: str
+    pais: str | None = None
     jogos_apitados: int | None = None
     media_amarelos: float | None = None
     media_vermelhos: float | None = None
     media_penaltis: float | None = None
+    # campos derivados — calculados quando disponíveis
+    cartoes_por_jogo: float | None = None   # amarelos + vermelhos por jogo
+    penaltis_por_jogo: float | None = None  # pênaltis apitados por jogo
+    tendencia: str | None = None            # "Rigoroso" / "Moderado" / "Permissivo"
 
 
 # ── Modelos de jogadores (devem vir antes de Partida) ────────────────────────
@@ -154,6 +162,14 @@ class PartidaResumo(BaseModel):
     time_fora_logo: str
     gols_casa: int | None = None
     gols_fora: int | None = None
+    # Campos de probabilidade — populados a partir do _partida_cache quando disponível
+    prob_vitoria_casa: float | None = None
+    prob_empate: float | None = None
+    prob_vitoria_fora: float | None = None
+    favorito: str = ""          # nome do time favorito ou "Empate"
+    prob_favorito: float | None = None
+    insight_curto: str = ""     # 1 frase curta sobre o confronto (sem Claude)
+    resumo_rapido: str = ""     # insight_probabilidades completo
 
 
 class Partida(PartidaResumo):
