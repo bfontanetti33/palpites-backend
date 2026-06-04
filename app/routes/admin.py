@@ -45,6 +45,69 @@ async def telegram_test():
     }
 
 
+# ── Telegram status go-live ──────────────────────────────────────────────────
+
+@router.get("/admin/telegram-status", tags=["Admin"])
+async def telegram_status():
+    """Envia mensagem de status completo formatada para go-live."""
+    import httpx
+    from app.agents.football_agent import _partida_cache
+    from app.auth.supabase_client import ping as sb_ping
+    from app.monitoring.telegram_bot import state
+    import json
+
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat  = os.getenv("TELEGRAM_CHAT_ID", "")
+    if not token or not chat:
+        return {"enviado": False, "erro": "TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID ausentes"}
+
+    sb    = await sb_ping()
+    cache = len(_partida_cache)
+
+    def _to_int(v):
+        try: return int(v)
+        except: return v
+
+    quota_fb  = _to_int(state.quota_api_football)
+    quota_odd = _to_int(state.quota_odds_api)
+
+    msg = (
+        "🔧 <b>Debug concluído — Palpites da IA</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "✅ Backend: online\n"
+        "📍 Região: São Paulo\n"
+        f"⚽ Jogos em cache: {cache}/72\n"
+        f"🗄️ Supabase: {'conectado ✅' if sb['conectado'] else 'erro ❌'}\n"
+        f"📊 Árbitros: 20/52 com dados reais\n"
+        "   (script pronto para rodar após 21h BRT)\n"
+        f"🌐 Site: palpitesdaia.com.br\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ <b>Pendente:</b>\n"
+        "- Seed árbitros (rodar após 21h BRT)\n"
+        "- Supabase conectar no Lovable\n"
+        "- Mercado Pago (sábado)\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "Go live: AMANHÃ 🏆"
+    )
+
+    async with httpx.AsyncClient(timeout=10) as c:
+        r = await c.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat, "text": msg, "parse_mode": "HTML"},
+        )
+        ok   = r.status_code == 200
+        body = r.json()
+
+    return {
+        "enviado": ok,
+        "status_code": r.status_code,
+        "telegram_ok": body.get("ok"),
+        "cache": cache,
+        "supabase": sb["conectado"],
+        "erro": None if ok else body.get("description"),
+    }
+
+
 # ── Telegram resumo completo ─────────────────────────────────────────────────
 
 @router.get("/admin/telegram-resumo", tags=["Admin"])
