@@ -29,6 +29,7 @@ class MonitorState:
     erros_timestamps: list = field(default_factory=list)
     startup_time: datetime = field(default_factory=datetime.utcnow)
     requests_timestamps: list = field(default_factory=list)  # janela de 24h
+    quota_alerta_5000_enviado: bool = False  # flag: alerta 5.000/7.500 já enviado hoje
 
 
 state = MonitorState()
@@ -79,13 +80,30 @@ def atualizar_quota_api_football(restante: str) -> None:
     """Chamado em _get() do football_agent após cada chamada real à API."""
     state.quota_api_football = restante
     try:
-        if int(restante) < 20:
+        rem  = int(restante)
+        used = 7500 - rem
+        agora = datetime.utcnow().strftime("%d/%m %H:%M")
+
+        # Alerta em 5.000/7.500 — enviado uma vez por ciclo diário
+        if used >= 5000 and not state.quota_alerta_5000_enviado:
+            state.quota_alerta_5000_enviado = True
             asyncio.create_task(
                 send_telegram(
-                    f"⚠️ <b>QUOTA BAIXA — API-Football</b>\n"
-                    f"Restante: <b>{restante}</b> req/dia\n"
-                    f"⏰ {datetime.utcnow().strftime('%d/%m %H:%M')} UTC\n"
-                    f"Ação: pré-cache já está ativo, requests param quando cache expira."
+                    f"⚠️ <b>Quota API-Football: {used} req usados</b>\n"
+                    f"Remaining: <b>{rem}</b> / 7.500\n"
+                    f"Monitore para evitar quota zerada.\n"
+                    f"⏰ {agora} UTC"
+                )
+            )
+
+        # Alerta crítico quando restam menos de 20 requisições
+        if rem < 20:
+            asyncio.create_task(
+                send_telegram(
+                    f"🚨 <b>QUOTA CRÍTICA — API-Football</b>\n"
+                    f"Restante: <b>{rem}</b> req/dia\n"
+                    f"⏰ {agora} UTC\n"
+                    f"Cache 8h ativo — novas chamadas só após renovação da quota."
                 )
             )
     except (ValueError, TypeError):
@@ -127,6 +145,9 @@ async def enviar_resumo_diario() -> None:
     state.erros_timestamps = [t for t in state.erros_timestamps if t > cutoff]
     n_erros = len(state.erros_timestamps)
     n_cache = len(_partida_cache)
+
+    # Reseta flag de alerta de quota a cada ciclo diário
+    state.quota_alerta_5000_enviado = False
 
     verificar_credito_anthropic()
 

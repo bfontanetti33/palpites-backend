@@ -29,8 +29,8 @@ async def listar_jogos_copa(request: Request, response: Response):
 
 
 @router.get("/copa/jogos/{slug}", response_model=Partida)
-@limiter.limit("20/minute")  # cache 4h protege quota API-Football
-async def detalhe_jogo(request: Request, slug: str):
+@limiter.limit("20/minute")  # cache 8h protege quota API-Football
+async def detalhe_jogo(request: Request, response: Response, slug: str):
     """
     Detalhes completos de um jogo da Copa 2026.
 
@@ -43,6 +43,7 @@ async def detalhe_jogo(request: Request, slug: str):
     O campo dados_insuficientes=true indica que algum dado não estava disponível
     na API — nunca são inventados ou estimados.
     """
+    response.headers["Cache-Control"] = "public, max-age=28800"  # 8h
     partida = await buscar_detalhe_partida(slug)
     if not partida:
         raise HTTPException(

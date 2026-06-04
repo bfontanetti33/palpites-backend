@@ -43,8 +43,8 @@ _INTL_LEAGUES: list[tuple[int, list[int], str]] = [
     (5,  [2024, 2022, 2020],       "Nations League"),  # UEFA Nations League
 ]
 
-_cache: TTLCache = TTLCache(maxsize=400, ttl=14400)   # 4h — chamadas individuais API-Football
-_partida_cache: TTLCache = TTLCache(maxsize=72, ttl=14400)  # 4h — resposta completa por slug
+_cache: TTLCache = TTLCache(maxsize=400, ttl=28800)   # 8h — chamadas individuais API-Football
+_partida_cache: TTLCache = TTLCache(maxsize=72, ttl=28800)  # 8h — resposta completa por slug
 
 # ── Seed árbitros Copa 2026 ───────────────────────────────────────────────────
 def _carregar_seed_arbitros() -> dict:
@@ -591,28 +591,44 @@ def _jogo_para_resumo(j: dict, partida: "Partida | None" = None) -> PartidaResum
     )
 
 
-# ── Pré-cache de todos os jogos (chamado no startup) ─────────────────────────
+# ── Pré-cache dos próximos jogos (chamado no startup) ────────────────────────
 
-async def precalcular_todos_jogos(delay: float = 1.5) -> int:
+async def precalcular_proximos_jogos(n: int = 8, delay: float = 1.5) -> int:
     """
-    Itera pelos 72 slugs do seed e chama buscar_detalhe_partida para cada um.
-    Popula _partida_cache e captura quota da API-Football.
-    Retorna número de slugs cacheados com sucesso.
+    Pré-cacha os próximos N jogos por data (a partir de agora).
+    Reduz consumo de quota da API-Football no startup comparado a cachear todos os 72.
     Roda em background — não bloqueia o startup.
     """
     import logging
+    from datetime import datetime, timezone
     log = logging.getLogger(__name__)
-    total = len(_JOGOS)
-    log.info(f"Iniciando pré-cache de {total} jogos em background...")
+
+    agora = datetime.now(timezone.utc)
+
+    def _parse_dt(s: str) -> datetime:
+        try:
+            return datetime.fromisoformat(s)
+        except Exception:
+            return datetime.max.replace(tzinfo=timezone.utc)
+
+    jogos_futuros = [j for j in _JOGOS if _parse_dt(j["data_hora_brasilia"]) > agora]
+    jogos_futuros.sort(key=lambda j: _parse_dt(j["data_hora_brasilia"]))
+    proximos = jogos_futuros[:n]
+
+    if not proximos:
+        log.info("Nenhum jogo futuro encontrado para pré-cache")
+        return 0
+
+    log.info("Pré-cache dos próximos %d jogos em background...", len(proximos))
     ok = 0
-    for jogo in _JOGOS:
+    for jogo in proximos:
         try:
             await buscar_detalhe_partida(jogo["slug"])
             ok += 1
         except Exception:
             pass
         await asyncio.sleep(delay)
-    log.info(f"Pré-cache concluído: {ok}/{total} jogos cacheados")
+    log.info("Pré-cache concluído: %d/%d jogos cacheados", ok, len(proximos))
     return ok
 
 
