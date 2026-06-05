@@ -293,6 +293,64 @@ async def admin_stats():
     }
 
 
+# ── Pré-aquecimento on-demand ─────────────────────────────────────────────────
+
+@router.get("/admin/prewarm", tags=["Admin"])
+async def prewarm_stats(
+    dias: int = 14,
+    authorization: str | None = Header(default=None),
+):
+    """
+    Pré-aquece stats (Camadas 1-4B) para todos os jogos dos próximos N dias.
+    Dispara calcular_stats em background para cada jogo sem dados em cache.
+    Protegido por Bearer <ADMIN_TOKEN> se configurado.
+    """
+    _checar_token(authorization)
+    import asyncio
+    from datetime import datetime, timezone
+
+    async def _run_prewarm(max_horas: int) -> dict:
+        from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
+        from app.agents.ia_agent import calcular_stats
+        from app.cache import static_cache as _sc
+
+        agora = datetime.now(timezone.utc)
+        aquecidos, pulados, erros = 0, 0, 0
+
+        for jogo in _JOGOS:
+            slug = jogo["slug"]
+            try:
+                dt = datetime.fromisoformat(jogo["data_hora_utc"].replace("Z", "+00:00"))
+                horas = (dt - agora).total_seconds() / 3600
+                if horas < -0.5 or horas > max_horas:
+                    continue
+            except Exception:
+                continue
+
+            if _sc.get_stats(slug) is not None:
+                pulados += 1
+                continue
+
+            try:
+                partida = await buscar_detalhe_partida(slug)
+                if partida is None:
+                    erros += 1
+                    continue
+                await calcular_stats(partida)
+                aquecidos += 1
+            except Exception:
+                erros += 1
+
+        return {"aquecidos": aquecidos, "ja_em_cache": pulados, "erros": erros}
+
+    resultado = await _run_prewarm(dias * 24)
+    s = __import__("app.cache.static_cache", fromlist=["summary"]).summary()
+    return {
+        "prewarm": resultado,
+        "cache_summary": s,
+    }
+
+
 # ── Acurácia do modelo (backtesting contínuo) ─────────────────────────────────
 
 @router.get("/admin/acuracia", tags=["Admin"])

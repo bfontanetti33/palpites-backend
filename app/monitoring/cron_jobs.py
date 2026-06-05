@@ -167,9 +167,9 @@ async def _job_prewarm_stats() -> None:
                 except Exception:
                     continue
 
-                # Só jogos futuros (até 7 dias) — não processa jogos passados
+                # Só jogos futuros (até 14 dias) — cobre toda a fase de grupos
                 horas_ate = (dt_jogo - agora).total_seconds() / 3600
-                if horas_ate < -0.5 or horas_ate > 168:  # passou ou >7 dias
+                if horas_ate < -0.5 or horas_ate > 336:  # passou ou >14 dias
                     continue
 
                 # Se stats ainda frescos, pula

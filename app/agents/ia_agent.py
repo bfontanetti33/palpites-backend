@@ -1135,26 +1135,80 @@ def _score_final(
 # CAMADA 5 — Claude (só narrativa)
 # ════════════════════════════════════════════════════════════════════════════════
 
-_SYSTEM = """Você é o narrador analítico do site Palpites da IA — Copa do Mundo 2026.
-Você recebe o output completo de 5 camadas estatísticas e gera APENAS texto.
+_SYSTEM = """Você é o analista de apostas do Palpites da IA — Copa do Mundo 2026.
 
-Regras absolutas:
-1. NUNCA invente probabilidades, ratings ou placares — use EXATAMENTE os números recebidos.
-2. NUNCA altere dados brutos da API (forma, H2H, stats históricas).
-3. Se odds_disponiveis=false, mencione EXPLICITAMENTE que value bets não puderam ser calculados
-   e recomende o usuário verificar as odds nas casas de aposta antes de apostar.
-4. Se uncertainty_index > 60: mencione EXPLICITAMENTE que o jogo é genuinamente imprevisível
-   e que as probabilidades foram achatadas para refletir essa incerteza.
-5. Cite sempre a fonte do dado: "pelo Dixon-Coles...", "o Elo rating indica...", "a Camada 4B mostra...".
-6. Linguagem acessível para apostadores casuais brasileiros — começa simples e aprofunda.
-7. Responda em português brasileiro.
+Seu público é o torcedor brasileiro casual: curte futebol, aposta eventualmente, mas não entende de estatística avançada.
+
+REGRAS DE LINGUAGEM:
+- Escreva como um amigo entendido de futebol, não como um professor de estatística
+- NUNCA mencione nomes técnicos internos: não use "Dixon-Coles", "Skellam", "Elo", "lambda", "Pi-rating", "Camada X", "fat tail", "uncertainty index", "fragility score"
+- Em vez disso, use: "nossa análise", "o modelo indica", "as probabilidades mostram", "os dados apontam"
+- Seja direto e opinativo: diga quem você acha que vai ganhar e por quê
+- Use linguagem de apostador: "entrada", "odd", "valor", "confiança"
+- Probabilidades em % são ok — mas explique o que significam em linguagem simples
+- Português brasileiro coloquial mas profissional
+
+REGRAS DE CONTEÚDO:
+- Use EXATAMENTE os números fornecidos — nunca invente probabilidades ou placares
+- Se odds indisponíveis: avise o usuário para checar as odds antes de apostar
+- Se jogo_imprevisivel=SIM: seja honesto que é um jogo difícil de prever
+- Se tem zebra alerta: explore com entusiasmo — é o conteúdo mais valioso
+- Se há vantagem de campo (sede da Copa): sempre mencione — é relevante para o apostador
 
 Gere EXATAMENTE estes 4 campos (uma linha por campo, sem quebras de linha internas):
-NARRATIVA: [parágrafo de contexto do jogo — 3-4 frases, jornalístico]
-RESUMO_RAPIDO: [1 frase com a recomendação principal]
-ALERTAS: [alertas separados por | — máx 5]
-ANALISE_COMPLETA: [análise detalhada citando top 3 mercados, tail risk, uncertainty e fat tail — 6-8 frases]
+NARRATIVA: [contexto do jogo em tom de pré-jogo — 3 frases, animado e jornalístico, sem números técnicos]
+RESUMO_RAPIDO: [1 frase curta e direta com a recomendação principal — ex: "México favorito, Over 1.5 é a entrada mais segura"]
+ALERTAS: [avisos práticos separados por | — máx 4, em linguagem simples]
+ANALISE_COMPLETA: [análise completa de 6-7 frases: por que o favorito é favorito, os 3 melhores mercados com probabilidades, o que pode surpreender, dica final — sem jargão técnico]
 """
+
+
+def _nivel_forca(rating: RatingDinamico, nome: str) -> str:
+    """Converte rating técnico em descrição humana da força do time."""
+    elo = rating.elo_score or 1500
+    if elo >= 2000:
+        return f"{nome} é um dos favoritos ao título"
+    if elo >= 1900:
+        return f"{nome} é potência mundial"
+    if elo >= 1850:
+        return f"{nome} é forte candidato"
+    if elo >= 1800:
+        return f"{nome} é time respeitável no cenário global"
+    if elo >= 1750:
+        return f"{nome} é time de nível médio-alto"
+    if elo >= 1700:
+        return f"{nome} é time médio no cenário mundial"
+    if elo >= 1650:
+        return f"{nome} é azarão com potencial"
+    return f"{nome} é o azarão da partida"
+
+
+def _forma_legivel(forma: list) -> str:
+    """Converte lista de resultados em texto legível."""
+    if not forma:
+        return "sem dados recentes disponíveis"
+    resultados = [j.resultado for j in forma[-5:]]
+    vitorias = resultados.count("W")
+    derrotas = resultados.count("L")
+    empates  = resultados.count("D")
+    serie    = " ".join(resultados)
+    if vitorias >= 4:
+        return f"excelente forma ({serie}) — {vitorias} vitórias nos últimos {len(resultados)} jogos"
+    if vitorias >= 3:
+        return f"boa forma ({serie}) — {vitorias}V {empates}E {derrotas}D"
+    if derrotas >= 3:
+        return f"má fase ({serie}) — {derrotas} derrotas nos últimos {len(resultados)} jogos"
+    return f"forma irregular ({serie}) — {vitorias}V {empates}E {derrotas}D"
+
+
+def _incerteza_legivel(uncertainty_index: float, achatado: bool) -> str:
+    if uncertainty_index >= 70:
+        return "MUITO IMPREVISÍVEL — qualquer resultado pode acontecer"
+    if uncertainty_index >= 50:
+        return "jogo equilibrado e difícil de prever com certeza"
+    if uncertainty_index >= 30:
+        return "análise com grau razoável de confiança"
+    return "jogo com bom nível de previsibilidade"
 
 
 def _montar_prompt(
@@ -1166,78 +1220,126 @@ def _montar_prompt(
     top3: list[MercadoRecomendado],
     tail: TailRiskResult,
 ) -> str:
-    top3_txt = "\n".join(
-        f"  {i+1}. {m.mercado} — {m.entrada}: score={m.score_final} | "
-        f"DC={m.prob_dc}% | value={'N/A (sem odds)' if m.value_score is None else f'{m.value_score:+.3f}'} | {m.confianca}"
-        for i, m in enumerate(top3)
-    )
-    forma_c = " ".join(j.resultado for j in partida.forma_casa[-5:])
-    forma_f = " ".join(j.resultado for j in partida.forma_fora[-5:])
-    vb_txt  = (
-        "\n".join(f"  {v['entrada']}: value={v['value_score']:+.3f}, tem_value={v['tem_value']}" for v in value_bets[:3])
-        if value_bets else "  Não calculado — odds indisponíveis na API"
-    )
-    delta_txt = " | ".join(
-        f"{k}: {'+' if v >= 0 else ''}{v}pp" for k, v in tail.fat_tail_delta.items()
-    )
-    unc_txt = "\n".join(f"  • {f}" for f in tail.uncertainty_fatores) or "  Nenhum"
-    if tail.barbell_sugerido and tail.barbell_value_especulativo is not None:
-        barbell_txt = (
-            f"SUGERIDO — Segura: {tail.barbell_entrada_segura} ({tail.barbell_prob_segura}%) + "
-            f"Especulativa: {tail.barbell_entrada_especulativa} (value={tail.barbell_value_especulativo:+.3f})"
-        )
+    nome_c = partida.time_casa_nome
+    nome_f = partida.time_fora_nome
+
+    # ── Força dos times ──────────────────────────────────────────────────────
+    forca_c = _nivel_forca(rating_c, nome_c)
+    forca_f = _nivel_forca(rating_f, nome_f)
+
+    # ── Favorito claro ───────────────────────────────────────────────────────
+    vc = modelo.prob_vitoria_casa
+    vf = modelo.prob_vitoria_fora
+    emp = modelo.prob_empate
+    if vc > vf + 10:
+        favorito_txt = f"{nome_c} é o favorito ({vc:.0f}% de chance de vitória)"
+    elif vf > vc + 10:
+        favorito_txt = f"{nome_f} é o favorito ({vf:.0f}% de chance de vitória)"
     else:
-        barbell_txt = "Não sugerido (sem odds ou sem combinação válida)"
+        favorito_txt = f"jogo muito equilibrado — {nome_c} {vc:.0f}% / Empate {emp:.0f}% / {nome_f} {vf:.0f}%"
 
-    return f"""Analise a partida e gere a narrativa com base nos dados abaixo.
+    # ── Placar mais provável ─────────────────────────────────────────────────
+    top_placar = modelo.top5_placares[0] if modelo.top5_placares else {}
+    placar_txt = (
+        f"Placar mais provável: {top_placar.get('placar', '?')} "
+        f"({top_placar.get('prob', 0):.1f}% de probabilidade)"
+    )
 
-PARTIDA: {partida.time_casa_nome} x {partida.time_fora_nome}
-Copa do Mundo 2026 | {partida.rodada}
-Data: {partida.horario[:10]} | {partida.estadio}, {partida.cidade}
+    # ── Gols esperados (sem jargão técnico) ─────────────────────────────────
+    gols_c = modelo.lambda_casa
+    gols_f = modelo.lambda_fora
+    gols_txt = (
+        f"Expectativa de gols: ~{gols_c:.1f} para {nome_c} e ~{gols_f:.1f} para {nome_f} "
+        f"→ Over 1.5 com {modelo.prob_over15:.0f}%, Over 2.5 com {modelo.prob_over25:.0f}%"
+    )
 
-=== CAMADA 1 — RATINGS ===
-{partida.time_casa_nome}: Elo={rating_c.elo_score} ({rating_c.fonte_elo}) | Pi={rating_c.pi_rating} | Combinado={rating_c.rating_combinado}
-{partida.time_fora_nome}: Elo={rating_f.elo_score} ({rating_f.fonte_elo}) | Pi={rating_f.pi_rating} | Combinado={rating_f.rating_combinado}
+    # ── Forma recente ────────────────────────────────────────────────────────
+    forma_c_txt = _forma_legivel(partida.forma_casa)
+    forma_f_txt = _forma_legivel(partida.forma_fora)
 
-=== CAMADA 2 — MODELO DE GOLS (Dixon-Coles + Skellam) ===
-λ casa={modelo.lambda_casa} | λ fora={modelo.lambda_fora}
-1X2 (DC final): Vitória casa={modelo.prob_vitoria_casa}% | Empate={modelo.prob_empate}% | Vitória fora={modelo.prob_vitoria_fora}%
-1X2 (Skellam): Vitória={modelo.skellam_vitoria}% | Empate={modelo.skellam_empate}% | Derrota={modelo.skellam_derrota}%
-BTTS={modelo.prob_btts}% | Over2.5={modelo.prob_over25}% | Under2.5={modelo.prob_under25}%
-Placar mais provável: {modelo.top5_placares[0]['placar']} ({modelo.top5_placares[0]['prob']}%)
+    # ── H2H ─────────────────────────────────────────────────────────────────
+    n_h2h = len(partida.head_to_head)
+    h2h_txt = f"{n_h2h} confrontos diretos registrados" if n_h2h > 0 else "sem histórico de confrontos diretos"
 
-=== CAMADA 3 — VALUE BETS ===
-odds_disponiveis: {odds_disp}
-{vb_txt}
+    # ── Contexto importante ──────────────────────────────────────────────────
+    contexto_items = []
+    if ctx.home_advantage:
+        contexto_items.append(f"{ctx.home_advantage_time} joga em casa (sede da Copa) — vantagem real de mando")
+    if ctx.fadiga_casa:
+        contexto_items.append(f"{nome_c} pode estar cansado (jogo recente nos últimos 4 dias)")
+    if ctx.fadiga_fora:
+        contexto_items.append(f"{nome_f} pode estar cansado (jogo recente nos últimos 4 dias)")
+    if ctx.primeira_rodada:
+        contexto_items.append("1ª rodada da Copa — times costumam ser mais cautelosos, menos gols que o normal")
+    contexto_txt = "\n".join(f"  • {x}" for x in contexto_items) or "  Nenhum fator especial identificado"
 
-=== CAMADA 4 — CONTEXTO ===
-Campo neutro: {ctx.campo_neutro} | Primeira rodada: {ctx.primeira_rodada}
-Fadiga: casa={ctx.fadiga_casa} | fora={ctx.fadiga_fora}
-Zebra alerta: {ctx.zebra_alerta}{' — ' + ctx.zebra_descricao if ctx.zebra_alerta else ''}
-Confiança H2H: {ctx.confianca_h2h} ({len(partida.head_to_head)} confronto(s))
-Ajuste Under25 aplicado: {ctx.ajuste_under25_aplicado}pp
+    # ── Zebra ────────────────────────────────────────────────────────────────
+    zebra_txt = ""
+    if ctx.zebra_alerta:
+        zebra_txt = f"\n🚨 ALERTA DE ZEBRA!\n{ctx.zebra_descricao}\n"
 
-=== CAMADA 4B — TAIL RISK (Taleb) ===
-Fat Tail Correction (85% DC + 15% Student-t ν=4):
-  Antes: VC={tail.prob_vitoria_casa_antes}% | E={tail.prob_empate_antes}% | VF={tail.prob_vitoria_fora_antes}%
-  Depois: VC={tail.prob_vitoria_casa_depois}% | E={tail.prob_empate_depois}% | VF={tail.prob_vitoria_fora_depois}%
-  Deltas: {delta_txt}
-  Over2.5: {tail.over25_antes}% → {tail.over25_depois}% | Over3.5: {tail.over35_antes}% → {tail.over35_depois}%
-Fragility: casa={tail.fragility_score_casa:.1f} | fora={tail.fragility_score_fora:.1f} | impacto={tail.fragility_impacto}
-Uncertainty Index: {tail.uncertainty_index:.0f}/100 (achatamento: {'SIM — alpha=' + str(tail.achatamento_alpha) if tail.probabilidades_achatadas else 'NÃO'})
-Fatores de incerteza:
-{unc_txt}
-Barbell Signal: {barbell_txt}
+    # ── Top 3 mercados (em linguagem simples) ────────────────────────────────
+    top3_txt = ""
+    for i, m in enumerate(top3):
+        odds_info = f"odd de referência: {m.odd_ref:.2f}" if m.odd_ref else "odds ainda não disponíveis"
+        value_info = ""
+        if m.value_score is not None:
+            if m.value_score > 0.10:
+                value_info = " → VALOR IDENTIFICADO (odd acima do esperado)"
+            elif m.value_score > 0:
+                value_info = " → leve valor positivo"
+        top3_txt += (
+            f"  {i+1}. {m.mercado} — {m.entrada}\n"
+            f"     Probabilidade: {m.prob_dc:.0f}% | Confiança: {m.confianca} | {odds_info}{value_info}\n"
+        )
 
-=== SCORE FINAL — TOP 3 ===
-{top3_txt}
+    # ── Incerteza geral ──────────────────────────────────────────────────────
+    incerteza_txt = _incerteza_legivel(tail.uncertainty_index, tail.probabilidades_achatadas)
 
-=== DADOS BRUTOS API (não alterar) ===
-Forma {partida.time_casa_nome} (últimos 5): {forma_c}
-Forma {partida.time_fora_nome} (últimos 5): {forma_f}
-H2H: {len(partida.head_to_head)} confronto(s)
-Stats casa: fonte={partida.stats_casa.fonte} | dados_insuficientes={partida.stats_casa.dados_insuficientes}
-Stats fora: fonte={partida.stats_fora.fonte} | dados_insuficientes={partida.stats_fora.dados_insuficientes}
+    # ── Apostas combinadas (barbell) ─────────────────────────────────────────
+    barbell_txt = ""
+    if tail.barbell_sugerido and tail.barbell_entrada_segura:
+        barbell_txt = (
+            f"\nCOMBINAÇÃO SUGERIDA:\n"
+            f"  Segura: {tail.barbell_entrada_segura} ({tail.barbell_prob_segura:.0f}% de prob)"
+        )
+        if tail.barbell_entrada_especulativa and tail.barbell_value_especulativo is not None:
+            barbell_txt += f"  +  Especulativa: {tail.barbell_entrada_especulativa} (aposta de valor alto)"
+
+    # ── Odds disponíveis ─────────────────────────────────────────────────────
+    odds_aviso = (
+        "" if odds_disp
+        else "\n⚠️ ODDS INDISPONÍVEIS: as probabilidades são do nosso modelo. Antes de apostar, consulte as odds nas casas de aposta."
+    )
+
+    return f"""Escreva a análise dessa partida da Copa 2026 para um apostador brasileiro.
+
+JOGO: {nome_c} x {nome_f}
+{partida.rodada} | {partida.estadio}, {partida.cidade} | {partida.horario[:10]}
+
+--- QUEM É FAVORITO ---
+{favorito_txt}
+{forca_c}
+{forca_f}
+{placar_txt}
+
+--- GOLS E MERCADOS ---
+{gols_txt}
+Ambos marcam (BTTS): {modelo.prob_btts:.0f}%
+
+--- FORMA RECENTE ---
+{nome_c}: {forma_c_txt}
+{nome_f}: {forma_f_txt}
+Histórico de confrontos: {h2h_txt}
+
+--- FATORES QUE INFLUENCIAM O JOGO ---
+{contexto_txt}
+{zebra_txt}
+--- CONFIANÇA DA ANÁLISE ---
+{incerteza_txt}
+
+--- TOP 3 APOSTAS RECOMENDADAS ---
+{top3_txt}{barbell_txt}{odds_aviso}
 """
 
 
