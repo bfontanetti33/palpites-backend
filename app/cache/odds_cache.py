@@ -8,7 +8,7 @@ Intervalo de atualização via cron é tiered por proximidade do jogo:
 from cachetools import TTLCache
 from datetime import datetime, timezone, timedelta
 
-_odds_cache: TTLCache = TTLCache(maxsize=16, ttl=90000)  # 25h — cron controla frequência
+_odds_cache: TTLCache = TTLCache(maxsize=80, ttl=90000)  # 25h — cron controla frequência
 _last_updated: dict[str, datetime] = {}  # rastreia quando cada slug foi buscado na API
 
 

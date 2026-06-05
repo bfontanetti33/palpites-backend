@@ -114,17 +114,25 @@ async def _job_odds_tiered() -> None:
                         except Exception as e2:
                             log.warning("cron odds %s: falha ao propagar partida: %s", slug, e2)
 
-                        # Event-driven: recalcula stats imediatamente com as novas odds
+                        # Event-driven: invalida stats E narrativa quando odds chegam
                         if partida_atualizada is not None:
                             try:
                                 from app.cache import static_cache as _sc
-                                # Invalida stats stale para forçar recálculo no prewarm
                                 entry = _sc._store.get(slug)
-                                if entry and entry.get("stats"):
-                                    del entry["stats"]
-                                    _sc.save_to_disk()
+                                if entry:
+                                    invalidado = False
+                                    if entry.get("stats"):
+                                        del entry["stats"]
+                                        invalidado = True
+                                    # Invalida narrativa também — foi gerada sem odds
+                                    if entry.get("narrativa"):
+                                        del entry["narrativa"]
+                                        invalidado = True
+                                    if invalidado:
+                                        _sc.save_to_disk()
+                                        log.info("cron odds %s: stats+narrativa invalidados para recálculo", slug)
                             except Exception as e3:
-                                log.warning("cron odds %s: falha ao invalidar stats: %s", slug, e3)
+                                log.warning("cron odds %s: falha ao invalidar cache: %s", slug, e3)
 
                         log.debug(
                             "cron odds %s: atualizado (intervalo %.0fh)",
