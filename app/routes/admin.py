@@ -464,3 +464,282 @@ async def odds_debug(authorization: str | None = Header(default=None)):
     except Exception as e:
         resultado["erro"] = str(e)
     return resultado
+
+
+# ── Validação da semana 1 Copa 2026 (Jun 11-17, 24 jogos) ────────────────────
+
+@router.get("/admin/validar-semana", tags=["Admin"])
+async def validar_semana(authorization: str | None = Header(default=None)):
+    """
+    Valida todos os 24 jogos da primeira semana da Copa 2026 (11-17 Jun, horário Brasília).
+    Verifica completude de dados, sanidade do modelo, coerência de odds e consistência interna.
+    Protegido por Bearer <ADMIN_TOKEN> se configurado.
+    """
+    _checar_token(authorization)
+
+    from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
+    from app.cache import static_cache as _sc
+
+    # ── Filtrar jogos da semana 1 (Jun 11-17 horário Brasília) ───────────────
+    jogos_semana: list[dict] = []
+    for jogo in _JOGOS:
+        data_br = (jogo.get("data_hora_brasilia") or "")[:10]
+        if "2026-06-11" <= data_br <= "2026-06-17":
+            jogos_semana.append(jogo)
+
+    # ── Processar cada jogo ───────────────────────────────────────────────────
+    resultados = []
+    com_stats   = 0
+    com_odds    = 0
+    com_forma   = 0
+    com_problemas = 0
+
+    for jogo in jogos_semana:
+        slug      = jogo["slug"]
+        nome_casa = jogo["time_casa"]
+        nome_fora = jogo["time_fora"]
+        data_br   = (jogo.get("data_hora_brasilia") or "")[:10]
+
+        issues: list[str] = []
+        checks: dict = {
+            "tem_stats":              False,
+            "tem_forma":              False,
+            "tem_odds":               False,
+            "h2h_count":              0,
+            "dados_insuficientes":    False,
+            "probs_ok":               False,
+            "lambda_ok":              False,
+            "odds_margin_ok":         None,  # None = odds ausentes
+            "modelo_concorda_odds":   None,
+            "under_placar_coerente":  None,
+        }
+
+        try:
+            # ── 1. Buscar Partida ────────────────────────────────────────────
+            partida = await buscar_detalhe_partida(slug)
+
+            # ── 2. Data completeness ─────────────────────────────────────────
+            stats_dict = _sc.get_stats(slug)
+            has_stats  = stats_dict is not None
+            checks["tem_stats"] = has_stats
+
+            if partida is not None:
+                has_forma_casa = len(partida.forma_casa) > 0
+                has_forma_fora = len(partida.forma_fora) > 0
+                has_odds       = partida.odds is not None
+                h2h_count      = len(partida.head_to_head)
+                dados_insuf    = bool(partida.dados_insuficientes)
+            else:
+                has_forma_casa = False
+                has_forma_fora = False
+                has_odds       = False
+                h2h_count      = 0
+                dados_insuf    = True
+                issues.append("buscar_detalhe_partida retornou None")
+
+            checks["tem_forma"]           = has_forma_casa and has_forma_fora
+            checks["tem_odds"]            = has_odds
+            checks["h2h_count"]           = h2h_count
+            checks["dados_insuficientes"] = dados_insuf
+
+            if not has_forma_casa:
+                issues.append(f"forma_casa vazia para {nome_casa}")
+            if not has_forma_fora:
+                issues.append(f"forma_fora vazia para {nome_fora}")
+            if not has_odds:
+                issues.append("odds indisponíveis")
+            if dados_insuf:
+                issues.append("dados_insuficientes=True")
+
+            # ── 3. Stats sanity (do cache de stats) ──────────────────────────
+            if has_stats and stats_dict:
+                try:
+                    mg = stats_dict.get("modelo_gols") or {}
+                    prob_casa  = float(mg.get("prob_vitoria_casa", 0))
+                    prob_emp   = float(mg.get("prob_empate", 0))
+                    prob_fora  = float(mg.get("prob_vitoria_fora", 0))
+                    lc         = float(mg.get("lambda_casa", 0))
+                    lf         = float(mg.get("lambda_fora", 0))
+                    has_model  = bool(mg)
+
+                    probs_sum_ok = abs(prob_casa + prob_emp + prob_fora - 100) < 2
+                    lambda_ok    = (0.3 <= lc <= 4.0) and (0.3 <= lf <= 4.0)
+
+                    checks["probs_ok"]  = probs_sum_ok
+                    checks["lambda_ok"] = lambda_ok
+
+                    if not has_model:
+                        issues.append("modelo_gols ausente nas stats")
+                    if not probs_sum_ok:
+                        total_prob = prob_casa + prob_emp + prob_fora
+                        issues.append(
+                            f"probs não somam 100%: casa={prob_casa:.1f} "
+                            f"emp={prob_emp:.1f} fora={prob_fora:.1f} "
+                            f"soma={total_prob:.1f}"
+                        )
+                    if not lambda_ok:
+                        issues.append(
+                            f"lambdas fora do intervalo [0.3, 4.0]: "
+                            f"lambda_casa={lc:.2f} lambda_fora={lf:.2f}"
+                        )
+                except Exception as e_stats:
+                    issues.append(f"erro ao ler stats: {e_stats}")
+            else:
+                issues.append("stats não disponíveis no cache")
+
+            # ── 4. Odds coherence ────────────────────────────────────────────
+            if has_odds and partida is not None and partida.odds:
+                try:
+                    odds = partida.odds
+                    vc_odd  = float(odds.get("vitoria_casa", 0) or 0)
+                    emp_odd = float(odds.get("empate", 0) or 0)
+                    vf_odd  = float(odds.get("vitoria_fora", 0) or 0)
+                    ov_odd  = float(odds.get("over25", 0) or 0)
+                    un_odd  = float(odds.get("under25", 0) or 0)
+
+                    # Margin check: implied probs of 1X2 odds
+                    if vc_odd > 0 and emp_odd > 0 and vf_odd > 0:
+                        implied_sum = (1 / vc_odd) + (1 / emp_odd) + (1 / vf_odd)
+                        margin_ok   = 1.0 <= implied_sum <= 1.15
+                        checks["odds_margin_ok"] = margin_ok
+                        if not margin_ok:
+                            issues.append(
+                                f"margem odds 1X2 fora do esperado: "
+                                f"soma_probs_implícitas={implied_sum:.3f} "
+                                f"(esperado 1.00-1.15)"
+                            )
+
+                    # Over/Under sum check
+                    if ov_odd > 0 and un_odd > 0:
+                        ou_sum = (1 / ov_odd) + (1 / un_odd)
+                        ou_ok  = 1.0 <= ou_sum <= 1.10
+                        checks["over_under_sum_ok"] = ou_ok
+                        if not ou_ok:
+                            issues.append(
+                                f"margem odds over/under fora do esperado: "
+                                f"soma={ou_sum:.3f} (esperado 1.00-1.10)"
+                            )
+
+                    # Model vs odds: does the model agree with the market favorite?
+                    if has_stats and stats_dict:
+                        mg = stats_dict.get("modelo_gols") or {}
+                        prob_casa = float(mg.get("prob_vitoria_casa", 0))
+                        prob_fora = float(mg.get("prob_vitoria_fora", 0))
+
+                        # Determine odds favorite (team whose odds < 2.0)
+                        odds_fav_casa = vc_odd > 0 and vc_odd < 2.0
+                        odds_fav_fora = vf_odd > 0 and vf_odd < 2.0
+                        # Determine model favorite
+                        model_fav_casa = prob_casa > prob_fora and prob_casa > 35
+                        model_fav_fora = prob_fora > prob_casa and prob_fora > 35
+
+                        if odds_fav_casa or odds_fav_fora:
+                            concorda = (odds_fav_casa and model_fav_casa) or (
+                                odds_fav_fora and model_fav_fora
+                            )
+                            checks["modelo_concorda_odds"] = concorda
+                            if not concorda:
+                                issues.append(
+                                    f"modelo discorda das odds: "
+                                    f"odds_fav={'casa' if odds_fav_casa else 'fora'} "
+                                    f"model_prob_casa={prob_casa:.1f}% "
+                                    f"model_prob_fora={prob_fora:.1f}%"
+                                )
+                except Exception as e_odds:
+                    issues.append(f"erro ao verificar odds: {e_odds}")
+
+            # ── 5. Internal consistency ──────────────────────────────────────
+            if has_stats and stats_dict:
+                try:
+                    mg = stats_dict.get("modelo_gols") or {}
+                    prob_under25 = float(mg.get("prob_under25", 0))
+                    prob_over25  = float(mg.get("prob_over25", 0))
+                    lc           = float(mg.get("lambda_casa", 0))
+                    lf           = float(mg.get("lambda_fora", 0))
+                    top5         = mg.get("top5_placares") or []
+
+                    # under_vs_placar: if prob_under25 > 55%, top placar should have ≤2 goals
+                    if prob_under25 > 55 and top5:
+                        top_placar = top5[0]  # most probable score
+                        placar_str = top_placar.get("placar", "0-0")
+                        try:
+                            partes = placar_str.split("-")
+                            total_gols = int(partes[0]) + int(partes[1])
+                            under_placar_ok = total_gols <= 2
+                        except Exception:
+                            under_placar_ok = True  # can't parse → don't flag
+                        checks["under_placar_coerente"] = under_placar_ok
+                        if not under_placar_ok:
+                            issues.append(
+                                f"inconsistência under/placar: prob_under25={prob_under25:.1f}% "
+                                f"mas placar mais provável é {placar_str} ({total_gols} gols)"
+                            )
+
+                    # lambda_vs_over: if lambda_total > 3.0, over25 should be > 50%
+                    if lc > 0 and lf > 0:
+                        lambda_total = lc + lf
+                        if lambda_total > 3.0:
+                            lambda_over_ok = prob_over25 > 50
+                            checks["lambda_vs_over_ok"] = lambda_over_ok
+                            if not lambda_over_ok:
+                                issues.append(
+                                    f"inconsistência lambda/over: "
+                                    f"lambda_total={lambda_total:.2f} > 3.0 "
+                                    f"mas prob_over25={prob_over25:.1f}% <= 50%"
+                                )
+                except Exception as e_cons:
+                    issues.append(f"erro na consistência interna: {e_cons}")
+
+        except Exception as e_jogo:
+            issues.append(f"erro inesperado ao processar jogo: {e_jogo}")
+
+        # ── Contagens de resumo ───────────────────────────────────────────────
+        if checks["tem_stats"]:
+            com_stats += 1
+        if checks["tem_odds"]:
+            com_odds += 1
+        if checks["tem_forma"]:
+            com_forma += 1
+
+        # ── Status geral do jogo ──────────────────────────────────────────────
+        hard_problems = [
+            i for i in issues
+            if not i.startswith("odds indisponíveis")
+               and "h2h" not in i.lower()
+        ]
+        if not checks["tem_stats"] or checks["dados_insuficientes"]:
+            status = "incompleto"
+        elif any(
+            k in issues_str
+            for issues_str in issues
+            for k in ("inconsistência", "discorda", "margem odds", "probs não somam", "lambdas fora")
+        ):
+            status = "inconsistente"
+        elif hard_problems:
+            status = "incompleto"
+        else:
+            status = "ok"
+
+        if status != "ok":
+            com_problemas += 1
+
+        resultados.append({
+            "slug":   slug,
+            "casa":   nome_casa,
+            "fora":   nome_fora,
+            "data":   data_br,
+            "status": status,
+            "checks": checks,
+            "issues": issues,
+        })
+
+    # ── Resumo global ─────────────────────────────────────────────────────────
+    resumo = {
+        "total_jogos":        len(jogos_semana),
+        "com_stats":          com_stats,
+        "com_odds":           com_odds,
+        "com_forma_completa": com_forma,
+        "com_problemas":      com_problemas,
+    }
+
+    return {"resumo": resumo, "jogos": resultados}
