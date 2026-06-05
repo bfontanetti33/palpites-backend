@@ -728,39 +728,44 @@ def _calcular_contexto(
     if fad_c: lam = round(lam * 0.95, 3)
     if fad_f: mu  = round(mu  * 0.95, 3)
 
-    ajuste_under = 0.0
-    over25_adj = modelo.prob_over25
-    under25_adj = modelo.prob_under25
-    if primeira:
-        ajuste_under = round(over25_adj * 0.10, 1)
-        over25_adj   = round(over25_adj - ajuste_under, 1)
-        under25_adj  = round(100 - over25_adj, 1)
-
     # Reconstrói modelo sempre que algum lambda mudou (home advantage ou fadiga)
     lam_adj = round(max(0.3, lam), 3)
     mu_adj  = round(max(0.3, mu),  3)
     modelo_adj = modelo
+    ajuste_under = 0.0
 
     if lam_adj != modelo.lambda_casa or mu_adj != modelo.lambda_fora:
-        from app.agents import football_agent as fa
         try:
-            probs_adj  = fa._calcular_probabilidades(lam_adj, mu_adj)
-            placares   = fa._calcular_placares_provaveis(lam_adj, mu_adj, top=3)
+            matrix_adj = _dc_matrix(lam_adj, mu_adj)
+            probs_raw  = _market_probs(matrix_adj, lam_adj, mu_adj)
+            top5_adj   = sorted(
+                [{"placar": k, "prob": v} for k, v in matrix_adj.items()],
+                key=lambda x: -x["prob"]
+            )[:5]
             modelo_adj = modelo.model_copy(update={
                 "lambda_casa":       lam_adj,
                 "lambda_fora":       mu_adj,
-                "prob_vitoria_casa": probs_adj.vitoria_casa,
-                "prob_empate":       probs_adj.empate,
-                "prob_vitoria_fora": probs_adj.vitoria_fora,
-                "placares_provaveis": placares,
+                "prob_vitoria_casa": probs_raw["vitoria_casa"],
+                "prob_empate":       probs_raw["empate"],
+                "prob_vitoria_fora": probs_raw["vitoria_fora"],
+                "prob_btts":         probs_raw["btts"],
+                "prob_over15":       probs_raw["over15"],
+                "prob_under15":      probs_raw["under15"],
+                "prob_over25":       probs_raw["over25"],
+                "prob_under25":      probs_raw["under25"],
+                "prob_over35":       probs_raw["over35"],
+                "prob_under35":      probs_raw["under35"],
+                "top5_placares":     top5_adj,
             })
         except Exception:
             pass
 
     if primeira:
+        _o25 = modelo_adj.prob_over25
+        ajuste_under = round(_o25 * 0.10, 1)
         modelo_adj = modelo_adj.model_copy(update={
-            "prob_over25": over25_adj,
-            "prob_under25": under25_adj,
+            "prob_over25":  round(_o25 - ajuste_under, 1),
+            "prob_under25": round(100 - round(_o25 - ajuste_under, 1), 1),
         })
 
     ctx = FatorContexto(
@@ -1056,6 +1061,10 @@ def _calcular_tail_risk(
     )
 
     # ── 8. Modelo ajustado com probabilidades corrigidas ─────────────────────
+    top5_ft = sorted(
+        [{"placar": k, "prob": v} for k, v in matrix_ft.items()],
+        key=lambda x: -x["prob"]
+    )[:5]
     modelo_adj = modelo.model_copy(update={
         "prob_vitoria_casa": p_vc,
         "prob_empate":        p_e,
@@ -1067,6 +1076,7 @@ def _calcular_tail_risk(
         "prob_btts":          probs_adj["btts"],
         "prob_over15":        probs_adj["over15"],
         "prob_under15":       probs_adj["under15"],
+        "top5_placares":      top5_ft,
     })
 
     return tail, modelo_adj
