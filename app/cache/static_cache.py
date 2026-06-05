@@ -177,6 +177,73 @@ def put_recomendacao(slug: str, rec_dict: dict, update_narrative: bool = True) -
     save_to_disk()
 
 
+def put_stats(slug: str, stats_dict: dict) -> None:
+    """Salva StatsRecomendacao no cache (chave 'stats'). TTL tiered por proximidade do jogo."""
+    agora = datetime.now(timezone.utc).isoformat()
+    if slug not in _store:
+        _store[slug] = {
+            "cached_at": agora, "dados_insuficientes": False,
+            "ultimo_jogo_casa": None, "ultimo_jogo_fora": None, "partida": None,
+        }
+    _store[slug]["stats"] = {"cached_at": agora, "dados": stats_dict}
+    save_to_disk()
+
+
+def get_stats(slug: str) -> dict | None:
+    """Retorna StatsRecomendacao se dentro do TTL tiered, senão None."""
+    entry = _store.get(slug)
+    if not entry:
+        return None
+    stats_entry = entry.get("stats")
+    if not stats_entry:
+        return None
+    try:
+        agora = datetime.now(timezone.utc)
+        cached_dt = datetime.fromisoformat(stats_entry["cached_at"].replace("Z", "+00:00"))
+        horario = (stats_entry.get("dados") or {}).get("horario_utc", "")
+        ttl = _stats_ttl(horario)
+        if (agora - cached_dt).total_seconds() < ttl:
+            return stats_entry.get("dados")
+    except Exception:
+        pass
+    return None
+
+
+def put_narrativa(slug: str, narrativa_dict: dict) -> None:
+    """Salva NarrativaData no cache (chave 'narrativa'). TTL fixo 8h."""
+    agora = datetime.now(timezone.utc).isoformat()
+    if slug not in _store:
+        _store[slug] = {
+            "cached_at": agora, "dados_insuficientes": False,
+            "ultimo_jogo_casa": None, "ultimo_jogo_fora": None, "partida": None,
+        }
+    _store[slug]["narrativa"] = {"cached_at": agora, "dados": narrativa_dict}
+    save_to_disk()
+
+
+def get_narrativa(slug: str) -> dict | None:
+    """Retorna NarrativaData se dentro de TTL_NARRATIVE e texto real, senão None."""
+    entry = _store.get(slug)
+    if not entry:
+        return None
+    narr_entry = entry.get("narrativa")
+    if not narr_entry:
+        return None
+    try:
+        agora = datetime.now(timezone.utc)
+        nat_dt = datetime.fromisoformat(narr_entry["cached_at"].replace("Z", "+00:00"))
+        if (agora - nat_dt).total_seconds() >= TTL_NARRATIVE:
+            return None
+        dados = narr_entry.get("dados") or {}
+        if (dados.get("texto_completo")
+                and dados.get("narrativa")
+                and "se enfrentam na Copa do Mundo 2026" not in dados.get("narrativa", "")):
+            return dados
+    except Exception:
+        pass
+    return None
+
+
 def invalidate(slug: str) -> bool:
     """Remove slug do cache. Retorna True se existia."""
     if slug in _store:
@@ -215,15 +282,17 @@ def invalidate_if_stale(slug: str, nova_data_casa: str | None, nova_data_fora: s
 
 
 def summary() -> dict:
-    total  = len(_store)
-    frescos = sum(1 for s in _store if is_fresh(s))
-    com_rec = sum(1 for s in _store if _store[s].get("recomendacao"))
-    insuf   = sum(1 for s in _store if _store[s].get("dados_insuficientes"))
+    total    = len(_store)
+    frescos  = sum(1 for s in _store if is_fresh(s))
+    com_rec  = sum(1 for s in _store if _store[s].get("recomendacao") or _store[s].get("stats"))
+    com_narr = sum(1 for s in _store if _store[s].get("narrativa"))
+    insuf    = sum(1 for s in _store if _store[s].get("dados_insuficientes"))
     return {
         "total": total,
         "frescos": frescos,
         "stale": total - frescos,
-        "com_recomendacao": com_rec,
+        "com_stats": com_rec,
+        "com_narrativa": com_narr,
         "dados_insuficientes": insuf,
         "arquivo": str(_CACHE_PATH),
     }

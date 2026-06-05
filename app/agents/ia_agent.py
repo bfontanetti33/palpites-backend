@@ -24,8 +24,8 @@ from anthropic import AsyncAnthropic
 
 from app.models.schemas import (
     EntradaForma, FatorContexto, MercadoRecomendado,
-    ModeloGols, Partida, RecomendacaoIA, RatingDinamico,
-    TailRiskResult,
+    ModeloGols, NarrativaData, Partida, RecomendacaoIA, RatingDinamico,
+    StatsRecomendacao, TailRiskResult,
 )
 
 _client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""), timeout=45.0)
@@ -1315,14 +1315,14 @@ def _tail_risk_fallback(m: "ModeloGols") -> "TailRiskResult":
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Ponto de entrada
+# Camadas 1-4B + Score: calcular_stats (pura computação, sem Claude)
 # ════════════════════════════════════════════════════════════════════════════════
 
-async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
+async def calcular_stats(partida: Partida) -> StatsRecomendacao:
     """
-    Orquestra as 5 camadas e retorna RecomendacaoIA completo.
-    NUNCA lança exceção — usa fallbacks GLOBAL_AVG quando APIs externas falham.
-    Dados brutos da API (partida.*) nunca são alterados.
+    Roda Camadas 1-4B + Score Final e retorna StatsRecomendacao.
+    NUNCA lança exceção — usa GLOBAL_AVG como fallback por camada.
+    Seguro para chamar proativamente sem presença de usuário premium.
     """
     import asyncio
     import logging
@@ -1331,57 +1331,28 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     nome_c = partida.time_casa_nome
     nome_f = partida.time_fora_nome
 
-    # ── Cache: 3 caminhos por frescor de stats/narrativa ─────────────────────
-    # Caminho 1: stats + narrativa frescos → retorna direto (0 computação)
-    # Caminho 2: só narrativa fresca → recalcula camadas 1-4B, reutiliza Claude
-    # Caminho 3: tudo stale → pipeline completo + Claude
-    _narrative_from_cache: dict | None = None
+    # Cache hit: stats dentro do TTL tiered → zero computação
     try:
         from app.cache import static_cache as _sc
-        _stats_fresh, _narr_fresh, _cached = _sc.get_recomendacao_estado(partida.slug)
-        _valid_cache = bool(
-            _cached
-            and _cached.get("texto_completo", "")
-            and _cached.get("narrativa", "")
-            and "se enfrentam na Copa do Mundo 2026" not in (_cached.get("narrativa") or "")
-        )
-        if _stats_fresh and _narr_fresh and _valid_cache:
-            return RecomendacaoIA.model_validate(_cached)         # Caminho 1
-        if _narr_fresh and _valid_cache:
-            _narrative_from_cache = {                             # Caminho 2
-                "texto_completo":   _cached.get("texto_completo", ""),
-                "narrativa":        _cached.get("narrativa", ""),
-                "resumo_rapido":    _cached.get("resumo_rapido", ""),
-                "alertas":          _cached.get("alertas") or [],
-                "analise_completa": _cached.get("analise_completa", ""),
-            }
+        cached = _sc.get_stats(partida.slug)
+        if cached:
+            return StatsRecomendacao.model_validate(cached)
     except Exception:
         pass
 
-    # ── Valores iniciais (fallback se camadas falharem) ───────────────────────
-    rating_c = RatingDinamico()
-    rating_f = RatingDinamico()
-    modelo   = _modelo_gols_fallback()
+    # Valores iniciais (fallback se camadas falharem)
+    rating_c    = RatingDinamico()
+    rating_f    = RatingDinamico()
+    modelo      = _modelo_gols_fallback()
     modelo_final = modelo
-    odds_disp: bool = False
+    odds_disp   = False
     value_bets: list[dict] = []
     odds_result: dict = {"odds_disponiveis": False}
-    ctx = FatorContexto()
-    tail_risk = _tail_risk_fallback(modelo)
-    top3: list = []
-    texto_completo = ""
-    # Fallback usado quando Claude API falha — texto revisto para não confundir com falha da API-Football
-    parsed: dict = {
-        "NARRATIVA":        f"{nome_c} e {nome_f} se enfrentam na Copa do Mundo 2026.",
-        "RESUMO_RAPIDO":    "Análise estatística gerada com dados disponíveis.",
-        "ALERTAS":          "Narrativa IA temporariamente indisponível — análise estatística disponível",
-        "ANALISE_COMPLETA": (
-            f"Análise estatística de {nome_c} x {nome_f} gerada pelo modelo Dixon-Coles. "
-            f"A narrativa detalhada está temporariamente indisponível."
-        ),
-    }
+    ctx         = FatorContexto()
+    tail_risk   = _tail_risk_fallback(modelo)
+    top3: list  = []
 
-    # ── Camada 1 — Ratings ────────────────────────────────────────────────────
+    # Camada 1 — Ratings
     try:
         wiki_rankings, rc, rf = await asyncio.gather(
             _buscar_fifa_ranking_wikipedia(),
@@ -1395,9 +1366,9 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
                 _calcular_rating(nome_f, partida.forma_fora, partida.horario, wiki_rankings),
             )
     except Exception as e:
-        log.error("gerar_recomendacao camada1 falhou (%s x %s): %s", nome_c, nome_f, e)
+        log.error("calcular_stats camada1 (%s x %s): %s", nome_c, nome_f, e)
 
-    # ── Camada 2 — Modelo de gols ─────────────────────────────────────────────
+    # Camada 2 — Modelo de gols
     try:
         modelo = _calcular_modelo_gols(
             rating_c, rating_f,
@@ -1406,12 +1377,12 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         )
         modelo_final = modelo
     except Exception as e:
-        log.error("gerar_recomendacao camada2 falhou (%s x %s): %s", nome_c, nome_f, e)
+        log.error("calcular_stats camada2 (%s x %s): %s", nome_c, nome_f, e)
 
-    # ── Camada 3 — Odds Engine ────────────────────────────────────────────────
+    # Camada 3 — Odds Engine
     try:
         from app.agents.odds_engine import processar_odds as _processar_odds
-        _prob_modelo_01 = {
+        _probs_01 = {
             "vitoria_casa": modelo.prob_vitoria_casa / 100.0,
             "empate":       modelo.prob_empate       / 100.0,
             "vitoria_fora": modelo.prob_vitoria_fora / 100.0,
@@ -1423,98 +1394,194 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             "over35":       modelo.prob_over35       / 100.0,
             "under35":      modelo.prob_under35      / 100.0,
         }
-        odds_result = _processar_odds(partida.odds, _prob_modelo_01)
+        odds_result = _processar_odds(partida.odds, _probs_01)
         odds_disp   = odds_result["odds_disponiveis"]
         _, value_bets = _calcular_value_bets(modelo, partida.odds)
     except Exception as e:
-        log.error("gerar_recomendacao camada3 falhou (%s x %s): %s", nome_c, nome_f, e)
+        log.error("calcular_stats camada3 (%s x %s): %s", nome_c, nome_f, e)
 
-    # ── Camada 4 — Contexto ───────────────────────────────────────────────────
+    # Camada 4 — Contexto
     modelo_c4 = modelo
     try:
         ctx, modelo_c4 = _calcular_contexto(partida, rating_c, rating_f, modelo, odds_result)
         modelo_final = modelo_c4
     except Exception as e:
-        log.error("gerar_recomendacao camada4 falhou (%s x %s): %s", nome_c, nome_f, e)
+        log.error("calcular_stats camada4 (%s x %s): %s", nome_c, nome_f, e)
 
-    # ── Camada 4B — Tail Risk ─────────────────────────────────────────────────
+    # Camada 4B — Tail Risk
     try:
         tail_risk, modelo_final = _calcular_tail_risk(
             modelo_c4, partida, rating_c, rating_f, ctx, odds_disp, value_bets
         )
     except Exception as e:
-        log.error("gerar_recomendacao camada4b falhou (%s x %s): %s", nome_c, nome_f, e)
+        log.error("calcular_stats camada4b (%s x %s): %s", nome_c, nome_f, e)
         tail_risk    = _tail_risk_fallback(modelo_c4)
         modelo_final = modelo_c4
 
-    # ── Score final ───────────────────────────────────────────────────────────
+    # Score Final
     try:
         top3 = _score_final(modelo_final, odds_disp, value_bets, ctx, partida.odds)
     except Exception as e:
-        log.error("gerar_recomendacao score_final falhou (%s x %s): %s", nome_c, nome_f, e)
+        log.error("calcular_stats score_final (%s x %s): %s", nome_c, nome_f, e)
 
-    # ── Camada 5 — Claude narrativa ───────────────────────────────────────────
-    if _narrative_from_cache:
-        # Caminho 2: narrativa fresca em cache — pula Claude
-        texto_completo = _narrative_from_cache["texto_completo"]
-        parsed = {
-            "NARRATIVA":        _narrative_from_cache["narrativa"],
-            "RESUMO_RAPIDO":    _narrative_from_cache["resumo_rapido"],
-            "ALERTAS":          "|".join(_narrative_from_cache["alertas"] or []),
-            "ANALISE_COMPLETA": _narrative_from_cache["analise_completa"],
-        }
-    else:
-        try:
-            prompt = _montar_prompt(
-                partida, rating_c, rating_f, modelo_final,
-                odds_disp, value_bets, ctx, top3, tail_risk,
-            )
-            msg = await _client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=900,
-                system=_SYSTEM,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            texto_completo = msg.content[0].text
-            parsed = _parse_claude(texto_completo)
-        except Exception as e:
-            log.error(
-                "gerar_recomendacao camada5/claude falhou (%s x %s): %s — tipo: %s",
-                nome_c, nome_f, e, type(e).__name__, exc_info=True,
-            )
-            # parsed já tem texto de fallback inicializado acima
+    stats = StatsRecomendacao(
+        partida_id=partida.id,
+        slug=partida.slug,
+        horario_utc=partida.horario,
+        time_casa_nome=nome_c,
+        time_fora_nome=nome_f,
+        rating_casa=rating_c,
+        rating_fora=rating_f,
+        modelo_gols=modelo_final,
+        odds_disponiveis=odds_disp,
+        value_bets=value_bets,
+        odds_analise=odds_result,
+        contexto=ctx,
+        tail_risk=tail_risk,
+        top3=top3,
+    )
+
+    try:
+        from app.cache import static_cache as _sc
+        _sc.put_stats(partida.slug, stats.model_dump(mode="json"))
+    except Exception:
+        pass
+
+    return stats
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Camada 5 — Claude: gerar_narrativa (texto sobre stats já calculadas)
+# ════════════════════════════════════════════════════════════════════════════════
+
+async def gerar_narrativa(partida: Partida, stats: StatsRecomendacao) -> NarrativaData:
+    """
+    Chama Claude com os dados de stats e retorna NarrativaData.
+    Usa cache de narrativa (TTL 8h) se disponível — Claude não é rechamado
+    enquanto a narrativa for fresca.
+    NUNCA lança exceção — retorna narrativa de fallback se Claude falhar.
+    """
+    import logging
+    log = logging.getLogger(__name__)
+
+    nome_c = partida.time_casa_nome
+    nome_f = partida.time_fora_nome
+
+    # Cache hit: narrativa fresca → zero chamada Claude
+    try:
+        from app.cache import static_cache as _sc
+        cached = _sc.get_narrativa(partida.slug)
+        if cached:
+            return NarrativaData.model_validate(cached | {"partida_id": partida.id})
+    except Exception:
+        pass
+
+    texto_completo = ""
+    parsed: dict = {
+        "NARRATIVA":        f"{nome_c} e {nome_f} se enfrentam na Copa do Mundo 2026.",
+        "RESUMO_RAPIDO":    "Análise estatística gerada com dados disponíveis.",
+        "ALERTAS":          "Narrativa IA temporariamente indisponível — análise estatística disponível",
+        "ANALISE_COMPLETA": (
+            f"Análise estatística de {nome_c} x {nome_f} gerada pelo modelo Dixon-Coles. "
+            f"A narrativa detalhada está temporariamente indisponível."
+        ),
+    }
+
+    try:
+        prompt = _montar_prompt(
+            partida,
+            stats.rating_casa, stats.rating_fora,
+            stats.modelo_gols,
+            stats.odds_disponiveis, stats.value_bets,
+            stats.contexto, stats.top3, stats.tail_risk,
+        )
+        msg = await _client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=900,
+            system=_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        texto_completo = msg.content[0].text
+        parsed = _parse_claude(texto_completo)
+    except Exception as e:
+        log.error(
+            "gerar_narrativa claude falhou (%s x %s): %s — tipo: %s",
+            nome_c, nome_f, e, type(e).__name__, exc_info=True,
+        )
 
     alertas = [a.strip() for a in parsed["ALERTAS"].split("|") if a.strip()]
-    top1    = top3[0] if top3 else None
 
-    # Construção do objeto final — dentro de try/except para garantir que nunca propaga
+    narrativa = NarrativaData(
+        partida_id=partida.id,
+        narrativa=parsed["NARRATIVA"],
+        resumo_rapido=parsed["RESUMO_RAPIDO"],
+        alertas=alertas,
+        analise_completa=parsed["ANALISE_COMPLETA"],
+        texto_completo=texto_completo,
+    )
+
+    # Só cacheia se texto real (não fallback)
+    _is_real = (
+        texto_completo
+        and narrativa.narrativa
+        and "se enfrentam na Copa do Mundo 2026" not in narrativa.narrativa
+    )
+    if _is_real:
+        try:
+            from app.cache import static_cache as _sc
+            _sc.put_narrativa(partida.slug, narrativa.model_dump(mode="json"))
+        except Exception:
+            pass
+
+    return narrativa
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# Ponto de entrada público: gerar_recomendacao (compõe stats + narrativa)
+# ════════════════════════════════════════════════════════════════════════════════
+
+async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
+    """
+    Orquestra calcular_stats + gerar_narrativa e retorna RecomendacaoIA completo.
+    NUNCA lança exceção. Compatível com API existente.
+    """
+    import logging
+    log = logging.getLogger(__name__)
+
+    nome_c = partida.time_casa_nome
+    nome_f = partida.time_fora_nome
+
+    stats     = await calcular_stats(partida)
+    narrativa = await gerar_narrativa(partida, stats)
+
+    top1 = stats.top3[0] if stats.top3 else None
+
     try:
-        result = RecomendacaoIA(
+        return RecomendacaoIA(
             partida_id=partida.id,
-            rating_casa=rating_c,
-            rating_fora=rating_f,
-            modelo_gols=modelo_final,
-            odds_disponiveis=odds_disp,
-            value_bets=value_bets,
-            odds_analise=odds_result,
-            contexto=ctx,
-            tail_risk=tail_risk,
-            top3=top3,
-            narrativa=parsed["NARRATIVA"],
-            resumo_rapido=parsed["RESUMO_RAPIDO"],
-            alertas=alertas,
-            analise_completa=parsed["ANALISE_COMPLETA"],
-            # legado
+            rating_casa=stats.rating_casa,
+            rating_fora=stats.rating_fora,
+            modelo_gols=stats.modelo_gols,
+            odds_disponiveis=stats.odds_disponiveis,
+            value_bets=stats.value_bets,
+            odds_analise=stats.odds_analise,
+            contexto=stats.contexto,
+            tail_risk=stats.tail_risk,
+            top3=stats.top3,
+            narrativa=narrativa.narrativa,
+            resumo_rapido=narrativa.resumo_rapido,
+            alertas=narrativa.alertas,
+            analise_completa=narrativa.analise_completa,
             mercado=top1.mercado     if top1 else "—",
             entrada=top1.entrada     if top1 else "—",
             confianca=top1.confianca if top1 else "Baixa",
-            analise=parsed["ANALISE_COMPLETA"] or parsed["NARRATIVA"],
-            texto_completo=texto_completo,
+            analise=narrativa.analise_completa or narrativa.narrativa,
+            texto_completo=narrativa.texto_completo,
         )
     except Exception as e:
-        log.error("gerar_recomendacao: falha ao construir RecomendacaoIA (%s x %s): %s", nome_c, nome_f, e)
+        log.error("gerar_recomendacao: falha ao montar RecomendacaoIA (%s x %s): %s", nome_c, nome_f, e)
         _m = _modelo_gols_fallback()
-        result = RecomendacaoIA(
+        return RecomendacaoIA(
             partida_id=partida.id,
             rating_casa=RatingDinamico(),
             rating_fora=RatingDinamico(),
@@ -1532,23 +1599,3 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             mercado="—", entrada="—", confianca="Baixa",
             analise="", texto_completo="",
         )
-
-    # Persiste no cache quando há conteúdo real.
-    # update_narrative=False quando narrativa veio do cache (Caminho 2): preserva narrative_cached_at.
-    _is_real = (
-        texto_completo
-        and result.narrativa
-        and "se enfrentam na Copa do Mundo 2026" not in result.narrativa
-    )
-    if _is_real:
-        try:
-            from app.cache import static_cache as _sc
-            _sc.put_recomendacao(
-                partida.slug,
-                result.model_dump(mode="json"),
-                update_narrative=not bool(_narrative_from_cache),
-            )
-        except Exception:
-            pass
-
-    return result

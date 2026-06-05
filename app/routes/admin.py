@@ -293,6 +293,39 @@ async def admin_stats():
     }
 
 
+# ── Acurácia do modelo (backtesting contínuo) ─────────────────────────────────
+
+@router.get("/admin/acuracia", tags=["Admin"])
+async def acuracia_modelo(authorization: str | None = Header(default=None)):
+    """
+    Acurácia em tempo real do modelo contra resultados reais da Copa 2026.
+    Alimentado via scripts/registrar_resultado.py após cada jogo.
+    Protegido por Bearer <ADMIN_TOKEN> se configurado.
+    """
+    _checar_token(authorization)
+    import json
+    from pathlib import Path
+
+    historico_path = Path(__file__).parent.parent.parent / "seeds" / "historico_predicoes.json"
+    if not historico_path.exists():
+        return {
+            "total_jogos": 0,
+            "mensagem": "Nenhum resultado registrado ainda. Use scripts/registrar_resultado.py após cada jogo.",
+        }
+
+    with open(historico_path, encoding="utf-8") as f:
+        data = json.load(f)
+
+    jogos = data.get("jogos", [])
+    metricas = data.get("metricas_acumuladas", {})
+
+    return {
+        "metricas": metricas,
+        "ultimos_jogos": jogos[-10:],
+        "total_registrados": len(jogos),
+    }
+
+
 # ── T4: Health-check completo ─────────────────────────────────────────────────
 
 @router.get("/admin/health-check", tags=["Admin"])

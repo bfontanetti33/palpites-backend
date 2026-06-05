@@ -140,14 +140,9 @@ async def recomendacao_ia(
         )
 
 
-def _rec_valida(dados: dict) -> bool:
-    """Retorna True se o dict de recomendação tem conteúdo real (não é fallback)."""
-    return bool(
-        dados
-        and dados.get("texto_completo", "")
-        and dados.get("narrativa", "")
-        and "se enfrentam na Copa do Mundo 2026" not in (dados.get("narrativa") or "")
-    )
+def _stats_valida(stats: dict) -> bool:
+    """Retorna True se o dict de StatsRecomendacao tem dados reais calculados."""
+    return bool(stats and stats.get("top3") and stats.get("modelo_gols"))
 
 
 @router.get("/copa/zebras")
@@ -155,7 +150,7 @@ def _rec_valida(dados: dict) -> bool:
 async def zebras(request: Request, response: Response):
     """
     Jogos com alerta de zebra — azarão com edge estatístico real identificado pelo modelo.
-    Requer recomendação gerada (premium) para o jogo aparecer aqui.
+    Populado proativamente pelo cron de pré-aquecimento de stats (sem precisar de usuário premium).
     """
     response.headers["Cache-Control"] = "public, max-age=900"   # 15min
 
@@ -166,13 +161,16 @@ async def zebras(request: Request, response: Response):
     resultado = []
 
     for slug, entry in static_cache._store.items():
-        rec = entry.get("recomendacao")
-        if not rec:
+        # Lê da nova chave 'stats'; fallback para 'recomendacao' legado
+        stats_entry = entry.get("stats") or {}
+        stats = stats_entry.get("dados") if stats_entry else None
+        if not stats:
+            rec = entry.get("recomendacao")
+            if rec:
+                stats = rec.get("dados")
+        if not _stats_valida(stats):
             continue
-        dados = rec.get("dados", {})
-        if not _rec_valida(dados):
-            continue
-        ctx = dados.get("contexto", {})
+        ctx = stats.get("contexto", {})
         if not ctx.get("zebra_alerta", False):
             continue
 
@@ -180,7 +178,6 @@ async def zebras(request: Request, response: Response):
         if not jogo:
             continue
 
-        # Só jogos futuros ou em andamento
         try:
             dt = datetime.fromisoformat(
                 (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
@@ -192,7 +189,7 @@ async def zebras(request: Request, response: Response):
         except Exception:
             pass
 
-        top3 = dados.get("top3") or []
+        top3 = stats.get("top3") or []
         top1 = top3[0] if top3 else {}
 
         resultado.append({
@@ -220,7 +217,7 @@ async def zebras(request: Request, response: Response):
 async def bingo(request: Request, response: Response):
     """
     Apostas de alta confiança para combinações (acumuladas).
-    Requer odds disponíveis e recomendação gerada para o jogo.
+    Requer odds disponíveis. Populado proativamente pelo cron de stats.
     """
     response.headers["Cache-Control"] = "public, max-age=900"   # 15min
 
@@ -231,11 +228,13 @@ async def bingo(request: Request, response: Response):
     candidatos = []
 
     for slug, entry in static_cache._store.items():
-        rec = entry.get("recomendacao")
-        if not rec:
-            continue
-        dados = rec.get("dados", {})
-        if not _rec_valida(dados):
+        stats_entry = entry.get("stats") or {}
+        dados = stats_entry.get("dados") if stats_entry else None
+        if not dados:
+            rec = entry.get("recomendacao")
+            if rec:
+                dados = rec.get("dados")
+        if not _stats_valida(dados):
             continue
         if not dados.get("odds_disponiveis", False):
             continue
@@ -289,7 +288,7 @@ async def bingo(request: Request, response: Response):
 async def odds_baixa(request: Request, response: Response):
     """
     Apostas de alta probabilidade com odds baixas (apostas seguras).
-    Prob > 65%, odd entre 1.10 e 1.70. Requer odds disponíveis.
+    Prob > 65%, odd entre 1.10 e 1.70. Populado proativamente pelo cron de stats.
     """
     response.headers["Cache-Control"] = "public, max-age=900"   # 15min
 
@@ -300,11 +299,13 @@ async def odds_baixa(request: Request, response: Response):
     resultado = []
 
     for slug, entry in static_cache._store.items():
-        rec = entry.get("recomendacao")
-        if not rec:
-            continue
-        dados = rec.get("dados", {})
-        if not _rec_valida(dados):
+        stats_entry = entry.get("stats") or {}
+        dados = stats_entry.get("dados") if stats_entry else None
+        if not dados:
+            rec = entry.get("recomendacao")
+            if rec:
+                dados = rec.get("dados")
+        if not _stats_valida(dados):
             continue
         if not dados.get("odds_disponiveis", False):
             continue
