@@ -1341,13 +1341,14 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     tail_risk = _tail_risk_fallback(modelo)
     top3: list = []
     texto_completo = ""
+    # Fallback usado quando Claude API falha — texto revisto para não confundir com falha da API-Football
     parsed: dict = {
         "NARRATIVA":        f"{nome_c} e {nome_f} se enfrentam na Copa do Mundo 2026.",
         "RESUMO_RAPIDO":    "Análise estatística gerada com dados disponíveis.",
-        "ALERTAS":          "API externa com dados limitados — análise via GLOBAL_AVG",
+        "ALERTAS":          "Narrativa IA temporariamente indisponível — análise estatística disponível",
         "ANALISE_COMPLETA": (
-            f"Análise baseada em modelo Dixon-Coles com fallback GLOBAL_AVG "
-            f"(1.2 gols/jogo). Dados da API-Football temporariamente indisponíveis."
+            f"Análise estatística de {nome_c} x {nome_f} gerada pelo modelo Dixon-Coles. "
+            f"A narrativa detalhada está temporariamente indisponível."
         ),
     }
 
