@@ -1331,19 +1331,30 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     nome_c = partida.time_casa_nome
     nome_f = partida.time_fora_nome
 
-    # ── Cache completo — retorna sem executar nenhuma camada ─────────────────
-    # Evita recalcular modelo + buscar Wikipedia para cada usuário que abre a página.
-    # Só usa o cache se Claude gerou conteúdo real (texto_completo não vazio).
+    # ── Cache: 3 caminhos por frescor de stats/narrativa ─────────────────────
+    # Caminho 1: stats + narrativa frescos → retorna direto (0 computação)
+    # Caminho 2: só narrativa fresca → recalcula camadas 1-4B, reutiliza Claude
+    # Caminho 3: tudo stale → pipeline completo + Claude
+    _narrative_from_cache: dict | None = None
     try:
         from app.cache import static_cache as _sc
-        _cached_full = _sc.get_recomendacao(partida.slug)
-        if (
-            _cached_full
-            and _cached_full.get("texto_completo", "")
-            and _cached_full.get("narrativa", "")
-            and "se enfrentam na Copa do Mundo 2026" not in (_cached_full.get("narrativa") or "")
-        ):
-            return RecomendacaoIA.model_validate(_cached_full)
+        _stats_fresh, _narr_fresh, _cached = _sc.get_recomendacao_estado(partida.slug)
+        _valid_cache = bool(
+            _cached
+            and _cached.get("texto_completo", "")
+            and _cached.get("narrativa", "")
+            and "se enfrentam na Copa do Mundo 2026" not in (_cached.get("narrativa") or "")
+        )
+        if _stats_fresh and _narr_fresh and _valid_cache:
+            return RecomendacaoIA.model_validate(_cached)         # Caminho 1
+        if _narr_fresh and _valid_cache:
+            _narrative_from_cache = {                             # Caminho 2
+                "texto_completo":   _cached.get("texto_completo", ""),
+                "narrativa":        _cached.get("narrativa", ""),
+                "resumo_rapido":    _cached.get("resumo_rapido", ""),
+                "alertas":          _cached.get("alertas") or [],
+                "analise_completa": _cached.get("analise_completa", ""),
+            }
     except Exception:
         pass
 
@@ -1443,26 +1454,16 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         log.error("gerar_recomendacao score_final falhou (%s x %s): %s", nome_c, nome_f, e)
 
     # ── Camada 5 — Claude narrativa ───────────────────────────────────────────
-    # Verifica cache disco para evitar chamada Claude quando narrativa ainda é válida.
-    # Só usa o cache se texto_completo não for vazio — vazio significa que Claude falhou
-    # e a resposta foi um fallback que não deve ser reutilizado.
-    _claude_cache_hit = False
-    try:
-        from app.cache import static_cache as _sc
-        _cached_rec = _sc.get_recomendacao(partida.slug)
-        if _cached_rec and _cached_rec.get("texto_completo", ""):
-            texto_completo = _cached_rec.get("texto_completo", "")
-            parsed = {
-                "NARRATIVA":        _cached_rec.get("narrativa", ""),
-                "RESUMO_RAPIDO":    _cached_rec.get("resumo_rapido", ""),
-                "ALERTAS":          "|".join(_cached_rec.get("alertas") or []),
-                "ANALISE_COMPLETA": _cached_rec.get("analise_completa", ""),
-            }
-            _claude_cache_hit = True
-    except Exception:
-        pass
-
-    if not _claude_cache_hit:
+    if _narrative_from_cache:
+        # Caminho 2: narrativa fresca em cache — pula Claude
+        texto_completo = _narrative_from_cache["texto_completo"]
+        parsed = {
+            "NARRATIVA":        _narrative_from_cache["narrativa"],
+            "RESUMO_RAPIDO":    _narrative_from_cache["resumo_rapido"],
+            "ALERTAS":          "|".join(_narrative_from_cache["alertas"] or []),
+            "ANALISE_COMPLETA": _narrative_from_cache["analise_completa"],
+        }
+    else:
         try:
             prompt = _montar_prompt(
                 partida, rating_c, rating_f, modelo_final,
@@ -1532,12 +1533,21 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             analise="", texto_completo="",
         )
 
-    # Persiste narrativa em disco apenas quando Claude gerou conteúdo real.
-    # texto_completo vazio = falhou; narrativa vazia = parse falhou. Não cachear nem um nem outro.
-    if not _claude_cache_hit and texto_completo and result.narrativa and "se enfrentam na Copa do Mundo 2026" not in result.narrativa:
+    # Persiste no cache quando há conteúdo real.
+    # update_narrative=False quando narrativa veio do cache (Caminho 2): preserva narrative_cached_at.
+    _is_real = (
+        texto_completo
+        and result.narrativa
+        and "se enfrentam na Copa do Mundo 2026" not in result.narrativa
+    )
+    if _is_real:
         try:
             from app.cache import static_cache as _sc
-            _sc.put_recomendacao(partida.slug, result.model_dump(mode="json"))
+            _sc.put_recomendacao(
+                partida.slug,
+                result.model_dump(mode="json"),
+                update_narrative=not bool(_narrative_from_cache),
+            )
         except Exception:
             pass
 

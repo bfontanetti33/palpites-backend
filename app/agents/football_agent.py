@@ -824,6 +824,9 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         return None if isinstance(val, Exception) else val
 
     odds          = _safe(resultados[0])
+    if not odds:
+        from app.cache.odds_cache import get_odds_dinamicas
+        odds = get_odds_dinamicas(jogo["slug"])
     dest_casa_raw = _safe(resultados[1])
     dest_fora_raw = _safe(resultados[2])
     wiki          = _safe(resultados[3]) or {}

@@ -14,8 +14,23 @@ log = logging.getLogger(__name__)
 _CACHE_PATH = Path(__file__).parent.parent.parent / "seeds" / "cache_partidas.json"
 _store: dict[str, dict] = {}
 
-TTL_OK    = 8  * 3600   # 8h
-TTL_INSUF = 24 * 3600   # 24h — tenta re-fetch após 24h quando dados_insuficientes
+TTL_OK        = 8  * 3600   # 8h — partida completa
+TTL_INSUF     = 24 * 3600   # 24h — dados_insuficientes
+TTL_NARRATIVE = 8  * 3600   # 8h — narrativa Claude (texto muda pouco)
+
+
+def _stats_ttl(horario_utc: str | None) -> float:
+    """TTL para stats baseado na proximidade do jogo — espelha cron de odds."""
+    try:
+        dt = datetime.fromisoformat((horario_utc or "").replace("Z", "+00:00"))
+        horas = (dt - datetime.now(timezone.utc)).total_seconds() / 3600
+        if horas > 12:
+            return 24 * 3600   # > 12h: 1×/dia
+        if horas > 2:
+            return 3600         # 2-12h: 1×/hora
+        return 30 * 60          # < 2h: 30min
+    except Exception:
+        return TTL_OK           # fallback seguro: 8h
 
 
 def load_from_disk() -> int:
@@ -69,22 +84,50 @@ def get_partida(slug: str) -> dict | None:
     return _store[slug].get("partida")
 
 
-def get_recomendacao(slug: str) -> dict | None:
-    """Retorna dict da RecomendacaoIA se existir e for recente (TTL_OK), senão None."""
+def get_recomendacao_estado(slug: str) -> tuple[bool, bool, dict | None]:
+    """
+    Retorna (stats_fresh, narrative_fresh, dados).
+    stats_fresh  : stats dentro do TTL tiered por proximidade do jogo.
+    narrative_fresh: narrativa Claude dentro de TTL_NARRATIVE (8h).
+    dados        : dict do RecomendacaoIA ou None se não existir.
+    Entradas no formato antigo (sem stats_cached_at) → ambas stale.
+    """
     entry = _store.get(slug)
     if not entry:
-        return None
+        return False, False, None
     rec = entry.get("recomendacao")
     if not rec:
-        return None
+        return False, False, None
+    dados = rec.get("dados")
+    if not dados:
+        return False, False, None
+
+    agora = datetime.now(timezone.utc)
+
+    # Frescor da narrativa (TTL fixo 8h)
+    narrative_fresh = False
     try:
-        rec_at = datetime.fromisoformat(rec["cached_at"].replace("Z", "+00:00"))
-        age = (datetime.now(timezone.utc) - rec_at).total_seconds()
-        if age >= TTL_OK:
-            return None
+        nat = rec.get("narrative_cached_at") or rec.get("cached_at", "")
+        nat_dt = datetime.fromisoformat(nat.replace("Z", "+00:00"))
+        narrative_fresh = (agora - nat_dt).total_seconds() < TTL_NARRATIVE
     except Exception:
-        return None
-    return rec.get("dados")
+        pass
+
+    # Frescor das stats (TTL tiered por hora do jogo)
+    stats_fresh = False
+    try:
+        sat = rec.get("stats_cached_at")
+        if not sat:
+            # Formato antigo — trata como stale para forçar recálculo
+            return False, narrative_fresh, dados
+        sat_dt = datetime.fromisoformat(sat.replace("Z", "+00:00"))
+        horario = dados.get("horario_utc") or (entry.get("partida") or {}).get("horario")
+        ttl = _stats_ttl(horario)
+        stats_fresh = (agora - sat_dt).total_seconds() < ttl
+    except Exception:
+        pass
+
+    return stats_fresh, narrative_fresh, dados
 
 
 def put_partida(slug: str, partida_dict: dict) -> None:
@@ -106,8 +149,11 @@ def put_partida(slug: str, partida_dict: dict) -> None:
     save_to_disk()
 
 
-def put_recomendacao(slug: str, rec_dict: dict) -> None:
-    """Salva RecomendacaoIA no cache disco. rec_dict = rec.model_dump(mode='json')."""
+def put_recomendacao(slug: str, rec_dict: dict, update_narrative: bool = True) -> None:
+    """
+    Salva RecomendacaoIA no cache disco.
+    update_narrative=False: atualiza só stats_cached_at (narrativa Claude reutilizada).
+    """
     agora = datetime.now(timezone.utc).isoformat()
     if slug not in _store:
         _store[slug] = {
@@ -118,7 +164,16 @@ def put_recomendacao(slug: str, rec_dict: dict) -> None:
             "partida": None,
             "recomendacao": None,
         }
-    _store[slug]["recomendacao"] = {"cached_at": agora, "dados": rec_dict}
+    existing = _store[slug].get("recomendacao") or {}
+    narrative_cached_at = agora if update_narrative else (
+        existing.get("narrative_cached_at") or existing.get("cached_at", agora)
+    )
+    _store[slug]["recomendacao"] = {
+        "cached_at":           agora,           # compat legado
+        "stats_cached_at":     agora,
+        "narrative_cached_at": narrative_cached_at,
+        "dados":               rec_dict,
+    }
     save_to_disk()
 
 
