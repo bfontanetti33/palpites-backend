@@ -561,7 +561,7 @@ async def validar_semana(authorization: str | None = Header(default=None)):
             # ── 1. Ler Partida do cache estático (sem API) ───────────────────
             entry        = _sc._store.get(slug) or {}
             partida_dict = entry.get("partida") or {}
-            dados_insuf  = bool(entry.get("dados_insuficientes", True) if entry else True)
+            dados_insuf  = bool(entry.get("dados_insuficientes", False) if entry else True)
             cache_ok     = bool(partida_dict)
 
             checks["cache_presente"]      = cache_ok
@@ -746,7 +746,7 @@ async def validar_semana(authorization: str | None = Header(default=None)):
         # ── Status geral do jogo ──────────────────────────────────────────────
         if not checks["cache_presente"]:
             status = "sem_cache"
-        elif not checks["tem_stats"] or checks["dados_insuficientes"]:
+        elif checks["dados_insuficientes"]:
             status = "incompleto"
         elif any(
             k in i
