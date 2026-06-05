@@ -16,7 +16,9 @@ Regra: nunca inventa dados — dados_insuficientes=True quando a API não retorn
 """
 import asyncio
 import json
+import logging
 import os
+import time
 from math import exp, factorial
 from pathlib import Path
 
@@ -27,6 +29,8 @@ from app.models.schemas import (
     Arbitro, EntradaForma, EstatisticasTemporada, Partida,
     PartidaResumo, PerformanceLocal, PlacarProvavel, Probabilidades,
 )
+
+log = logging.getLogger(__name__)
 
 BASE_URL   = "https://v3.football.api-sports.io"
 HEADERS    = {"x-apisports-key": os.getenv("API_FOOTBALL_KEY", "")}
@@ -43,8 +47,52 @@ _INTL_LEAGUES: list[tuple[int, list[int], str]] = [
     (5,  [2024, 2022, 2020],       "Nations League"),  # UEFA Nations League
 ]
 
-_cache: TTLCache = TTLCache(maxsize=400, ttl=14400)   # 4h — chamadas individuais API-Football
-_partida_cache: TTLCache = TTLCache(maxsize=72, ttl=14400)  # 4h — resposta completa por slug
+_cache: TTLCache = TTLCache(maxsize=400, ttl=28800)   # 8h — chamadas individuais API-Football
+_partida_cache: TTLCache = TTLCache(maxsize=72, ttl=28800)  # 8h — resposta completa por slug
+
+# Rate limiter: API-Football Pro permite ~30 req/min → 1 req a cada 2s é seguro
+_last_api_call: float = 0.0
+_API_MIN_INTERVAL = 2.0  # segundos entre chamadas reais à API
+
+# ── Cache persistente de respostas da API-Football ────────────────────────────
+# Sobrevive redeploys — zera custo de quota em cada novo deploy.
+_API_DISK_PATH = Path(__file__).parent.parent.parent / "seeds" / "football_api_cache.json"
+_API_DISK_TTL  = 28800  # 8h — mesmo TTL do cache em memória
+
+
+def _load_api_disk_cache() -> None:
+    """Restaura respostas da API do disco para o cache em memória ao iniciar."""
+    try:
+        if not _API_DISK_PATH.exists():
+            return
+        with open(_API_DISK_PATH, encoding="utf-8") as f:
+            saved: dict = json.load(f)
+        agora = time.time()
+        restaurados = 0
+        for key, entry in saved.items():
+            if agora - entry.get("ts", 0) < _API_DISK_TTL and len(_cache) < _cache.maxsize:
+                _cache[key] = entry["data"]
+                restaurados += 1
+        if restaurados:
+            log.info("football_agent: %d respostas API restauradas do disco (quota preservada)", restaurados)
+    except Exception as e:
+        log.warning("football_agent: falha ao restaurar api_cache do disco: %s", e)
+
+
+def _save_api_disk_cache() -> None:
+    """Persiste o cache atual em disco (chamado após cada nova resposta da API)."""
+    try:
+        agora = time.time()
+        data = {k: {"data": v, "ts": agora} for k, v in _cache.items()}
+        _API_DISK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_API_DISK_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception as e:
+        log.warning("football_agent: falha ao persistir api_cache: %s", e)
+
+
+# Carrega cache do disco na inicialização do módulo
+_load_api_disk_cache()
 
 # ── Seed árbitros Copa 2026 ───────────────────────────────────────────────────
 def _carregar_seed_arbitros() -> dict:
@@ -80,7 +128,7 @@ def _buscar_no_seed_arb(nome_raw: str) -> dict | None:
     return None
 
 
-# ── Seed ─────────────────────────────────────────────────────────────────────
+# ── Seeds ────────────────────────────────────────────────────────────────────
 
 def _carregar_seed() -> dict:
     path = Path(__file__).parent.parent.parent / "seeds" / "copa_2026.json"
@@ -92,17 +140,17 @@ _JOGOS: list[dict] = _SEED["jogos"]
 _POR_SLUG: dict[str, dict] = {j["slug"]: j for j in _JOGOS}
 
 
-# ── Seed forma recente (fallback quando API retorna vazio) ────────────────────
-
-def _carregar_seed_forma() -> dict:
+def _carregar_seed_forma() -> dict[str, list]:
+    """Retorna {team_id_str: [EntradaForma-dict, ...]} a partir do seed."""
     path = Path(__file__).parent.parent.parent / "seeds" / "forma_recente_seed.json"
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            raw = json.load(f)
+        return {k: v.get("jogos", []) for k, v in raw.get("times", {}).items()}
     except Exception:
         return {}
 
-_SEED_FORMA = _carregar_seed_forma()
+_SEED_FORMA: dict[str, list] = _carregar_seed_forma()
 
 
 # ── Seed H2H (fallback quando API retorna vazio) ──────────────────────────────
@@ -121,10 +169,27 @@ _SEED_H2H = _carregar_seed_h2h()
 # ── HTTP com cache ─────────────────────────────────────────────────────────────
 
 async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
+    global _last_api_call
     key = f"{path}:{sorted(params.items())}"
     if key in _cache:
         return _cache[key]
+
+    # Rate limiting: garante mínimo de 2s entre chamadas reais à API
+    elapsed = time.time() - _last_api_call
+    if elapsed < _API_MIN_INTERVAL:
+        await asyncio.sleep(_API_MIN_INTERVAL - elapsed)
+
+    _last_api_call = time.time()
     resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
+
+    # Retry automático em 429 — espera o tempo indicado pelo header ou 60s
+    if resp.status_code == 429:
+        retry_after = int(resp.headers.get("retry-after", 60))
+        log.warning("API-Football 429 — aguardando %ds antes de retry", retry_after)
+        await asyncio.sleep(retry_after)
+        _last_api_call = time.time()
+        resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
+
     # Captura quota restante para o monitoring
     remaining = resp.headers.get("x-ratelimit-requests-remaining")
     if remaining is not None:
@@ -136,6 +201,8 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     resp.raise_for_status()
     data = resp.json()
     _cache[key] = data
+    # Persiste no disco para sobreviver redeploys (zero quota em reinicializações)
+    _save_api_disk_cache()
     return data
 
 
@@ -205,6 +272,7 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
             resp  = data.get("response", {})
             jogos = resp.get("fixtures", {}).get("played", {}).get("total") or 0
             if not resp or jogos == 0:
+                log.debug("_stats_time team=%d %s: sem dados (jogos=%d)", team_id, fonte_label, jogos)
                 continue
 
             fix   = resp["fixtures"]
@@ -240,9 +308,11 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
                 penaltis_marcados=pen.get("scored", {}).get("total"),
                 penaltis_total=pen.get("total"),
             )
-        except Exception:
+        except Exception as e:
+            log.debug("_stats_time team=%d %s: erro %s", team_id, fonte_label, e)
             continue
 
+    log.warning("_stats_time team=%d: nenhuma liga retornou dados — usando fallback Elo", team_id)
     return EstatisticasTemporada(dados_insuficientes=True)
 
 
@@ -260,11 +330,29 @@ def _e_jogo_senior_masculino(f: dict) -> bool:
     return not any(t in nome for t in _EXCLUIR_LIGA)
 
 
+def _forma_do_seed(team_id: int) -> list[EntradaForma]:
+    """Retorna forma recente do seed local (fallback sem custo de API)."""
+    jogos = _SEED_FORMA.get(str(team_id), [])
+    forma = []
+    for j in jogos:
+        try:
+            forma.append(EntradaForma(
+                data=j["data"],
+                adversario=j["adversario"],
+                placar_proprio=j.get("placar_proprio"),
+                placar_adversario=j.get("placar_adversario"),
+                resultado=j["resultado"],
+                competicao=j.get("competicao", ""),
+            ))
+        except Exception:
+            continue
+    return forma[-5:]
+
+
 async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[EntradaForma]:
     """
     Últimos jogos da seleção masculina profissional em qualquer competição.
-    Busca 20 candidatos da API; fallback automático para forma_recente_seed.json
-    quando a API retorna vazio (comum em seleções nacionais fora de janela FIFA).
+    Tenta API-Football primeiro; se retornar vazio ou falhar, usa seed local.
     """
     fixtures = []
     try:
@@ -273,8 +361,13 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
             f for f in data.get("response", [])
             if _e_jogo_senior_masculino(f)
         ]
-    except Exception:
-        pass
+    except Exception as e:
+        log.warning("_forma_recente team=%d: erro %s — usando seed", team_id, e)
+        return _forma_do_seed(team_id)
+
+    if not fixtures:
+        log.warning("_forma_recente team=%d: API retornou 0 fixtures — usando seed", team_id)
+        return _forma_do_seed(team_id)
 
     forma = []
     for f in sorted(fixtures, key=lambda x: x["fixture"]["date"]):
@@ -292,25 +385,7 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
             resultado=resultado,
             competicao=f["league"]["name"],
         ))
-
-    if forma:
-        return forma[-10:]
-
-    # Fallback: seed forma recente (keyed por team_id como string)
-    seed_time = _SEED_FORMA.get("times", {}).get(str(team_id), {})
-    if seed_time:
-        return [
-            EntradaForma(
-                data=j["data"],
-                adversario=j["adversario"],
-                placar_proprio=j.get("placar_proprio"),
-                placar_adversario=j.get("placar_adversario"),
-                resultado=j["resultado"],
-                competicao=j.get("competicao", "Amistoso"),
-            )
-            for j in seed_time.get("jogos", [])
-        ]
-    return []
+    return forma[-10:]
 
 
 # ── Enriquece stats com BTTS/Over/médias dos últimos 10 jogos ────────────────
@@ -355,7 +430,7 @@ async def _h2h(client: httpx.AsyncClient, id1: int, id2: int, slug: str = "") ->
         data = await _get(client, "/fixtures/headtohead", {
             "h2h": f"{id1}-{id2}", "last": 10,
         })
-        result = [
+        resultados = [
             {
                 "data":       f["fixture"]["date"][:10],
                 "competicao": f["league"]["name"],
@@ -371,10 +446,11 @@ async def _h2h(client: httpx.AsyncClient, id1: int, id2: int, slug: str = "") ->
             }
             for f in data.get("response", [])
         ]
-        if result:
-            return result
-    except Exception:
-        pass
+        if resultados:
+            return resultados
+        log.warning("_h2h team=%d vs team=%d: API retornou 0 confrontos", id1, id2)
+    except Exception as e:
+        log.warning("_h2h team=%d vs team=%d: erro %s", id1, id2, e)
     # Fallback: seed histórico de Copa do Mundo / competições maiores
     if slug:
         seed_data = _SEED_H2H.get("h2h", {}).get(slug, [])
@@ -586,20 +662,21 @@ async def _buscar_odds(client: httpx.AsyncClient, fixture_id: int) -> dict | Non
 def _favorito_e_prob(
     nome_casa: str, nome_fora: str, prob: "Probabilidades | None"
 ) -> tuple[str, float | None]:
-    """Retorna (nome_favorito, prob_favorito) a partir das probabilidades."""
-    if not prob or prob.dados_insuficientes:
+    """Retorna (nome_favorito, prob_favorito) a partir das probabilidades.
+    Funciona com probabilidades estimadas (dados_insuficientes=True) desde que existam valores."""
+    if not prob:
         return "", None
     vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
-    if vc >= vf and vc >= emp:
+    if vc > vf and vc > emp:
         return nome_casa, float(vc)
-    if vf > vc and vf >= emp:
+    if vf > vc and vf > emp:
         return nome_fora, float(vf)
     return "Empate", float(emp)
 
 
 def _insight_curto(nome_casa: str, nome_fora: str, prob: "Probabilidades | None") -> str:
     """Gera 1 frase curtíssima sobre o confronto sem chamar Claude."""
-    if not prob or prob.dados_insuficientes:
+    if not prob:
         return f"{nome_casa} x {nome_fora}"
     vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
     if vc >= 55:
@@ -645,28 +722,86 @@ def _jogo_para_resumo(j: dict, partida: "Partida | None" = None) -> PartidaResum
     )
 
 
-# ── Pré-cache de todos os jogos (chamado no startup) ─────────────────────────
+# ── Pré-cache dos próximos jogos (chamado no startup) ────────────────────────
 
-async def precalcular_todos_jogos(delay: float = 1.5) -> int:
+async def precalcular_proximos_jogos(n: int = 8, delay: float = 1.5) -> int:
     """
-    Itera pelos 72 slugs do seed e chama buscar_detalhe_partida para cada um.
-    Popula _partida_cache e captura quota da API-Football.
-    Retorna número de slugs cacheados com sucesso.
+    Pré-cacha os próximos N jogos por data (a partir de agora).
+    Reduz consumo de quota da API-Football no startup comparado a cachear todos os 72.
     Roda em background — não bloqueia o startup.
     """
     import logging
+    from datetime import datetime, timezone
     log = logging.getLogger(__name__)
-    total = len(_JOGOS)
-    log.info(f"Iniciando pré-cache de {total} jogos em background...")
+
+    agora = datetime.now(timezone.utc)
+
+    def _parse_dt(s: str) -> datetime:
+        try:
+            return datetime.fromisoformat(s)
+        except Exception:
+            return datetime.max.replace(tzinfo=timezone.utc)
+
+    jogos_futuros = [j for j in _JOGOS if _parse_dt(j["data_hora_brasilia"]) > agora]
+    jogos_futuros.sort(key=lambda j: _parse_dt(j["data_hora_brasilia"]))
+    proximos = jogos_futuros[:n]
+
+    if not proximos:
+        log.info("Nenhum jogo futuro encontrado para pré-cache")
+        return 0
+
+    log.info("Pré-cache dos próximos %d jogos em background...", len(proximos))
     ok = 0
-    for jogo in _JOGOS:
+    for jogo in proximos:
         try:
             await buscar_detalhe_partida(jogo["slug"])
             ok += 1
         except Exception:
             pass
         await asyncio.sleep(delay)
-    log.info(f"Pré-cache concluído: {ok}/{total} jogos cacheados")
+    log.info("Pré-cache concluído: %d/%d jogos cacheados", ok, len(proximos))
+    # Re-processa entradas para garantir que probabilidades usam Elo (não GLOBAL_AVG simétrico)
+    await recalcular_proximos_com_elo(n)
+    return ok
+
+
+async def recalcular_proximos_com_elo(n: int = 8) -> int:
+    """
+    Apaga as entradas do _partida_cache dos próximos N jogos e re-executa
+    buscar_detalhe_partida usando dados já em _cache (sem chamadas novas à API).
+    Garante que probabilidades reflitam o Elo de cada time em vez de GLOBAL_AVG simétrico.
+    """
+    import logging
+    from datetime import datetime, timezone
+    log = logging.getLogger(__name__)
+
+    agora = datetime.now(timezone.utc)
+
+    def _parse_dt(s: str) -> datetime:
+        try:
+            return datetime.fromisoformat(s)
+        except Exception:
+            return datetime.max.replace(tzinfo=timezone.utc)
+
+    jogos_futuros = [j for j in _JOGOS if _parse_dt(j["data_hora_brasilia"]) > agora]
+    jogos_futuros.sort(key=lambda j: _parse_dt(j["data_hora_brasilia"]))
+    proximos = jogos_futuros[:n]
+
+    ok = 0
+    for jogo in proximos:
+        slug = jogo["slug"]
+        try:
+            del _partida_cache[slug]
+        except KeyError:
+            pass
+        try:
+            await buscar_detalhe_partida(slug)
+            ok += 1
+        except Exception as e:
+            log.error("recalcular_proximos_com_elo falhou para %s: %s", slug, e)
+        await asyncio.sleep(0.1)  # yield para não bloquear o event loop
+
+    log.info("recalcular_proximos_com_elo: %d/%d jogos reprocessados com Elo", ok, len(proximos))
     return ok
 
 
@@ -704,7 +839,7 @@ def _gerar_insight_probabilidades(
         return "Probabilidades indisponíveis."
     if prob.dados_insuficientes:
         return (
-            f"Probabilidades estimadas com fallback histórico (1.2 gols/jogo): "
+            f"Probabilidades estimadas via modelo Elo: "
             f"{nome_casa} {prob.vitoria_casa}% · Empate {prob.empate}% · {nome_fora} {prob.vitoria_fora}%."
         )
     vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
@@ -730,9 +865,38 @@ async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
     return [_jogo_para_resumo(j, _partida_cache.get(j["slug"])) for j in _JOGOS]
 
 
+def _enriquecer_odds(partida: "Partida", slug: str) -> "Partida":
+    """Preenche partida.odds do cache de odds quando a partida foi cacheada sem odds."""
+    if partida.odds is not None:
+        return partida
+    try:
+        from app.cache.odds_cache import get_odds_dinamicas
+        odds = get_odds_dinamicas(slug)
+        if odds:
+            return partida.model_copy(update={"odds": odds})
+    except Exception:
+        pass
+    return partida
+
+
 async def buscar_detalhe_partida(slug: str) -> Partida | None:
+    # L1 — in-memory TTL
     if slug in _partida_cache:
-        return _partida_cache[slug]
+        p = _enriquecer_odds(_partida_cache[slug], slug)
+        if p is not _partida_cache[slug]:
+            _partida_cache[slug] = p   # persiste enriquecimento
+        return p
+
+    # L2 — disk cache (sobrevive redeploys sem consumir quota)
+    try:
+        from app.cache import static_cache
+        partida_dict = static_cache.get_partida(slug)
+        if partida_dict:
+            partida = _enriquecer_odds(Partida.model_validate(partida_dict), slug)
+            _partida_cache[slug] = partida
+            return partida
+    except Exception:
+        pass
 
     jogo = _POR_SLUG.get(slug)
     if not jogo:
@@ -807,6 +971,9 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         return None if isinstance(val, Exception) else val
 
     odds          = _safe(resultados[0])
+    if not odds:
+        from app.cache.odds_cache import get_odds_dinamicas
+        odds = get_odds_dinamicas(jogo["slug"])
     dest_casa_raw = _safe(resultados[1])
     dest_fora_raw = _safe(resultados[2])
     wiki          = _safe(resultados[3]) or {}
@@ -842,11 +1009,24 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     placares_provaveis: list[PlacarProvavel] = []
 
     # Prefere médias dos últimos 10 jogos (mais representativas) sobre histórico de Copa.
-    # Fallback de 1.2 gols/jogo (média histórica internacional) quando stats indisponíveis.
+    # Fallback 1: usa Elo ratings (já em memória) → lambdas diferenciadas por time.
+    # Fallback 2: GLOBAL_AVG simétrico (1.2) só quando nem stats nem ratings disponíveis.
     lc_raw = stats_casa.media_gols_marcados_recente or stats_casa.media_gols_marcados
     lf_raw = stats_fora.media_gols_marcados_recente or stats_fora.media_gols_marcados
-    lc = lc_raw if lc_raw is not None else 1.2
-    lf = lf_raw if lf_raw is not None else 1.2
+
+    if lc_raw is not None and lf_raw is not None:
+        lc, lf = lc_raw, lf_raw
+    elif rating_c is not None and rating_f is not None:
+        # Elo fallback: ajusta GLOBAL_AVG pela força relativa de cada time
+        _GAV = 1.2
+        _at_c = max(0.5, 1.0 + rating_c.rating_combinado * 0.10)
+        _at_f = max(0.5, 1.0 + rating_f.rating_combinado * 0.10)
+        _def_f = max(0.5, 1.0 - rating_f.rating_combinado * 0.08)
+        _def_c = max(0.5, 1.0 - rating_c.rating_combinado * 0.08)
+        lc = round(max(0.3, min(_GAV * _at_c * _def_f, 4.0)), 3)
+        lf = round(max(0.3, min(_GAV * _at_f * _def_c, 4.0)), 3)
+    else:
+        lc, lf = 1.2, 1.2
 
     probabilidades     = _calcular_probabilidades(lc, lf)
     if lc_raw is None or lf_raw is None:
@@ -865,6 +1045,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     stats_casa.chances_criadas_metodo = "estimado"
     stats_fora.chances_criadas_metodo = "estimado"
 
+    _fav, _prob_fav = _favorito_e_prob(jogo["time_casa"], jogo["time_fora"], probabilidades)
+
     partida = Partida(
         id=fixture_id,
         slug=jogo["slug"],
@@ -881,6 +1063,17 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         time_fora_id=away_id,
         gols_casa=jogo.get("gols_casa"),
         gols_fora=jogo.get("gols_fora"),
+        # Campos de PartidaResumo — preenchidos para que o detalhe
+        # retorne os mesmos dados que os cards da lista.
+        prob_vitoria_casa=float(probabilidades.vitoria_casa) if probabilidades else None,
+        prob_empate=float(probabilidades.empate)              if probabilidades else None,
+        prob_vitoria_fora=float(probabilidades.vitoria_fora)  if probabilidades else None,
+        favorito=_fav,
+        prob_favorito=_prob_fav,
+        insight_curto=_insight_curto(jogo["time_casa"], jogo["time_fora"], probabilidades),
+        resumo_rapido=_gerar_insight_probabilidades(
+            jogo["time_casa"], jogo["time_fora"], probabilidades
+        ),
         rating_casa=rating_c,
         rating_fora=rating_f,
         stats_casa=stats_casa,
@@ -905,4 +1098,9 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         ),
     )
     _partida_cache[slug] = partida
+    try:
+        from app.cache import static_cache
+        static_cache.put_partida(slug, partida.model_dump(mode="json"))
+    except Exception:
+        pass
     return partida

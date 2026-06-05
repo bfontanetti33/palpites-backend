@@ -323,6 +323,35 @@ class RecomendacaoIA(BaseModel):
     texto_completo: str
 
 
+class StatsRecomendacao(BaseModel):
+    """Output das Camadas 1-4B + Score Final. Sem narrativa Claude."""
+    partida_id: int
+    slug: str = ""
+    horario_utc: str = ""
+    time_casa_nome: str = ""
+    time_fora_nome: str = ""
+
+    rating_casa: RatingDinamico
+    rating_fora: RatingDinamico
+    modelo_gols: ModeloGols
+    odds_disponiveis: bool
+    value_bets: list[dict]
+    odds_analise: dict | None = None
+    contexto: FatorContexto
+    tail_risk: TailRiskResult
+    top3: list[MercadoRecomendado]
+
+
+class NarrativaData(BaseModel):
+    """Output Camada 5 — Claude."""
+    partida_id: int
+    narrativa: str = ""
+    resumo_rapido: str = ""
+    alertas: list[str] = []
+    analise_completa: str = ""
+    texto_completo: str = ""
+
+
 class RespostaCopa(BaseModel):
     total: int
     temporada: int
