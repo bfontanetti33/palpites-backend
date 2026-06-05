@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Header, Request, Response
 
@@ -137,3 +138,213 @@ async def recomendacao_ia(
             status_code=503,
             detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
         )
+
+
+def _rec_valida(dados: dict) -> bool:
+    """Retorna True se o dict de recomendação tem conteúdo real (não é fallback)."""
+    return bool(
+        dados
+        and dados.get("texto_completo", "")
+        and dados.get("narrativa", "")
+        and "se enfrentam na Copa do Mundo 2026" not in (dados.get("narrativa") or "")
+    )
+
+
+@router.get("/copa/zebras")
+@limiter.limit("30/minute")
+async def zebras(request: Request, response: Response):
+    """
+    Jogos com alerta de zebra — azarão com edge estatístico real identificado pelo modelo.
+    Requer recomendação gerada (premium) para o jogo aparecer aqui.
+    """
+    response.headers["Cache-Control"] = "public, max-age=900"   # 15min
+
+    from app.cache import static_cache
+    from app.agents.football_agent import _POR_SLUG
+
+    agora = datetime.now(timezone.utc)
+    resultado = []
+
+    for slug, entry in static_cache._store.items():
+        rec = entry.get("recomendacao")
+        if not rec:
+            continue
+        dados = rec.get("dados", {})
+        if not _rec_valida(dados):
+            continue
+        ctx = dados.get("contexto", {})
+        if not ctx.get("zebra_alerta", False):
+            continue
+
+        jogo = _POR_SLUG.get(slug)
+        if not jogo:
+            continue
+
+        # Só jogos futuros ou em andamento
+        try:
+            dt = datetime.fromisoformat(
+                (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
+            )
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < agora - __import__("datetime").timedelta(hours=2):
+                continue
+        except Exception:
+            pass
+
+        top3 = dados.get("top3") or []
+        top1 = top3[0] if top3 else {}
+
+        resultado.append({
+            "slug":            slug,
+            "horario":         jogo.get("data_hora_brasilia", ""),
+            "horario_utc":     jogo.get("data_hora_utc", ""),
+            "time_casa_nome":  jogo["time_casa"],
+            "time_casa_logo":  jogo.get("time_casa_logo", ""),
+            "time_fora_nome":  jogo["time_fora"],
+            "time_fora_logo":  jogo.get("time_fora_logo", ""),
+            "zebra_descricao": ctx.get("zebra_descricao", ""),
+            "mercado":         top1.get("mercado", ""),
+            "entrada":         top1.get("entrada", ""),
+            "odd_ref":         top1.get("odd_ref"),
+            "prob_dc":         top1.get("prob_dc", 0.0),
+            "confianca":       top1.get("confianca", ""),
+        })
+
+    resultado.sort(key=lambda x: x.get("horario_utc", ""))
+    return {"total": len(resultado), "zebras": resultado}
+
+
+@router.get("/copa/bingo")
+@limiter.limit("30/minute")
+async def bingo(request: Request, response: Response):
+    """
+    Apostas de alta confiança para combinações (acumuladas).
+    Requer odds disponíveis e recomendação gerada para o jogo.
+    """
+    response.headers["Cache-Control"] = "public, max-age=900"   # 15min
+
+    from app.cache import static_cache
+    from app.agents.football_agent import _POR_SLUG
+
+    agora = datetime.now(timezone.utc)
+    candidatos = []
+
+    for slug, entry in static_cache._store.items():
+        rec = entry.get("recomendacao")
+        if not rec:
+            continue
+        dados = rec.get("dados", {})
+        if not _rec_valida(dados):
+            continue
+        if not dados.get("odds_disponiveis", False):
+            continue
+
+        jogo = _POR_SLUG.get(slug)
+        if not jogo:
+            continue
+
+        try:
+            dt = datetime.fromisoformat(
+                (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
+            )
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < agora:
+                continue
+        except Exception:
+            pass
+
+        top3 = dados.get("top3") or []
+        for m in top3:
+            if (
+                m.get("prob_dc", 0) >= 60
+                and m.get("odd_ref") is not None
+                and 1.3 <= (m.get("odd_ref") or 0) <= 2.5
+                and m.get("value_score") is not None
+                and m.get("value_score", -1) >= 0.0
+                and m.get("confianca", "") in ("Alta", "Média")
+            ):
+                candidatos.append({
+                    "slug":           slug,
+                    "horario":        jogo.get("data_hora_brasilia", ""),
+                    "horario_utc":    jogo.get("data_hora_utc", ""),
+                    "time_casa_nome": jogo["time_casa"],
+                    "time_fora_nome": jogo["time_fora"],
+                    "mercado":        m.get("mercado", ""),
+                    "entrada":        m.get("entrada", ""),
+                    "odd_ref":        m.get("odd_ref"),
+                    "prob_dc":        m.get("prob_dc", 0.0),
+                    "value_score":    m.get("value_score"),
+                    "confianca":      m.get("confianca", ""),
+                })
+                break  # 1 entrada por jogo
+
+    candidatos.sort(key=lambda x: -(x.get("prob_dc") or 0))
+    return {"total": len(candidatos), "bingo": candidatos[:10]}
+
+
+@router.get("/copa/odds-baixa")
+@limiter.limit("30/minute")
+async def odds_baixa(request: Request, response: Response):
+    """
+    Apostas de alta probabilidade com odds baixas (apostas seguras).
+    Prob > 65%, odd entre 1.10 e 1.70. Requer odds disponíveis.
+    """
+    response.headers["Cache-Control"] = "public, max-age=900"   # 15min
+
+    from app.cache import static_cache
+    from app.agents.football_agent import _POR_SLUG
+
+    agora = datetime.now(timezone.utc)
+    resultado = []
+
+    for slug, entry in static_cache._store.items():
+        rec = entry.get("recomendacao")
+        if not rec:
+            continue
+        dados = rec.get("dados", {})
+        if not _rec_valida(dados):
+            continue
+        if not dados.get("odds_disponiveis", False):
+            continue
+
+        jogo = _POR_SLUG.get(slug)
+        if not jogo:
+            continue
+
+        try:
+            dt = datetime.fromisoformat(
+                (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
+            )
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if dt < agora:
+                continue
+        except Exception:
+            pass
+
+        top3 = dados.get("top3") or []
+        for m in top3:
+            odd = m.get("odd_ref")
+            if (
+                m.get("prob_dc", 0) >= 65
+                and odd is not None
+                and 1.10 <= odd <= 1.70
+            ):
+                resultado.append({
+                    "slug":           slug,
+                    "horario":        jogo.get("data_hora_brasilia", ""),
+                    "horario_utc":    jogo.get("data_hora_utc", ""),
+                    "time_casa_nome": jogo["time_casa"],
+                    "time_fora_nome": jogo["time_fora"],
+                    "mercado":        m.get("mercado", ""),
+                    "entrada":        m.get("entrada", ""),
+                    "odd_ref":        odd,
+                    "prob_dc":        m.get("prob_dc", 0.0),
+                    "confianca":      m.get("confianca", ""),
+                })
+                break
+
+    resultado.sort(key=lambda x: -(x.get("prob_dc") or 0))
+    return {"total": len(resultado), "odds_baixa": resultado}

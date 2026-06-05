@@ -96,6 +96,22 @@ async def _job_odds_tiered() -> None:
                     odds = await _odds_api(jogo["time_casa"], jogo["time_fora"])
                     if odds:
                         set_odds_dinamicas(slug, odds)
+                        # Propaga odds para _partida_cache e disco para que
+                        # recomendações já cacheadas sem odds sejam recalculadas
+                        try:
+                            from app.agents.football_agent import _partida_cache
+                            from app.cache import static_cache as _sc
+                            p = _partida_cache.get(slug)
+                            if p is not None and p.odds is None:
+                                _partida_cache[slug] = p.model_copy(update={"odds": odds})
+                                _sc.put_partida(slug, _partida_cache[slug].model_dump(mode="json"))
+                                # Invalida stats cache da recomendação para forçar recálculo
+                                entry = _sc._store.get(slug)
+                                if entry and (entry.get("recomendacao") or {}).get("stats_cached_at"):
+                                    entry["recomendacao"]["stats_cached_at"] = "2000-01-01T00:00:00+00:00"
+                                    _sc.save_to_disk()
+                        except Exception as e2:
+                            log.warning("cron odds %s: falha ao propagar para cache: %s", slug, e2)
                         log.debug(
                             "cron odds %s: atualizado (intervalo %.0fh)",
                             slug, intervalo / 3600,

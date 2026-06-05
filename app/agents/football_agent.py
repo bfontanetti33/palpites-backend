@@ -735,17 +735,34 @@ async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
     return [_jogo_para_resumo(j, _partida_cache.get(j["slug"])) for j in _JOGOS]
 
 
+def _enriquecer_odds(partida: "Partida", slug: str) -> "Partida":
+    """Preenche partida.odds do cache de odds quando a partida foi cacheada sem odds."""
+    if partida.odds is not None:
+        return partida
+    try:
+        from app.cache.odds_cache import get_odds_dinamicas
+        odds = get_odds_dinamicas(slug)
+        if odds:
+            return partida.model_copy(update={"odds": odds})
+    except Exception:
+        pass
+    return partida
+
+
 async def buscar_detalhe_partida(slug: str) -> Partida | None:
     # L1 — in-memory TTL
     if slug in _partida_cache:
-        return _partida_cache[slug]
+        p = _enriquecer_odds(_partida_cache[slug], slug)
+        if p is not _partida_cache[slug]:
+            _partida_cache[slug] = p   # persiste enriquecimento
+        return p
 
     # L2 — disk cache (sobrevive redeploys sem consumir quota)
     try:
         from app.cache import static_cache
         partida_dict = static_cache.get_partida(slug)
         if partida_dict:
-            partida = Partida.model_validate(partida_dict)
+            partida = _enriquecer_odds(Partida.model_validate(partida_dict), slug)
             _partida_cache[slug] = partida
             return partida
     except Exception:
