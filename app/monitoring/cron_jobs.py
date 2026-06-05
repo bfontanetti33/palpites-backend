@@ -60,25 +60,25 @@ async def _job_odds_tiered() -> None:
     while True:
         try:
             from app.cache.odds_cache import (
-                get_today_tomorrow_slugs, set_odds_dinamicas, get_last_updated,
+                set_odds_dinamicas, get_last_updated,
             )
             from app.agents.odds_agent import buscar_odds_partida as _odds_api
             from app.agents.football_agent import _JOGOS, _POR_SLUG
 
             agora = datetime.now(timezone.utc)
 
-            slugs_hoje_amanha = set(get_today_tomorrow_slugs())
+            # Busca odds para todos os jogos futuros nos próximos 14 dias
             dt_por_slug: dict[str, datetime] = {}
             for j in _JOGOS:
                 slug = j["slug"]
-                if slug not in slugs_hoje_amanha:
-                    continue
                 try:
                     dt_str = j.get("data_hora_utc") or j.get("data_hora_brasilia", "")
                     dt = datetime.fromisoformat(dt_str)
                     if dt.tzinfo is None:
                         dt = dt.replace(tzinfo=timezone.utc)
-                    dt_por_slug[slug] = dt
+                    horas = (dt - agora).total_seconds() / 3600
+                    if 0 < horas <= 336:  # só jogos futuros até 14 dias
+                        dt_por_slug[slug] = dt
                 except Exception:
                     pass
 

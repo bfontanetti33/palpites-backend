@@ -15,7 +15,7 @@ _CACHE_PATH = Path(__file__).parent.parent.parent / "seeds" / "cache_partidas.js
 _store: dict[str, dict] = {}
 
 TTL_OK        = 8  * 3600   # 8h — partida completa
-TTL_INSUF     = 24 * 3600   # 24h — dados_insuficientes
+TTL_INSUF     = 1  * 3600   # 1h  — dados_insuficientes, re-tenta a cada hora
 TTL_NARRATIVE = 8  * 3600   # 8h — narrativa Claude (texto muda pouco)
 
 

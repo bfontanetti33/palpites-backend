@@ -179,6 +179,7 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
             resp  = data.get("response", {})
             jogos = resp.get("fixtures", {}).get("played", {}).get("total") or 0
             if not resp or jogos == 0:
+                log.debug("_stats_time team=%d %s: sem dados (jogos=%d)", team_id, fonte_label, jogos)
                 continue
 
             fix   = resp["fixtures"]
@@ -214,9 +215,11 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
                 penaltis_marcados=pen.get("scored", {}).get("total"),
                 penaltis_total=pen.get("total"),
             )
-        except Exception:
+        except Exception as e:
+            log.debug("_stats_time team=%d %s: erro %s", team_id, fonte_label, e)
             continue
 
+    log.warning("_stats_time team=%d: nenhuma liga retornou dados — usando fallback Elo", team_id)
     return EstatisticasTemporada(dados_insuficientes=True)
 
 
@@ -246,7 +249,11 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
             f for f in data.get("response", [])
             if _e_jogo_senior_masculino(f)
         ]
-    except Exception:
+        if not fixtures:
+            log.warning("_forma_recente team=%d: API retornou 0 fixtures válidos (total bruto=%d)",
+                        team_id, len(data.get("response", [])))
+    except Exception as e:
+        log.warning("_forma_recente team=%d: erro %s", team_id, e)
         return []
 
     forma = []
