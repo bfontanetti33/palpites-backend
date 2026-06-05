@@ -16,7 +16,9 @@ Regra: nunca inventa dados — dados_insuficientes=True quando a API não retorn
 """
 import asyncio
 import json
+import logging
 import os
+import time
 from math import exp, factorial
 from pathlib import Path
 
@@ -27,6 +29,8 @@ from app.models.schemas import (
     Arbitro, EntradaForma, EstatisticasTemporada, Partida,
     PartidaResumo, PerformanceLocal, PlacarProvavel, Probabilidades,
 )
+
+log = logging.getLogger(__name__)
 
 BASE_URL   = "https://v3.football.api-sports.io"
 HEADERS    = {"x-apisports-key": os.getenv("API_FOOTBALL_KEY", "")}
@@ -45,6 +49,46 @@ _INTL_LEAGUES: list[tuple[int, list[int], str]] = [
 
 _cache: TTLCache = TTLCache(maxsize=400, ttl=28800)   # 8h — chamadas individuais API-Football
 _partida_cache: TTLCache = TTLCache(maxsize=72, ttl=28800)  # 8h — resposta completa por slug
+
+# ── Cache persistente de respostas da API-Football ────────────────────────────
+# Sobrevive redeploys — zera custo de quota em cada novo deploy.
+_API_DISK_PATH = Path(__file__).parent.parent.parent / "seeds" / "football_api_cache.json"
+_API_DISK_TTL  = 28800  # 8h — mesmo TTL do cache em memória
+
+
+def _load_api_disk_cache() -> None:
+    """Restaura respostas da API do disco para o cache em memória ao iniciar."""
+    try:
+        if not _API_DISK_PATH.exists():
+            return
+        with open(_API_DISK_PATH, encoding="utf-8") as f:
+            saved: dict = json.load(f)
+        agora = time.time()
+        restaurados = 0
+        for key, entry in saved.items():
+            if agora - entry.get("ts", 0) < _API_DISK_TTL and len(_cache) < _cache.maxsize:
+                _cache[key] = entry["data"]
+                restaurados += 1
+        if restaurados:
+            log.info("football_agent: %d respostas API restauradas do disco (quota preservada)", restaurados)
+    except Exception as e:
+        log.warning("football_agent: falha ao restaurar api_cache do disco: %s", e)
+
+
+def _save_api_disk_cache() -> None:
+    """Persiste o cache atual em disco (chamado após cada nova resposta da API)."""
+    try:
+        agora = time.time()
+        data = {k: {"data": v, "ts": agora} for k, v in _cache.items()}
+        _API_DISK_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_API_DISK_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+    except Exception as e:
+        log.warning("football_agent: falha ao persistir api_cache: %s", e)
+
+
+# Carrega cache do disco na inicialização do módulo
+_load_api_disk_cache()
 
 # ── Seed árbitros Copa 2026 ───────────────────────────────────────────────────
 def _carregar_seed_arbitros() -> dict:
@@ -110,6 +154,8 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     resp.raise_for_status()
     data = resp.json()
     _cache[key] = data
+    # Persiste no disco para sobreviver redeploys (zero quota em reinicializações)
+    _save_api_disk_cache()
     return data
 
 

@@ -38,3 +38,4 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+seeds/football_api_cache.json
