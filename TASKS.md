@@ -1,7 +1,7 @@
 # TASKS — Palpites da IA (Copa 2026)
 
 > Atualizado: 2026-06-05
-> Estado geral: **Backend estável em produção. Dados de forma corrigidos. Dados insuficientes sistêmicos em investigação.**
+> Estado geral: **Backend estável. Forma via seed: ✅ deployado. Cache pós-deploy: ⚠️ reseta a cada push. dados_insuficientes: ❌ fix pendente.**
 
 ---
 
@@ -104,8 +104,8 @@
 ## ⚠️ PENDENTE — Média Prioridade
 
 ### Dados
+- [ ] **URGENTE** — Commitar `cache_partidas.json` populado no git: chamar `/admin/cache-snapshot` após prewarm, salvar em `seeds/cache_partidas.json` e commitar. Hoje o arquivo no git é `{}` — cada deploy reseta o cache e gasta ~200 chamadas API para repopular
 - [ ] Odds ausentes para **Australia × Türkiye** e **Portugal × Congo DR** — investigar se a Odds API não cobre esses confrontos ou se é timing
-- [ ] Commit de `cache_partidas.json` populado no git após prewarm completo — hoje o arquivo no git é `{}`, então cada novo deploy começa do zero e gasta quota da API
 - [ ] Seed H2H para os 24 jogos da semana 1 (eliminaria H2H vazio sistêmico)
 
 ### Modelo

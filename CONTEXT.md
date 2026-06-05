@@ -198,24 +198,28 @@ Usuário abre /copa/jogos/{slug}/recomendacao
 
 ### Métricas do health-check
 ```
-quota_api_football : 7.499 req/dia restantes
-quota_odds_api     : 19.728 créditos restantes
+quota_api_football : 7.499 req restantes (plano Pro 20k/mês)
+quota_odds_api     : 19.672 créditos restantes
 erros_24h          : 0
 supabase           : conectado
 telegram           : configurado
-uptime             : ~horas (deploy recente)
+uptime             : fresh (cada push a main causa novo deploy)
 ```
 
 ### Validação semana 1 (24 jogos, Jun 11-17)
+Estado estável após prewarm completo (demora ~8-10 min após cada deploy):
 ```
-Com stats   : 13/24 (prewarm em andamento)
-Com odds    : 22/24 (Australia e Portugal/Congo faltando)
-Com forma   : 14/24 (fix ativo, prewarm em andamento)
-Status OK   : 0/24  (bloqueado por dados_insuficientes sistêmico)
+Com stats   : 24/24 — modelo Elo + Poisson funciona para todos
+Com odds    : 22/24 — Australia e Portugal/Congo sem cobertura na Odds API
+Com forma   : 24/24 — fix deployado: seed local como fallback quando API vazia
+Status OK   : 0/24  — bloqueado por dados_insuficientes sistêmico (ver abaixo)
 ```
 
 ### Problema sistêmico: dados_insuficientes=True
-Todos os jogos têm `dados_insuficientes=True` porque a flag considera ausência de stats da API-Football (`/teams/statistics`) como dados insuficientes. Para seleções nacionais, esta API retorna vazio — mas o modelo ainda funciona via Elo + forma (seed). A flag é tecnicamente correta mas não reflete a qualidade real da predição.
+Todos os jogos têm `dados_insuficientes=True` porque a flag inclui `stats_casa.dados_insuficientes OR stats_fora.dados_insuficientes` — e a chamada `/teams/statistics` da API-Football falha para todas as seleções nacionais (não têm stats de temporada de clube). O modelo ainda funciona plenamente via Elo + forma (seed), mas a flag polui os logs e o validador. Precisa de fix na lógica da flag.
+
+### Problema do ciclo deploy → reset de cache
+Cada push para `main` dispara um novo deploy no Railway, criando um container novo com memória zerada. O `cache_partidas.json` commitado no git é `{}` (vazio), então o deploy começa sem dados. O cron de prewarm refaz tudo em ~8-10min a cada deploy. **Solução pendente:** após prewarm completo, chamar `/admin/cache-snapshot`, salvar o JSON retornado em `seeds/cache_partidas.json` e commitar — o próximo deploy já começa com os 24 jogos populados.
 
 ---
 
