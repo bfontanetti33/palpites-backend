@@ -1427,12 +1427,14 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
         log.error("gerar_recomendacao score_final falhou (%s x %s): %s", nome_c, nome_f, e)
 
     # ── Camada 5 — Claude narrativa ───────────────────────────────────────────
-    # Verifica cache disco para evitar chamada Claude quando narrativa ainda é válida
+    # Verifica cache disco para evitar chamada Claude quando narrativa ainda é válida.
+    # Só usa o cache se texto_completo não for vazio — vazio significa que Claude falhou
+    # e a resposta foi um fallback que não deve ser reutilizado.
     _claude_cache_hit = False
     try:
         from app.cache import static_cache as _sc
         _cached_rec = _sc.get_recomendacao(partida.slug)
-        if _cached_rec:
+        if _cached_rec and _cached_rec.get("texto_completo", ""):
             texto_completo = _cached_rec.get("texto_completo", "")
             parsed = {
                 "NARRATIVA":        _cached_rec.get("narrativa", ""),
@@ -1459,7 +1461,10 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             texto_completo = msg.content[0].text
             parsed = _parse_claude(texto_completo)
         except Exception as e:
-            log.error("gerar_recomendacao camada5/claude falhou (%s x %s): %s", nome_c, nome_f, e)
+            log.error(
+                "gerar_recomendacao camada5/claude falhou (%s x %s): %s — tipo: %s",
+                nome_c, nome_f, e, type(e).__name__, exc_info=True,
+            )
             # parsed já tem texto de fallback inicializado acima
 
     alertas = [a.strip() for a in parsed["ALERTAS"].split("|") if a.strip()]
@@ -1511,8 +1516,9 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             analise="", texto_completo="",
         )
 
-    # Persiste narrativa em disco para evitar chamada Claude no próximo acesso
-    if not _claude_cache_hit:
+    # Persiste narrativa em disco apenas quando Claude gerou conteúdo real.
+    # texto_completo vazio = falhou; narrativa vazia = parse falhou. Não cachear nem um nem outro.
+    if not _claude_cache_hit and texto_completo and result.narrativa and "se enfrentam na Copa do Mundo 2026" not in result.narrativa:
         try:
             from app.cache import static_cache as _sc
             _sc.put_recomendacao(partida.slug, result.model_dump(mode="json"))
