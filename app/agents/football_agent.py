@@ -1068,9 +1068,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         jogadores_destaque_casa=dest_casa,
         jogadores_destaque_fora=dest_fora,
         dados_insuficientes=(
-            stats_casa.dados_insuficientes
-            or stats_fora.dados_insuficientes
-            or len(forma_casa) == 0
+            len(forma_casa) == 0
             or len(forma_fora) == 0
         ),
         insight_forma_casa=_gerar_insight_forma(jogo["time_casa"], forma_casa),
