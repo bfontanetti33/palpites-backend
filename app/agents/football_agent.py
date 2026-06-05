@@ -92,6 +92,32 @@ _JOGOS: list[dict] = _SEED["jogos"]
 _POR_SLUG: dict[str, dict] = {j["slug"]: j for j in _JOGOS}
 
 
+# ── Seed forma recente (fallback quando API retorna vazio) ────────────────────
+
+def _carregar_seed_forma() -> dict:
+    path = Path(__file__).parent.parent.parent / "seeds" / "forma_recente_seed.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+_SEED_FORMA = _carregar_seed_forma()
+
+
+# ── Seed H2H (fallback quando API retorna vazio) ──────────────────────────────
+
+def _carregar_seed_h2h() -> dict:
+    path = Path(__file__).parent.parent.parent / "seeds" / "h2h_seed.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+_SEED_H2H = _carregar_seed_h2h()
+
+
 # ── HTTP com cache ─────────────────────────────────────────────────────────────
 
 async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
@@ -236,18 +262,19 @@ def _e_jogo_senior_masculino(f: dict) -> bool:
 
 async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[EntradaForma]:
     """
-    Últimos 5 jogos da seleção masculina profissional em qualquer competição
-    (amistosos, eliminatórias, copa continental, etc.).
-    Busca 20 candidatos da API para garantir 5 após filtrar feminino/base/olímpicos.
+    Últimos jogos da seleção masculina profissional em qualquer competição.
+    Busca 20 candidatos da API; fallback automático para forma_recente_seed.json
+    quando a API retorna vazio (comum em seleções nacionais fora de janela FIFA).
     """
+    fixtures = []
     try:
-        data     = await _get(client, "/fixtures", {"team": team_id, "last": 20})
+        data = await _get(client, "/fixtures", {"team": team_id, "last": 20})
         fixtures = [
             f for f in data.get("response", [])
             if _e_jogo_senior_masculino(f)
         ]
     except Exception:
-        return []
+        pass
 
     forma = []
     for f in sorted(fixtures, key=lambda x: x["fixture"]["date"]):
@@ -265,7 +292,25 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
             resultado=resultado,
             competicao=f["league"]["name"],
         ))
-    return forma[-5:]
+
+    if forma:
+        return forma[-10:]
+
+    # Fallback: seed forma recente (keyed por team_id como string)
+    seed_time = _SEED_FORMA.get("times", {}).get(str(team_id), {})
+    if seed_time:
+        return [
+            EntradaForma(
+                data=j["data"],
+                adversario=j["adversario"],
+                placar_proprio=j.get("placar_proprio"),
+                placar_adversario=j.get("placar_adversario"),
+                resultado=j["resultado"],
+                competicao=j.get("competicao", "Amistoso"),
+            )
+            for j in seed_time.get("jogos", [])
+        ]
+    return []
 
 
 # ── Enriquece stats com BTTS/Over/médias dos últimos 10 jogos ────────────────
@@ -304,12 +349,13 @@ def _enriquecer_btts_over(
 
 # ── H2H ──────────────────────────────────────────────────────────────────────
 
-async def _h2h(client: httpx.AsyncClient, id1: int, id2: int) -> list[dict]:
+async def _h2h(client: httpx.AsyncClient, id1: int, id2: int, slug: str = "") -> list[dict]:
+    """H2H via API-Football com fallback para h2h_seed.json quando API retorna vazio."""
     try:
         data = await _get(client, "/fixtures/headtohead", {
             "h2h": f"{id1}-{id2}", "last": 10,
         })
-        return [
+        result = [
             {
                 "data":       f["fixture"]["date"][:10],
                 "competicao": f["league"]["name"],
@@ -325,8 +371,16 @@ async def _h2h(client: httpx.AsyncClient, id1: int, id2: int) -> list[dict]:
             }
             for f in data.get("response", [])
         ]
+        if result:
+            return result
     except Exception:
-        return []
+        pass
+    # Fallback: seed histórico de Copa do Mundo / competições maiores
+    if slug:
+        seed_data = _SEED_H2H.get("h2h", {}).get(slug, [])
+        if seed_data:
+            return seed_data
+    return []
 
 
 # ── Árbitro ───────────────────────────────────────────────────────────────────
@@ -707,7 +761,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 _stats_time(client, away_id),
                 _forma_recente(client, home_id),
                 _forma_recente(client, away_id),
-                _h2h(client, home_id, away_id),
+                _h2h(client, home_id, away_id, slug),
                 _arbitro(client, fixture_id),
                 _media_escanteios(client, home_id),
                 _media_escanteios(client, away_id),
@@ -841,9 +895,7 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         jogadores_destaque_casa=dest_casa,
         jogadores_destaque_fora=dest_fora,
         dados_insuficientes=(
-            stats_casa.dados_insuficientes
-            or stats_fora.dados_insuficientes
-            or len(forma_casa) == 0
+            len(forma_casa) == 0
             or len(forma_fora) == 0
         ),
         insight_forma_casa=_gerar_insight_forma(jogo["time_casa"], forma_casa),

@@ -1,7 +1,7 @@
 {
   "meta": {
     "total": 52,
-    "gerado_em": "2026-06-04T01:14:49.618239",
+    "gerado_em": "2026-06-04T01:23:28.851965",
     "fonte": "FIFA Copa 2026 — lista oficial",
     "nota": "Execute scripts/gerar_seed_arbitros.py para atualizar com dados reais da API-Football",
     "media_copa": {
@@ -15,12 +15,12 @@
       "nome": "Szymon Marciniak",
       "pais": "Poland",
       "cartoes_por_jogo": 3.6,
-      "penaltis_por_jogo": 0.15,
+      "penaltis_por_jogo": 0.2,
       "tendencia": "Moderado",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 5,
-      "amarelos_media": 3.4,
-      "vermelhos_media": 0.2
+      "amarelos_media": 3.6,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Slavko Vincic",
@@ -34,7 +34,7 @@
       "nome": "Cesar Ramos",
       "pais": "Mexico",
       "cartoes_por_jogo": 2.14,
-      "penaltis_por_jogo": 0.15,
+      "penaltis_por_jogo": 0.14,
       "tendencia": "Permissivo",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 7,
@@ -49,8 +49,8 @@
       "tendencia": "Rigoroso",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 3,
-      "amarelos_media": 5.0,
-      "vermelhos_media": 0.33
+      "amarelos_media": 5.33,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Facundo Tello",
@@ -60,8 +60,8 @@
       "tendencia": "Moderado",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 3,
-      "amarelos_media": 3.0,
-      "vermelhos_media": 0.33
+      "amarelos_media": 3.33,
+      "vermelhos_media": 0.0
     },
     {
       "nome": "Ivan Barton",
@@ -111,7 +111,7 @@
       "nome": "Alireza Faghani",
       "pais": "Australia",
       "cartoes_por_jogo": 4.33,
-      "penaltis_por_jogo": 0.15,
+      "penaltis_por_jogo": 0.17,
       "tendencia": "Moderado",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 6,
@@ -149,7 +149,7 @@
       "nome": "Wilton Sampaio",
       "pais": "Brazil",
       "cartoes_por_jogo": 3.5,
-      "penaltis_por_jogo": 0.15,
+      "penaltis_por_jogo": 0.25,
       "tendencia": "Moderado",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 4,
@@ -206,7 +206,7 @@
       "nome": "Clement Turpin",
       "pais": "France",
       "cartoes_por_jogo": 2.0,
-      "penaltis_por_jogo": 0.15,
+      "penaltis_por_jogo": 0.2,
       "tendencia": "Permissivo",
       "fonte": "api-football-copa2022-2018",
       "jogos_analisados": 5,

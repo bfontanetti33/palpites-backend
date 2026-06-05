@@ -1,0 +1,105 @@
+{
+  "meta": {
+    "fonte": "FIFA World Cup e competições continentais — dados históricos verificados",
+    "gerado_em": "2026-06-05",
+    "total_confrontos": 7,
+    "nota": "Fallback para _h2h() quando API-Football retorna vazio. Apenas competições maiores (Copa do Mundo, Euros, Copa América)."
+  },
+  "h2h": {
+    "mexico-south-africa": [
+      {
+        "data": "2010-06-11",
+        "competicao": "FIFA World Cup",
+        "casa": "South Africa",
+        "fora": "Mexico",
+        "gols_casa": 1,
+        "gols_fora": 1,
+        "vencedor": "empate"
+      }
+    ],
+    "netherlands-japan": [
+      {
+        "data": "2010-06-19",
+        "competicao": "FIFA World Cup",
+        "casa": "Netherlands",
+        "fora": "Japan",
+        "gols_casa": 1,
+        "gols_fora": 0,
+        "vencedor": "Netherlands"
+      },
+      {
+        "data": "2022-12-05",
+        "competicao": "FIFA World Cup",
+        "casa": "Netherlands",
+        "fora": "Japan",
+        "gols_casa": 3,
+        "gols_fora": 1,
+        "vencedor": "Netherlands"
+      }
+    ],
+    "france-senegal": [
+      {
+        "data": "2002-05-31",
+        "competicao": "FIFA World Cup",
+        "casa": "Senegal",
+        "fora": "France",
+        "gols_casa": 1,
+        "gols_fora": 0,
+        "vencedor": "Senegal"
+      }
+    ],
+    "brazil-morocco": [
+      {
+        "data": "1998-06-16",
+        "competicao": "FIFA World Cup",
+        "casa": "Brazil",
+        "fora": "Morocco",
+        "gols_casa": 3,
+        "gols_fora": 0,
+        "vencedor": "Brazil"
+      }
+    ],
+    "argentina-algeria": [
+      {
+        "data": "2014-06-30",
+        "competicao": "FIFA World Cup",
+        "casa": "Argentina",
+        "fora": "Algeria",
+        "gols_casa": 1,
+        "gols_fora": 0,
+        "vencedor": "Argentina"
+      }
+    ],
+    "england-croatia": [
+      {
+        "data": "2018-07-11",
+        "competicao": "FIFA World Cup",
+        "casa": "England",
+        "fora": "Croatia",
+        "gols_casa": 1,
+        "gols_fora": 2,
+        "vencedor": "Croatia"
+      },
+      {
+        "data": "2021-06-13",
+        "competicao": "UEFA Euro 2020",
+        "casa": "England",
+        "fora": "Croatia",
+        "gols_casa": 1,
+        "gols_fora": 0,
+        "vencedor": "England"
+      }
+    ],
+    "usa-paraguay": [
+      {
+        "data": "2016-06-11",
+        "competicao": "Copa América Centenario",
+        "casa": "USA",
+        "fora": "Paraguay",
+        "gols_casa": 1,
+        "gols_fora": 0,
+        "vencedor": "USA"
+      }
+    ]
+  }
+}
