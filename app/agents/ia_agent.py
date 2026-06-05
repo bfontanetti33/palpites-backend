@@ -1331,6 +1331,22 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     nome_c = partida.time_casa_nome
     nome_f = partida.time_fora_nome
 
+    # ── Cache completo — retorna sem executar nenhuma camada ─────────────────
+    # Evita recalcular modelo + buscar Wikipedia para cada usuário que abre a página.
+    # Só usa o cache se Claude gerou conteúdo real (texto_completo não vazio).
+    try:
+        from app.cache import static_cache as _sc
+        _cached_full = _sc.get_recomendacao(partida.slug)
+        if (
+            _cached_full
+            and _cached_full.get("texto_completo", "")
+            and _cached_full.get("narrativa", "")
+            and "se enfrentam na Copa do Mundo 2026" not in (_cached_full.get("narrativa") or "")
+        ):
+            return RecomendacaoIA.model_validate(_cached_full)
+    except Exception:
+        pass
+
     # ── Valores iniciais (fallback se camadas falharem) ───────────────────────
     rating_c = RatingDinamico()
     rating_f = RatingDinamico()
