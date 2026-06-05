@@ -472,13 +472,14 @@ async def odds_debug(authorization: str | None = Header(default=None)):
 async def validar_semana(authorization: str | None = Header(default=None)):
     """
     Valida todos os 24 jogos da primeira semana da Copa 2026 (11-17 Jun, horário Brasília).
+    Lê apenas do cache estático (sem chamadas API) — resposta instantânea.
     Verifica completude de dados, sanidade do modelo, coerência de odds e consistência interna.
-    Protegido por Bearer <ADMIN_TOKEN> se configurado.
     """
     _checar_token(authorization)
 
-    from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
+    from app.agents.football_agent import _JOGOS
     from app.cache import static_cache as _sc
+    from app.cache.odds_cache import get_odds_dinamicas
 
     # ── Filtrar jogos da semana 1 (Jun 11-17 horário Brasília) ───────────────
     jogos_semana: list[dict] = []
@@ -487,7 +488,7 @@ async def validar_semana(authorization: str | None = Header(default=None)):
         if "2026-06-11" <= data_br <= "2026-06-17":
             jogos_semana.append(jogo)
 
-    # ── Processar cada jogo ───────────────────────────────────────────────────
+    # ── Processar cada jogo (só leitura de cache — sem I/O) ──────────────────
     resultados = []
     com_stats   = 0
     com_odds    = 0
@@ -512,46 +513,54 @@ async def validar_semana(authorization: str | None = Header(default=None)):
             "odds_margin_ok":         None,  # None = odds ausentes
             "modelo_concorda_odds":   None,
             "under_placar_coerente":  None,
+            "cache_presente":         False,
         }
 
         try:
-            # ── 1. Buscar Partida ────────────────────────────────────────────
-            partida = await buscar_detalhe_partida(slug)
+            # ── 1. Ler Partida do cache estático (sem API) ───────────────────
+            entry        = _sc._store.get(slug) or {}
+            partida_dict = entry.get("partida") or {}
+            dados_insuf  = bool(entry.get("dados_insuficientes", True) if entry else True)
+            cache_ok     = bool(partida_dict)
 
-            # ── 2. Data completeness ─────────────────────────────────────────
+            checks["cache_presente"]      = cache_ok
+            checks["dados_insuficientes"] = dados_insuf
+
+            if not cache_ok:
+                issues.append("partida não está no cache — prewarm pendente")
+
+            # ── 2. Forma e H2H (do dict da partida em cache) ─────────────────
+            forma_casa = partida_dict.get("forma_casa") or []
+            forma_fora = partida_dict.get("forma_fora") or []
+            h2h        = partida_dict.get("head_to_head") or []
+            # odds podem estar no partida_dict ou no odds_cache dinâmico
+            odds_part  = partida_dict.get("odds")
+            odds_dyn   = get_odds_dinamicas(slug)
+            odds       = odds_dyn or odds_part  # preferência ao mais recente (dinâmico)
+
+            has_forma_casa = len(forma_casa) > 0
+            has_forma_fora = len(forma_fora) > 0
+            h2h_count      = len(h2h)
+            has_odds       = odds is not None
+
+            checks["tem_forma"]  = has_forma_casa and has_forma_fora
+            checks["tem_odds"]   = has_odds
+            checks["h2h_count"]  = h2h_count
+
+            if cache_ok and not has_forma_casa:
+                issues.append(f"forma_casa vazia para {nome_casa}")
+            if cache_ok and not has_forma_fora:
+                issues.append(f"forma_fora vazia para {nome_fora}")
+            if not has_odds:
+                issues.append("odds indisponíveis")
+            if dados_insuf and cache_ok:
+                issues.append("dados_insuficientes=True")
+
+            # ── 3. Stats sanity ───────────────────────────────────────────────
             stats_dict = _sc.get_stats(slug)
             has_stats  = stats_dict is not None
             checks["tem_stats"] = has_stats
 
-            if partida is not None:
-                has_forma_casa = len(partida.forma_casa) > 0
-                has_forma_fora = len(partida.forma_fora) > 0
-                has_odds       = partida.odds is not None
-                h2h_count      = len(partida.head_to_head)
-                dados_insuf    = bool(partida.dados_insuficientes)
-            else:
-                has_forma_casa = False
-                has_forma_fora = False
-                has_odds       = False
-                h2h_count      = 0
-                dados_insuf    = True
-                issues.append("buscar_detalhe_partida retornou None")
-
-            checks["tem_forma"]           = has_forma_casa and has_forma_fora
-            checks["tem_odds"]            = has_odds
-            checks["h2h_count"]           = h2h_count
-            checks["dados_insuficientes"] = dados_insuf
-
-            if not has_forma_casa:
-                issues.append(f"forma_casa vazia para {nome_casa}")
-            if not has_forma_fora:
-                issues.append(f"forma_fora vazia para {nome_fora}")
-            if not has_odds:
-                issues.append("odds indisponíveis")
-            if dados_insuf:
-                issues.append("dados_insuficientes=True")
-
-            # ── 3. Stats sanity (do cache de stats) ──────────────────────────
             if has_stats and stats_dict:
                 try:
                     mg = stats_dict.get("modelo_gols") or {}
@@ -560,7 +569,6 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                     prob_fora  = float(mg.get("prob_vitoria_fora", 0))
                     lc         = float(mg.get("lambda_casa", 0))
                     lf         = float(mg.get("lambda_fora", 0))
-                    has_model  = bool(mg)
 
                     probs_sum_ok = abs(prob_casa + prob_emp + prob_fora - 100) < 2
                     lambda_ok    = (0.3 <= lc <= 4.0) and (0.3 <= lf <= 4.0)
@@ -568,7 +576,7 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                     checks["probs_ok"]  = probs_sum_ok
                     checks["lambda_ok"] = lambda_ok
 
-                    if not has_model:
+                    if not mg:
                         issues.append("modelo_gols ausente nas stats")
                     if not probs_sum_ok:
                         total_prob = prob_casa + prob_emp + prob_fora
@@ -584,20 +592,18 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                         )
                 except Exception as e_stats:
                     issues.append(f"erro ao ler stats: {e_stats}")
-            else:
+            elif cache_ok:
                 issues.append("stats não disponíveis no cache")
 
             # ── 4. Odds coherence ────────────────────────────────────────────
-            if has_odds and partida is not None and partida.odds:
+            if has_odds and odds:
                 try:
-                    odds = partida.odds
                     vc_odd  = float(odds.get("vitoria_casa", 0) or 0)
                     emp_odd = float(odds.get("empate", 0) or 0)
                     vf_odd  = float(odds.get("vitoria_fora", 0) or 0)
                     ov_odd  = float(odds.get("over25", 0) or 0)
                     un_odd  = float(odds.get("under25", 0) or 0)
 
-                    # Margin check: implied probs of 1X2 odds
                     if vc_odd > 0 and emp_odd > 0 and vf_odd > 0:
                         implied_sum = (1 / vc_odd) + (1 / emp_odd) + (1 / vf_odd)
                         margin_ok   = 1.0 <= implied_sum <= 1.15
@@ -609,7 +615,6 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                                 f"(esperado 1.00-1.15)"
                             )
 
-                    # Over/Under sum check
                     if ov_odd > 0 and un_odd > 0:
                         ou_sum = (1 / ov_odd) + (1 / un_odd)
                         ou_ok  = 1.0 <= ou_sum <= 1.10
@@ -626,10 +631,8 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                         prob_casa = float(mg.get("prob_vitoria_casa", 0))
                         prob_fora = float(mg.get("prob_vitoria_fora", 0))
 
-                        # Determine odds favorite (team whose odds < 2.0)
-                        odds_fav_casa = vc_odd > 0 and vc_odd < 2.0
-                        odds_fav_fora = vf_odd > 0 and vf_odd < 2.0
-                        # Determine model favorite
+                        odds_fav_casa = 0 < vc_odd < 2.0
+                        odds_fav_fora = 0 < vf_odd < 2.0
                         model_fav_casa = prob_casa > prob_fora and prob_casa > 35
                         model_fav_fora = prob_fora > prob_casa and prob_fora > 35
 
@@ -658,16 +661,15 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                     lf           = float(mg.get("lambda_fora", 0))
                     top5         = mg.get("top5_placares") or []
 
-                    # under_vs_placar: if prob_under25 > 55%, top placar should have ≤2 goals
                     if prob_under25 > 55 and top5:
-                        top_placar = top5[0]  # most probable score
+                        top_placar = top5[0]
                         placar_str = top_placar.get("placar", "0-0")
                         try:
                             partes = placar_str.split("-")
                             total_gols = int(partes[0]) + int(partes[1])
                             under_placar_ok = total_gols <= 2
                         except Exception:
-                            under_placar_ok = True  # can't parse → don't flag
+                            under_placar_ok = True
                         checks["under_placar_coerente"] = under_placar_ok
                         if not under_placar_ok:
                             issues.append(
@@ -675,7 +677,6 @@ async def validar_semana(authorization: str | None = Header(default=None)):
                                 f"mas placar mais provável é {placar_str} ({total_gols} gols)"
                             )
 
-                    # lambda_vs_over: if lambda_total > 3.0, over25 should be > 50%
                     if lc > 0 and lf > 0:
                         lambda_total = lc + lf
                         if lambda_total > 3.0:
@@ -702,20 +703,21 @@ async def validar_semana(authorization: str | None = Header(default=None)):
             com_forma += 1
 
         # ── Status geral do jogo ──────────────────────────────────────────────
-        hard_problems = [
-            i for i in issues
-            if not i.startswith("odds indisponíveis")
-               and "h2h" not in i.lower()
-        ]
-        if not checks["tem_stats"] or checks["dados_insuficientes"]:
+        if not checks["cache_presente"]:
+            status = "sem_cache"
+        elif not checks["tem_stats"] or checks["dados_insuficientes"]:
             status = "incompleto"
         elif any(
-            k in issues_str
-            for issues_str in issues
+            k in i
+            for i in issues
             for k in ("inconsistência", "discorda", "margem odds", "probs não somam", "lambdas fora")
         ):
             status = "inconsistente"
-        elif hard_problems:
+        elif any(
+            i for i in issues
+            if not i.startswith("odds indisponíveis")
+               and "h2h" not in i.lower()
+        ):
             status = "incompleto"
         else:
             status = "ok"
@@ -740,6 +742,7 @@ async def validar_semana(authorization: str | None = Header(default=None)):
         "com_odds":           com_odds,
         "com_forma_completa": com_forma,
         "com_problemas":      com_problemas,
+        "sem_cache":          sum(1 for r in resultados if r["status"] == "sem_cache"),
     }
 
     return {"resumo": resumo, "jogos": resultados}
