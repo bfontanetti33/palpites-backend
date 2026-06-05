@@ -128,7 +128,7 @@ def _buscar_no_seed_arb(nome_raw: str) -> dict | None:
     return None
 
 
-# ── Seed ─────────────────────────────────────────────────────────────────────
+# ── Seeds ────────────────────────────────────────────────────────────────────
 
 def _carregar_seed() -> dict:
     path = Path(__file__).parent.parent.parent / "seeds" / "copa_2026.json"
@@ -138,6 +138,19 @@ def _carregar_seed() -> dict:
 _SEED = _carregar_seed()
 _JOGOS: list[dict] = _SEED["jogos"]
 _POR_SLUG: dict[str, dict] = {j["slug"]: j for j in _JOGOS}
+
+
+def _carregar_seed_forma() -> dict[str, list]:
+    """Retorna {team_id_str: [EntradaForma-dict, ...]} a partir do seed."""
+    path = Path(__file__).parent.parent.parent / "seeds" / "forma_recente_seed.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            raw = json.load(f)
+        return {k: v.get("jogos", []) for k, v in raw.get("times", {}).items()}
+    except Exception:
+        return {}
+
+_SEED_FORMA: dict[str, list] = _carregar_seed_forma()
 
 
 # ── HTTP com cache ─────────────────────────────────────────────────────────────
@@ -304,11 +317,29 @@ def _e_jogo_senior_masculino(f: dict) -> bool:
     return not any(t in nome for t in _EXCLUIR_LIGA)
 
 
+def _forma_do_seed(team_id: int) -> list[EntradaForma]:
+    """Retorna forma recente do seed local (fallback sem custo de API)."""
+    jogos = _SEED_FORMA.get(str(team_id), [])
+    forma = []
+    for j in jogos:
+        try:
+            forma.append(EntradaForma(
+                data=j["data"],
+                adversario=j["adversario"],
+                placar_proprio=j.get("placar_proprio"),
+                placar_adversario=j.get("placar_adversario"),
+                resultado=j["resultado"],
+                competicao=j.get("competicao", ""),
+            ))
+        except Exception:
+            continue
+    return forma[-5:]
+
+
 async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[EntradaForma]:
     """
-    Últimos 5 jogos da seleção masculina profissional em qualquer competição
-    (amistosos, eliminatórias, copa continental, etc.).
-    Busca 20 candidatos da API para garantir 5 após filtrar feminino/base/olímpicos.
+    Últimos 5 jogos da seleção masculina profissional em qualquer competição.
+    Tenta API-Football primeiro; se retornar vazio ou falhar, usa seed local.
     """
     try:
         data     = await _get(client, "/fixtures", {"team": team_id, "last": 20})
@@ -316,12 +347,13 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
             f for f in data.get("response", [])
             if _e_jogo_senior_masculino(f)
         ]
-        if not fixtures:
-            log.warning("_forma_recente team=%d: API retornou 0 fixtures válidos (total bruto=%d)",
-                        team_id, len(data.get("response", [])))
     except Exception as e:
-        log.warning("_forma_recente team=%d: erro %s", team_id, e)
-        return []
+        log.warning("_forma_recente team=%d: erro %s — usando seed", team_id, e)
+        return _forma_do_seed(team_id)
+
+    if not fixtures:
+        log.warning("_forma_recente team=%d: API retornou 0 fixtures — usando seed", team_id)
+        return _forma_do_seed(team_id)
 
     forma = []
     for f in sorted(fixtures, key=lambda x: x["fixture"]["date"]):
