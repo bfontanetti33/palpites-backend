@@ -301,15 +301,16 @@ async def prewarm_stats(
     authorization: str | None = Header(default=None),
 ):
     """
-    Pré-aquece stats (Camadas 1-4B) para todos os jogos dos próximos N dias.
-    Dispara calcular_stats em background para cada jogo sem dados em cache.
-    Protegido por Bearer <ADMIN_TOKEN> se configurado.
+    Dispara pré-aquecimento em background e retorna imediatamente.
+    Use /admin/validar-semana para acompanhar progresso.
     """
     _checar_token(authorization)
     import asyncio
     from datetime import datetime, timezone
 
-    async def _run_prewarm(max_horas: int) -> dict:
+    async def _run_prewarm(max_horas: int) -> None:
+        import logging
+        _log = logging.getLogger("admin.prewarm")
         from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
         from app.agents.ia_agent import calcular_stats
         from app.cache import static_cache as _sc
@@ -338,17 +339,57 @@ async def prewarm_stats(
                     continue
                 await calcular_stats(partida)
                 aquecidos += 1
-            except Exception:
+                _log.info("prewarm: %s ok (%d aquecidos até agora)", slug, aquecidos)
+            except Exception as e:
+                _log.warning("prewarm: %s erro: %s", slug, e)
                 erros += 1
 
-        return {"aquecidos": aquecidos, "ja_em_cache": pulados, "erros": erros}
+        _log.info("prewarm concluído: %d aquecidos, %d pulados, %d erros", aquecidos, pulados, erros)
 
-    resultado = await _run_prewarm(dias * 24)
-    s = __import__("app.cache.static_cache", fromlist=["summary"]).summary()
+    from app.agents.football_agent import _JOGOS
+    agora = datetime.now(timezone.utc)
+    pendentes = []
+    from app.cache import static_cache as _sc
+    for jogo in _JOGOS:
+        try:
+            dt = datetime.fromisoformat(jogo["data_hora_utc"].replace("Z", "+00:00"))
+            horas = (dt - agora).total_seconds() / 3600
+            if 0 < horas <= dias * 24 and _sc.get_stats(jogo["slug"]) is None:
+                pendentes.append(jogo["slug"])
+        except Exception:
+            pass
+
+    asyncio.create_task(_run_prewarm(dias * 24))
     return {
-        "prewarm": resultado,
-        "cache_summary": s,
+        "status": "iniciado",
+        "jogos_pendentes": len(pendentes),
+        "slugs_pendentes": pendentes,
+        "mensagem": "Prewarm rodando em background. Use /admin/validar-semana para acompanhar.",
     }
+
+
+# ── Export/snapshot do cache para versionamento ───────────────────────────────
+
+@router.get("/admin/cache-snapshot", tags=["Admin"])
+async def cache_snapshot(authorization: str | None = Header(default=None)):
+    """
+    Retorna o conteúdo completo de seeds/cache_partidas.json.
+    Use para baixar o cache populado e commitar no git (garante que o próximo
+    deploy do Railway já começa com dados — evita re-consumir quota API).
+    """
+    _checar_token(authorization)
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).parent.parent.parent / "seeds" / "cache_partidas.json"
+    if not path.exists():
+        return {"entradas": 0, "dados": {}}
+    try:
+        with open(path, encoding="utf-8") as f:
+            dados = json.load(f)
+        return {"entradas": len(dados), "dados": dados}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao ler cache: {e}")
 
 
 # ── Acurácia do modelo (backtesting contínuo) ─────────────────────────────────
