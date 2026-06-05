@@ -340,6 +340,7 @@ async def health_check(authorization: str | None = Header(default=None)):
         "quota_api_football":  _to_int(state.quota_api_football),
         "quota_odds_api":      _to_int(state.quota_odds_api),
         "erros_24h":           erros_24h,
+        "ultimo_erro_500":     state.ultimo_erro_500,
         "uptime_segundos":     uptime_s,
         "vars_configuradas":   {v: bool(os.getenv(v)) for v in _vars},
     }

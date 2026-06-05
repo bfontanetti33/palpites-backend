@@ -1462,28 +1462,51 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
     alertas = [a.strip() for a in parsed["ALERTAS"].split("|") if a.strip()]
     top1    = top3[0] if top3 else None
 
-    result = RecomendacaoIA(
-        partida_id=partida.id,
-        rating_casa=rating_c,
-        rating_fora=rating_f,
-        modelo_gols=modelo_final,
-        odds_disponiveis=odds_disp,
-        value_bets=value_bets,
-        odds_analise=odds_result,
-        contexto=ctx,
-        tail_risk=tail_risk,
-        top3=top3,
-        narrativa=parsed["NARRATIVA"],
-        resumo_rapido=parsed["RESUMO_RAPIDO"],
-        alertas=alertas,
-        analise_completa=parsed["ANALISE_COMPLETA"],
-        # legado
-        mercado=top1.mercado     if top1 else "—",
-        entrada=top1.entrada     if top1 else "—",
-        confianca=top1.confianca if top1 else "Baixa",
-        analise=parsed["ANALISE_COMPLETA"] or parsed["NARRATIVA"],
-        texto_completo=texto_completo,
-    )
+    # Construção do objeto final — dentro de try/except para garantir que nunca propaga
+    try:
+        result = RecomendacaoIA(
+            partida_id=partida.id,
+            rating_casa=rating_c,
+            rating_fora=rating_f,
+            modelo_gols=modelo_final,
+            odds_disponiveis=odds_disp,
+            value_bets=value_bets,
+            odds_analise=odds_result,
+            contexto=ctx,
+            tail_risk=tail_risk,
+            top3=top3,
+            narrativa=parsed["NARRATIVA"],
+            resumo_rapido=parsed["RESUMO_RAPIDO"],
+            alertas=alertas,
+            analise_completa=parsed["ANALISE_COMPLETA"],
+            # legado
+            mercado=top1.mercado     if top1 else "—",
+            entrada=top1.entrada     if top1 else "—",
+            confianca=top1.confianca if top1 else "Baixa",
+            analise=parsed["ANALISE_COMPLETA"] or parsed["NARRATIVA"],
+            texto_completo=texto_completo,
+        )
+    except Exception as e:
+        log.error("gerar_recomendacao: falha ao construir RecomendacaoIA (%s x %s): %s", nome_c, nome_f, e)
+        _m = _modelo_gols_fallback()
+        result = RecomendacaoIA(
+            partida_id=partida.id,
+            rating_casa=RatingDinamico(),
+            rating_fora=RatingDinamico(),
+            modelo_gols=_m,
+            odds_disponiveis=False,
+            value_bets=[],
+            odds_analise={"odds_disponiveis": False},
+            contexto=FatorContexto(),
+            tail_risk=_tail_risk_fallback(_m),
+            top3=[],
+            narrativa=f"{nome_c} e {nome_f} se enfrentam na Copa do Mundo 2026.",
+            resumo_rapido="Análise temporariamente indisponível.",
+            alertas=["Dados temporariamente indisponíveis — tente novamente em instantes."],
+            analise_completa="",
+            mercado="—", entrada="—", confianca="Baixa",
+            analise="", texto_completo="",
+        )
 
     # Persiste narrativa em disco para evitar chamada Claude no próximo acesso
     if not _claude_cache_hit:
