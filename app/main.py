@@ -92,13 +92,39 @@ app.include_router(mp_router,       prefix="/api/v1", tags=["Pagamentos"])
 
 @app.on_event("startup")
 async def startup():
-    from app.monitoring.telegram_bot import loop_resumo_diario, state
-    from app.agents.football_agent import precalcular_todos_jogos
+    import logging
+    from app.monitoring.telegram_bot import loop_resumo_diario, send_telegram, state
+    from app.agents.football_agent import precalcular_proximos_jogos, _partida_cache
+    from app.cache import static_cache
+    from app.monitoring.cron_jobs import iniciar_cron_jobs
+    from app.models.schemas import Partida
+
+    log = logging.getLogger(__name__)
     state.startup_time = datetime.utcnow()
+
+    # Carrega cache disco → popula _partida_cache sem nenhuma chamada API
+    n_disk = static_cache.load_from_disk()
+    n_ok = 0
+    for slug in list(static_cache._store.keys()):
+        partida_dict = static_cache.get_partida(slug)
+        if partida_dict:
+            try:
+                _partida_cache[slug] = Partida.model_validate(partida_dict)
+                n_ok += 1
+            except Exception as e:
+                log.warning("startup: falha ao deserializar %s do disco: %s", slug, e)
+
     asyncio.create_task(loop_resumo_diario())
-    # Pré-cache em background — não bloqueia o startup.
-    # Popula _partida_cache (72 jogos) e atualiza quota_api_football.
-    asyncio.create_task(precalcular_todos_jogos())
+    asyncio.create_task(iniciar_cron_jobs())
+    # Pré-cache API para jogos ainda não cobertos pelo cache disco.
+    # Scripts de árbitros e squads são manuais (não rodam aqui).
+    asyncio.create_task(precalcular_proximos_jogos(n=8))
+
+    asyncio.create_task(send_telegram(
+        "✅ <b>Deploy OK — Palpites da IA</b>\n"
+        f"Cache disco: {n_ok}/{n_disk} partidas restauradas (0 chamadas API)\n"
+        f"⏰ {datetime.utcnow().strftime('%d/%m %H:%M')} UTC"
+    ))
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
