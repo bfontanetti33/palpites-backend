@@ -76,24 +76,28 @@ async def listar_eventos_copa() -> list[dict]:
         return eventos
 
 
-async def buscar_event_id(home: str, away: str) -> str | None:
+async def buscar_event_id(home: str, away: str) -> tuple[str, bool] | tuple[None, bool]:
     """
     Encontra o event_id na The Odds API pelo nome dos times.
-    Normaliza os nomes para comparação (lowercase, sem acentos).
+    Retorna (event_id, swapped) onde swapped=True significa que a API tem
+    os times na ordem inversa do nosso seed (away=home da API).
     """
     eventos = await listar_eventos_copa()
-    home_l = home.lower().replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u")
-    away_l = away.lower().replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u")
+
+    def _norm(s: str) -> str:
+        return s.lower().replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u")
+
+    home_l = _norm(home)
+    away_l = _norm(away)
 
     for ev in eventos:
-        h = ev.get("home_team", "").lower()
-        a = ev.get("away_team", "").lower()
-        # Correspondência por substring bidirecional
+        h = _norm(ev.get("home_team", ""))
+        a = _norm(ev.get("away_team", ""))
         if (home_l in h or h in home_l) and (away_l in a or a in away_l):
-            return ev["id"]
+            return ev["id"], False
         if (away_l in h or h in away_l) and (home_l in a or a in home_l):
-            return ev["id"]  # times invertidos na API
-    return None
+            return ev["id"], True  # times invertidos na API
+    return None, False
 
 
 # ── Busca de odds ─────────────────────────────────────────────────────────────
@@ -207,11 +211,30 @@ async def buscar_odds_partida(home_nome: str, away_nome: str) -> dict | None:
     """
     Busca odds completas para uma partida da Copa 2026.
     Retorna dict normalizado compatível com Partida.odds, ou None.
+    Corrige automaticamente quando a Odds API tem os times na ordem inversa.
     """
-    event_id = await buscar_event_id(home_nome, away_nome)
+    event_id, swapped = await buscar_event_id(home_nome, away_nome)
     if not event_id:
         return None
-    return await buscar_odds_evento(event_id)
+    odds = await buscar_odds_evento(event_id)
+    if odds and swapped:
+        # API tem away→home e home→away: troca vitoria_casa ↔ vitoria_fora
+        vc = odds.get("vitoria_casa")
+        vf = odds.get("vitoria_fora")
+        if vc is not None and vf is not None:
+            odds = dict(odds)
+            odds["vitoria_casa"] = vf
+            odds["vitoria_fora"] = vc
+        # Corrige também bookmakers_h2h
+        if "bookmakers_h2h" in odds:
+            odds["bookmakers_h2h"] = [
+                {**bm, "home": bm["away"], "away": bm["home"]}
+                for bm in odds["bookmakers_h2h"]
+            ]
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("odds_agent: times invertidos detectados para %s vs %s — swap aplicado",
+                      home_nome, away_nome)
+    return odds
 
 
 async def buscar_todas_odds_copa() -> dict[str, dict]:
