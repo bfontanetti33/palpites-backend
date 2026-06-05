@@ -201,7 +201,7 @@ async def _job_prewarm_stats() -> None:
                     log.warning("prewarm %s: calcular_stats falhou: %s", slug, e)
                     erros += 1
 
-                await asyncio.sleep(0.1)  # yield para evitar starvation do event loop
+                await asyncio.sleep(3)  # pausa entre jogos para respeitar rate limit da API
 
             if aquecidos > 0:
                 log.info("prewarm_stats: %d jogos atualizados, %d erros", aquecidos, erros)

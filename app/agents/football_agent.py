@@ -50,6 +50,10 @@ _INTL_LEAGUES: list[tuple[int, list[int], str]] = [
 _cache: TTLCache = TTLCache(maxsize=400, ttl=28800)   # 8h — chamadas individuais API-Football
 _partida_cache: TTLCache = TTLCache(maxsize=72, ttl=28800)  # 8h — resposta completa por slug
 
+# Rate limiter: API-Football Pro permite ~30 req/min → 1 req a cada 2s é seguro
+_last_api_call: float = 0.0
+_API_MIN_INTERVAL = 2.0  # segundos entre chamadas reais à API
+
 # ── Cache persistente de respostas da API-Football ────────────────────────────
 # Sobrevive redeploys — zera custo de quota em cada novo deploy.
 _API_DISK_PATH = Path(__file__).parent.parent.parent / "seeds" / "football_api_cache.json"
@@ -139,10 +143,27 @@ _POR_SLUG: dict[str, dict] = {j["slug"]: j for j in _JOGOS}
 # ── HTTP com cache ─────────────────────────────────────────────────────────────
 
 async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
+    global _last_api_call
     key = f"{path}:{sorted(params.items())}"
     if key in _cache:
         return _cache[key]
+
+    # Rate limiting: garante mínimo de 2s entre chamadas reais à API
+    elapsed = time.time() - _last_api_call
+    if elapsed < _API_MIN_INTERVAL:
+        await asyncio.sleep(_API_MIN_INTERVAL - elapsed)
+
+    _last_api_call = time.time()
     resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
+
+    # Retry automático em 429 — espera o tempo indicado pelo header ou 60s
+    if resp.status_code == 429:
+        retry_after = int(resp.headers.get("retry-after", 60))
+        log.warning("API-Football 429 — aguardando %ds antes de retry", retry_after)
+        await asyncio.sleep(retry_after)
+        _last_api_call = time.time()
+        resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
+
     # Captura quota restante para o monitoring
     remaining = resp.headers.get("x-ratelimit-requests-remaining")
     if remaining is not None:
