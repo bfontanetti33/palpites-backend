@@ -1181,11 +1181,13 @@ def _montar_prompt(
         f"{k}: {'+' if v >= 0 else ''}{v}pp" for k, v in tail.fat_tail_delta.items()
     )
     unc_txt = "\n".join(f"  • {f}" for f in tail.uncertainty_fatores) or "  Nenhum"
-    barbell_txt = (
-        f"SUGERIDO — Segura: {tail.barbell_entrada_segura} ({tail.barbell_prob_segura}%) + "
-        f"Especulativa: {tail.barbell_entrada_especulativa} (value={tail.barbell_value_especulativo:+.3f})"
-        if tail.barbell_sugerido else "Não sugerido (sem odds ou sem combinação válida)"
-    )
+    if tail.barbell_sugerido and tail.barbell_value_especulativo is not None:
+        barbell_txt = (
+            f"SUGERIDO — Segura: {tail.barbell_entrada_segura} ({tail.barbell_prob_segura}%) + "
+            f"Especulativa: {tail.barbell_entrada_especulativa} (value={tail.barbell_value_especulativo:+.3f})"
+        )
+    else:
+        barbell_txt = "Não sugerido (sem odds ou sem combinação válida)"
 
     return f"""Analise a partida e gere a narrativa com base nos dados abaixo.
 
