@@ -316,7 +316,7 @@ async def _h2h(client: httpx.AsyncClient, id1: int, id2: int) -> list[dict]:
         data = await _get(client, "/fixtures/headtohead", {
             "h2h": f"{id1}-{id2}", "last": 10,
         })
-        return [
+        resultados = [
             {
                 "data":       f["fixture"]["date"][:10],
                 "competicao": f["league"]["name"],
@@ -332,7 +332,11 @@ async def _h2h(client: httpx.AsyncClient, id1: int, id2: int) -> list[dict]:
             }
             for f in data.get("response", [])
         ]
-    except Exception:
+        if not resultados:
+            log.warning("_h2h team=%d vs team=%d: API retornou 0 confrontos", id1, id2)
+        return resultados
+    except Exception as e:
+        log.warning("_h2h team=%d vs team=%d: erro %s", id1, id2, e)
         return []
 
 

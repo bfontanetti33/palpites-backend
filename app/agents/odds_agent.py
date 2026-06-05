@@ -13,10 +13,13 @@ e com o Value Bet Detector da Camada 3 do ia_agent.py.
 Quota: 500 requests/mês no plano free.
 Cache: 30 minutos (odds mudam, mas não a cada segundo).
 """
+import logging
 import os
 from datetime import datetime, timezone
 from cachetools import TTLCache
 import httpx
+
+log = logging.getLogger(__name__)
 
 ODDS_API_KEY  = os.getenv("ODDS_API_KEY", "")
 BASE          = "https://api.the-odds-api.com/v4"
@@ -35,8 +38,13 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict = {}) -> dict 
     key = f"{path}:{sorted(params.items())}"
     if key in _cache:
         return _cache[key]
+    if not ODDS_API_KEY:
+        log.error("odds_agent: ODDS_API_KEY não configurada")
+        raise ValueError("ODDS_API_KEY ausente")
     params["apiKey"] = ODDS_API_KEY
     r = await client.get(f"{BASE}{path}", params=params)
+    if r.status_code != 200:
+        log.error("odds_agent: HTTP %d para %s — body: %s", r.status_code, path, r.text[:200])
     r.raise_for_status()
     remaining = r.headers.get("x-requests-remaining", "?")
     # Atualiza monitoring com quota restante
@@ -59,7 +67,13 @@ async def listar_eventos_copa() -> list[dict]:
         data = await _get(client, f"/sports/{SPORT}/events", {
             "dateFormat": DATE_FORMAT,
         })
-        return data if isinstance(data, list) else []
+        eventos = data if isinstance(data, list) else []
+        if not eventos:
+            log.warning("odds_agent: listar_eventos_copa retornou 0 eventos (sport=%s) — "
+                        "verifique se o sport key está correto e se a Copa 2026 está disponível", SPORT)
+        else:
+            log.info("odds_agent: %d eventos encontrados para %s", len(eventos), SPORT)
+        return eventos
 
 
 async def buscar_event_id(home: str, away: str) -> str | None:

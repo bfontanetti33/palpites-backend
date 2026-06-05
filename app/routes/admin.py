@@ -435,3 +435,32 @@ async def health_check(authorization: str | None = Header(default=None)):
         "uptime_segundos":     uptime_s,
         "vars_configuradas":   {v: bool(os.getenv(v)) for v in _vars},
     }
+
+
+# ── Diagnóstico de odds ──────────────────────────────────────────────────────
+
+@router.get("/admin/odds-debug", tags=["Admin"])
+async def odds_debug(authorization: str | None = Header(default=None)):
+    """
+    Testa a conexão com The Odds API e lista os eventos disponíveis.
+    Útil para diagnosticar por que odds não estão carregando.
+    """
+    _checar_token(authorization)
+    from app.agents.odds_agent import listar_eventos_copa, ODDS_API_KEY, SPORT
+    resultado = {
+        "odds_api_key_configurada": bool(ODDS_API_KEY),
+        "sport_key": SPORT,
+        "eventos": [],
+        "erro": None,
+    }
+    try:
+        eventos = await listar_eventos_copa()
+        resultado["total_eventos"] = len(eventos)
+        resultado["eventos"] = [
+            {"id": e.get("id"), "home": e.get("home_team"), "away": e.get("away_team"),
+             "commence_time": e.get("commence_time")}
+            for e in eventos[:5]
+        ]
+    except Exception as e:
+        resultado["erro"] = str(e)
+    return resultado
