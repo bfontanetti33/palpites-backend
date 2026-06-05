@@ -895,6 +895,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     stats_casa.chances_criadas_metodo = "estimado"
     stats_fora.chances_criadas_metodo = "estimado"
 
+    _fav, _prob_fav = _favorito_e_prob(jogo["time_casa"], jogo["time_fora"], probabilidades)
+
     partida = Partida(
         id=fixture_id,
         slug=jogo["slug"],
@@ -911,6 +913,17 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         time_fora_id=away_id,
         gols_casa=jogo.get("gols_casa"),
         gols_fora=jogo.get("gols_fora"),
+        # Campos de PartidaResumo — preenchidos para que o detalhe
+        # retorne os mesmos dados que os cards da lista.
+        prob_vitoria_casa=float(probabilidades.vitoria_casa) if probabilidades else None,
+        prob_empate=float(probabilidades.empate)              if probabilidades else None,
+        prob_vitoria_fora=float(probabilidades.vitoria_fora)  if probabilidades else None,
+        favorito=_fav,
+        prob_favorito=_prob_fav,
+        insight_curto=_insight_curto(jogo["time_casa"], jogo["time_fora"], probabilidades),
+        resumo_rapido=_gerar_insight_probabilidades(
+            jogo["time_casa"], jogo["time_fora"], probabilidades
+        ),
         rating_casa=rating_c,
         rating_fora=rating_f,
         stats_casa=stats_casa,
