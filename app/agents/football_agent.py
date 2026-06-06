@@ -137,7 +137,20 @@ def _carregar_seed() -> dict:
 
 _SEED = _carregar_seed()
 _JOGOS: list[dict] = _SEED["jogos"]
-_POR_SLUG: dict[str, dict] = {j["slug"]: j for j in _JOGOS}
+
+def _slug_ascii(s: str) -> str:
+    """Normaliza slug para ASCII puro (remove diacríticos): türkiye → turkiye, curaçao → curacao."""
+    import unicodedata
+    return unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("ASCII")
+
+# Aceita tanto o slug Unicode original quanto a versão ASCII (sem diacríticos).
+# Necessário porque URLs como australia-turkiye e australia-türkiye devem resolver o mesmo jogo.
+_POR_SLUG: dict[str, dict] = {}
+for _j in _JOGOS:
+    _POR_SLUG[_j["slug"]] = _j
+    _ascii = _slug_ascii(_j["slug"])
+    if _ascii != _j["slug"]:
+        _POR_SLUG[_ascii] = _j
 
 
 def _carregar_seed_forma() -> dict[str, list]:
