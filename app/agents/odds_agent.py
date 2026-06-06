@@ -111,20 +111,38 @@ def _melhor_bookmaker(bookmakers: list) -> dict | None:
     return bookmakers[0] if bookmakers else None
 
 
-def _parsear_h2h(mercado: dict) -> dict:
-    """Extrai vitória casa, empate, vitória fora do mercado h2h."""
+def _parsear_h2h(mercado: dict, api_home: str = "", api_away: str = "") -> dict:
+    """
+    Extrai vitória casa, empate, vitória fora do mercado h2h.
+    Quando api_home/api_away são fornecidos, usa matching por nome para
+    atribuir corretamente (a Odds API pode retornar outcomes em ordem
+    alfabética em vez de home-first, causando atribuição errada).
+    """
     odds: dict = {}
     outcomes = {o["name"]: float(o["price"]) for o in mercado.get("outcomes", [])}
-    # A API retorna os nomes reais dos times + "Draw"
     for nome, odd in outcomes.items():
-        nome_l = nome.lower()
-        if "draw" in nome_l:
+        if "draw" in nome.lower():
             odds["empate"] = odd
-        # Os outros dois são os times — o primeiro listado é o "home"
+
     teams = [n for n in outcomes if "draw" not in n.lower()]
-    if len(teams) >= 2:
-        odds["vitoria_casa"] = outcomes[teams[0]]
-        odds["vitoria_fora"] = outcomes[teams[1]]
+
+    if api_home and api_away and len(teams) >= 2:
+        def _match(api_name: str, outcome_name: str) -> bool:
+            a, o = api_name.lower(), outcome_name.lower()
+            return a in o or o in a
+
+        for nome in teams:
+            if _match(api_home, nome):
+                odds["vitoria_casa"] = outcomes[nome]
+            elif _match(api_away, nome):
+                odds["vitoria_fora"] = outcomes[nome]
+
+    # Fallback posicional se o matching por nome falhou ou não foi fornecido
+    if "vitoria_casa" not in odds or "vitoria_fora" not in odds:
+        if len(teams) >= 2:
+            odds["vitoria_casa"] = outcomes[teams[0]]
+            odds["vitoria_fora"] = outcomes[teams[1]]
+
     return odds
 
 
@@ -177,11 +195,15 @@ async def buscar_odds_evento(event_id: str) -> dict | None:
     if not bm:
         return None
 
+    # Nomes dos times conforme a Odds API (podem diferir da ordem do nosso seed)
+    api_home = data.get("home_team", "")
+    api_away = data.get("away_team", "")
+
     odds: dict = {"bookmaker": bm["key"], "event_id": event_id}
     for mercado in bm.get("markets", []):
         key = mercado.get("key")
         if key == "h2h":
-            odds.update(_parsear_h2h(mercado))
+            odds.update(_parsear_h2h(mercado, api_home, api_away))
         elif key == "totals":
             odds.update(_parsear_totals(mercado))
 
@@ -191,7 +213,7 @@ async def buscar_odds_evento(event_id: str) -> dict | None:
         for mkt in bm_all.get("markets", []):
             if mkt.get("key") != "h2h":
                 continue
-            h2h = _parsear_h2h(mkt)
+            h2h = _parsear_h2h(mkt, api_home, api_away)
             if "vitoria_casa" in h2h and "empate" in h2h and "vitoria_fora" in h2h:
                 bookmakers_h2h.append({
                     "key":  bm_all["key"],
