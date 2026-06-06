@@ -32,6 +32,9 @@ _client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""), timeout=45.
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 GLOBAL_AVG   = 1.2      # média de gols por time por jogo no futebol internacional
+# alpha=0.5 provisório, calibração conservadora pré-Copa;
+# recalibrar contra resultados reais após fase de grupos 2026 via calibrar_alpha_backtest.py
+ALPHA_REG    = 0.5
 DECAY        = 0.98     # decaimento temporal por dia
 DC_RHO       = -0.1     # correção Dixon-Coles para placares baixos
 MAX_GOALS    = 6        # máximo de gols na matriz (0..5)
@@ -378,6 +381,10 @@ def _lambdas_from_ratings(
     # Médias recentes de gols como âncora (se disponíveis)
     avg_gols_casa = stats_casa.media_gols_marcados_recente or stats_casa.media_gols_marcados or GLOBAL_AVG
     avg_gols_fora = stats_fora.media_gols_marcados_recente or stats_fora.media_gols_marcados or GLOBAL_AVG
+
+    # Regressão à média — atenua lambdas extremos antes de aplicar contexto (home boost)
+    avg_gols_casa = ALPHA_REG * avg_gols_casa + (1 - ALPHA_REG) * GLOBAL_AVG
+    avg_gols_fora = ALPHA_REG * avg_gols_fora + (1 - ALPHA_REG) * GLOBAL_AVG
 
     # Lambda = média recente ajustada pelo fator de força relativa
     lc = round(avg_gols_casa * ataque_casa * defesa_fora, 3)
