@@ -387,7 +387,9 @@ async def cache_snapshot(authorization: str | None = Header(default=None)):
     try:
         with open(path, encoding="utf-8") as f:
             dados = json.load(f)
-        return {"entradas": len(dados), "dados": dados}
+        # Retorna formato canônico {slug: {...}} diretamente.
+        # Assim: curl /admin/cache-snapshot > seeds/cache_partidas.json funciona sem wrapper.
+        return dados
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro ao ler cache: {e}")
 

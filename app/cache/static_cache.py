@@ -39,7 +39,18 @@ def load_from_disk() -> int:
     try:
         if _CACHE_PATH.exists():
             with open(_CACHE_PATH, encoding="utf-8") as f:
-                _store = json.load(f)
+                raw = json.load(f)
+            # Formato canônico: {slug: {...}}
+            # Formato legado snapshot: {"entradas": N, "dados": {slug: {...}}}
+            # Qualquer outro formato desconhecido → {} com warning, nunca crasha.
+            if isinstance(raw, dict) and "dados" in raw and isinstance(raw.get("dados"), dict):
+                _store = raw["dados"]
+                log.warning("static_cache: formato snapshot detectado — desembrulhando 'dados'")
+            elif isinstance(raw, dict):
+                _store = raw
+            else:
+                log.warning("static_cache: formato inválido em %s — descartado", _CACHE_PATH)
+                _store = {}
             log.info("static_cache: %d entradas carregadas de %s", len(_store), _CACHE_PATH)
             return len(_store)
     except Exception as e:
@@ -72,6 +83,8 @@ def is_fresh(slug: str) -> bool:
     if slug not in _store:
         return False
     entry = _store[slug]
+    if not isinstance(entry, dict):
+        return False
     age = _age_seconds(entry)
     ttl = TTL_INSUF if entry.get("dados_insuficientes") else TTL_OK
     return age < ttl
