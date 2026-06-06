@@ -9854,6 +9854,215 @@
         "clube": "Eintracht Frankfurt"
       }
     ],
-    "Curaçao": []
+    "Curaçao": [
+      {
+        "no": 1,
+        "pos": "GK",
+        "nome": "Tyrick Bodak",
+        "caps": null,
+        "gols_int": null,
+        "clube": "SC Telstar"
+      },
+      {
+        "no": 12,
+        "pos": "GK",
+        "nome": "Trevor Doornbusch",
+        "caps": null,
+        "gols_int": null,
+        "clube": "VVV-Venlo"
+      },
+      {
+        "no": 22,
+        "pos": "GK",
+        "nome": "Eloy Room",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Miami FC"
+      },
+      {
+        "no": 2,
+        "pos": "DF",
+        "nome": "Joshua Brenet",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Kayserispor"
+      },
+      {
+        "no": 3,
+        "pos": "DF",
+        "nome": "Shurandy Sambo",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Sparta Rotterdam"
+      },
+      {
+        "no": 4,
+        "pos": "DF",
+        "nome": "Armando Obispo",
+        "caps": null,
+        "gols_int": null,
+        "clube": "PSV Eindhoven"
+      },
+      {
+        "no": 5,
+        "pos": "DF",
+        "nome": "Riechedly Bazoer",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Konyaspor"
+      },
+      {
+        "no": 14,
+        "pos": "DF",
+        "nome": "Roshon van Eijma",
+        "caps": null,
+        "gols_int": null,
+        "clube": "RKC Waalwijk"
+      },
+      {
+        "no": 15,
+        "pos": "DF",
+        "nome": "Deveron Fonville",
+        "caps": null,
+        "gols_int": null,
+        "clube": "NEC Nijmegen"
+      },
+      {
+        "no": 20,
+        "pos": "DF",
+        "nome": "Sherel Floranus",
+        "caps": null,
+        "gols_int": null,
+        "clube": "PEC Zwolle"
+      },
+      {
+        "no": 21,
+        "pos": "DF",
+        "nome": "Jurien Gaari",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Abha Club"
+      },
+      {
+        "no": 6,
+        "pos": "MF",
+        "nome": "Livano Comenencia",
+        "caps": null,
+        "gols_int": null,
+        "clube": "FC Zurich"
+      },
+      {
+        "no": 7,
+        "pos": "MF",
+        "nome": "Ar'Jany Martha",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Rotherham United"
+      },
+      {
+        "no": 8,
+        "pos": "MF",
+        "nome": "Leandro Bacuna",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Igdir FK"
+      },
+      {
+        "no": 10,
+        "pos": "MF",
+        "nome": "Juninho Bacuna",
+        "caps": null,
+        "gols_int": null,
+        "clube": "FC Volendam"
+      },
+      {
+        "no": 13,
+        "pos": "MF",
+        "nome": "Godfried Roemeratoe",
+        "caps": null,
+        "gols_int": null,
+        "clube": "RKC Waalwijk"
+      },
+      {
+        "no": 16,
+        "pos": "MF",
+        "nome": "Tyrese Noslin",
+        "caps": null,
+        "gols_int": null,
+        "clube": "SC Telstar"
+      },
+      {
+        "no": 23,
+        "pos": "MF",
+        "nome": "Kevin Felida",
+        "caps": null,
+        "gols_int": null,
+        "clube": "FC Den Bosch"
+      },
+      {
+        "no": 9,
+        "pos": "FW",
+        "nome": "Jurgen Locadia",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Miami FC"
+      },
+      {
+        "no": 11,
+        "pos": "FW",
+        "nome": "Tahith Chong",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Sheffield United"
+      },
+      {
+        "no": 17,
+        "pos": "FW",
+        "nome": "Sontje Hansen",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Middlesbrough"
+      },
+      {
+        "no": 18,
+        "pos": "FW",
+        "nome": "Brandley Kuwas",
+        "caps": null,
+        "gols_int": null,
+        "clube": "FC Volendam"
+      },
+      {
+        "no": 19,
+        "pos": "FW",
+        "nome": "Kenji Gorre",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Maccabi Haifa"
+      },
+      {
+        "no": 24,
+        "pos": "FW",
+        "nome": "Jearl Margaritha",
+        "caps": null,
+        "gols_int": null,
+        "clube": "SK Beveren"
+      },
+      {
+        "no": 25,
+        "pos": "FW",
+        "nome": "Jeremy Antonisse",
+        "caps": null,
+        "gols_int": null,
+        "clube": "AE Kifisia"
+      },
+      {
+        "no": 26,
+        "pos": "FW",
+        "nome": "Gervane Kastaneer",
+        "caps": null,
+        "gols_int": null,
+        "clube": "Terengganu FC"
+      }
+    ]
   }
 }
