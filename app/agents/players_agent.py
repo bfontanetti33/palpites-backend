@@ -105,6 +105,13 @@ _COPA_KEYWORDS = {"cup", "copa", "pokal", "coupe", "coppa", "taca", "taça",
                   "supercup", "supercopa", "shield", "community",
                   "campeón de campeones", "campeones"}
 
+# Palavras que indicam pré-temporada ou amistosos — stats não refletem nível competitivo
+_PRESEASON_KEYWORDS = {
+    "summer series", "pre-season", "preseason", "friendly", "amistoso",
+    "pretemporada", "international champions cup", "summer tour",
+    "club friendly", "friendlies", "test match",
+}
+
 # Ligas europeias conhecidas (para fallback "outros Europa")
 _EUROPA_KEYWORDS = {"league", "liga", "ligue", "serie", "premiership",
                     "superliga", "allsvenskan", "eliteserien", "eredivisie"}
@@ -136,6 +143,12 @@ def _e_copa(nome_liga: str) -> bool:
     """Retorna True se a competição é uma copa doméstica (poucos jogos, stats infladas)."""
     nl = nome_liga.lower()
     return any(kw in nl for kw in _COPA_KEYWORDS)
+
+
+def _e_pretemporada(nome_liga: str) -> bool:
+    """Retorna True se for pré-temporada ou amistoso — exclui da agregação de stats."""
+    nl = nome_liga.lower()
+    return any(kw in nl for kw in _PRESEASON_KEYWORDS)
 
 
 CATEGORIAS = [
@@ -301,10 +314,29 @@ async def _api_get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
 
 def _agregar_stats(response_list: list[dict]) -> dict | None:
     """
-    Agrega stats de todas as competições do clube na temporada.
-    Exclui seleção nacional (league type = "International" or id in known intl IDs).
+    Agrega stats de todas as competições do CLUBE na temporada.
+    Exclui:
+      - Seleção nacional: INTL_IDS + league.type == "International"   [FIX 3]
+      - Pré-temporada e amistosos: _e_pretemporada()                  [FIX 1]
+    liga_nome = liga onde o jogador mais jogou (não a primeira da lista).[FIX 2]
     """
-    INTL_IDS = {1, 4, 5, 6, 10, 34}  # Copa do Mundo, Nations League, etc.
+    # FIX 3: lista ampliada de IDs de competições de seleção
+    INTL_IDS = {
+        1,   # FIFA World Cup
+        4,   # UEFA Euro
+        5,   # UEFA Nations League
+        6,   # AFC Asian Cup
+        7,   # African Nations Championship (CHAN)
+        8,   # Copa América
+        9,   # CONCACAF Gold Cup
+        10,  # Africa Cup of Nations (AFCON)
+        29,  # WC Qualifying — CAF
+        30,  # WC Qualifying — CONCACAF
+        31,  # WC Qualifying — AFC
+        32,  # WC Qualifying — OFC
+        33,  # WC Qualifying — AFC (2ª fase)
+        34,  # WC Qualifying — UEFA
+    }
     total: dict = {
         "goals": 0, "assists": 0, "shots_on_goal": 0,
         "key_passes": 0, "dribbles": 0, "yellow_cards": 0,
@@ -314,25 +346,31 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
         "_lss_min_weighted": 0.0,
         "_minutos_liga": 0,   # minutos em ligas (não copas) — para detectar copa_apenas
     }
+    _mins_por_liga: dict[str, float] = {}   # FIX 2: tracking para liga principal
     found = False
     for entry in response_list:
         stats = entry.get("statistics", [])
         for st in stats:
             lg = st.get("league", {})
-            if lg.get("id") in INTL_IDS:
+            # FIX 3: exclui por ID *e* por campo type="International"
+            if lg.get("id") in INTL_IDS or lg.get("type") == "International":
                 continue
             g = st.get("games", {})
             mins = g.get("minutes") or 0
             if not mins:
                 continue
-            found = True
             liga_nm = lg.get("name", "")
-            lss     = _lss_da_liga(liga_nm)
-            total["minutes"]             += mins
-            total["appearances"]         += g.get("appearences") or 0
-            total["_lss_min_weighted"]   += lss * mins
+            # FIX 1: exclui pré-temporada e amistosos
+            if _e_pretemporada(liga_nm):
+                continue
+            found = True
+            lss = _lss_da_liga(liga_nm)
+            total["minutes"]           += mins
+            total["appearances"]       += g.get("appearences") or 0
+            total["_lss_min_weighted"] += lss * mins
+            _mins_por_liga[liga_nm]     = _mins_por_liga.get(liga_nm, 0) + mins  # FIX 2
             if not _e_copa(liga_nm):
-                total["_minutos_liga"]   += mins  # só conta minutos de liga
+                total["_minutos_liga"] += mins
             gl = st.get("goals", {})
             total["goals"]        += gl.get("total") or 0
             total["assists"]      += gl.get("assists") or 0
@@ -349,14 +387,13 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
                 tm = st.get("team", {})
                 total["clube_nome"] = tm.get("name", "")
                 total["clube_logo"] = tm.get("logo", "")
-                total["liga_nome"]  = liga_nm
-                total["liga_lss"]   = lss
 
     if found and total["minutes"] > 0:
         total["liga_lss"] = round(total["_lss_min_weighted"] / total["minutes"], 3)
-        # Marca se TODOS os minutos vieram de copas domésticas
-        # (uso: exclui do ranking ofensivo — poucos jogos distorcem P90)
         total["copa_apenas"] = total.get("_minutos_liga", 0) == 0
+        # FIX 2: liga_nome = liga com mais minutos (não a primeira encontrada)
+        if _mins_por_liga:
+            total["liga_nome"] = max(_mins_por_liga, key=_mins_por_liga.__getitem__)
 
     return total if found else None
 
@@ -364,21 +401,33 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
 # Cache de club team IDs (sessão)
 _club_id_cache: dict[str, int | None] = {}
 
+# Aliases: nome da Wikipedia → nome canônico na API-Football
+# Validar e expandir conforme novos mismatches aparecerem no prewarm
+_CLUB_ALIASES: dict[str, str] = {
+    "Paris Saint-Germain": "Paris SG",
+    "Paris Saint Germain": "Paris SG",
+    "Inter Milan":         "Internazionale",
+    "Atletico Madrid":     "Atlético Madrid",
+    "Atletico de Madrid":  "Atlético Madrid",
+}
+
 
 async def _buscar_club_id(client: httpx.AsyncClient, clube: str) -> int | None:
-    """Busca o team_id do clube via /teams?name={clube}."""
-    if clube in _club_id_cache:
-        return _club_id_cache[clube]
+    """Busca o team_id do clube via /teams?name={clube}.
+    Normaliza via _CLUB_ALIASES antes de chamar a API."""
+    clube_api = _CLUB_ALIASES.get(clube, clube)
+    if clube_api in _club_id_cache:
+        return _club_id_cache[clube_api]
     try:
-        data = await _api_get(client, "/teams", {"name": clube})
+        data = await _api_get(client, "/teams", {"name": clube_api})
         teams = data.get("response", [])
         if teams:
             tid = teams[0]["team"]["id"]
-            _club_id_cache[clube] = tid
+            _club_id_cache[clube_api] = tid
             return tid
     except Exception:
         pass
-    _club_id_cache[clube] = None
+    _club_id_cache[clube_api] = None
     return None
 
 

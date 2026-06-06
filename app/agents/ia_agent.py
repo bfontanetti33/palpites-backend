@@ -1152,31 +1152,52 @@ def _score_final(
 # CAMADA 5 — Claude (só narrativa)
 # ════════════════════════════════════════════════════════════════════════════════
 
-_SYSTEM = """Você é o analista de apostas do Palpites da IA — Copa do Mundo 2026.
+_SYSTEM = """Você é o analista do Palpites da IA — Copa do Mundo 2026. Missão: deixar o torcedor brasileiro EMPOLGADO e BEM INFORMADO antes do jogo.
 
-Seu público é o torcedor brasileiro casual: curte futebol, aposta eventualmente, mas não entende de estatística avançada.
+QUEM VOCÊ É:
+- O parceiro inteligente do torcedor que quer curtir o jogo com mais informação
+- Popular e direto, com energia de mesa de bar + embasamento de quem estudou os números
+- Apaixonado pelo jogo, nunca frio ou burocrático
 
 REGRAS DE LINGUAGEM:
-- Escreva como um amigo entendido de futebol, não como um professor de estatística
-- NUNCA mencione nomes técnicos internos: não use "Dixon-Coles", "Skellam", "Elo", "lambda", "Pi-rating", "Camada X", "fat tail", "uncertainty index", "fragility score"
-- Em vez disso, use: "nossa análise", "o modelo indica", "as probabilidades mostram", "os dados apontam"
-- Seja direto e opinativo: diga quem você acha que vai ganhar e por quê
-- Use linguagem de apostador: "entrada", "odd", "valor", "confiança"
-- Probabilidades em % são ok — mas explique o que significam em linguagem simples
-- Português brasileiro coloquial mas profissional
+- Escreva como um amigo que entende MUITO de futebol, não como professor de estatística
+- NUNCA cite nomes técnicos: proibido "Dixon-Coles", "Skellam", "Elo", "lambda", "Pi-rating", "Camada X", "fat tail", "uncertainty index", "fragility score"
+- Use: "nossa análise mostra", "os dados apontam", "o modelo indica", "a análise aponta"
+- Seja direto e opinativo: escolha um lado, diga por quê, com energia
+- Português brasileiro coloquial mas sem gírias forçadas
+- PROIBIDO aconselhar sobre carteira: NUNCA escreva "eu apostaria", "você deveria apostar", "aposta nisso", "eu colocaria dinheiro". Pode ser EMPOLGADO sobre o JOGO, nunca sobre o bolso de ninguém
+
+STATS DIDÁTICAS — OBRIGATÓRIO:
+- TODA estatística numérica deve vir com tradução humana
+- Formato obrigatório: "[X]% = [frequência em linguagem simples]"
+- Exemplos:
+  • "Over 2.5 com 61% — ou seja, 6 em cada 10 jogos assim têm pelo menos 3 gols"
+  • "78% de chance de vitória — em menos de 1 de cada 4 jogos o favorito não vence"
+  • "BTTS em 52% — pouco mais da metade dos jogos com esses perfis acaba com ambos marcando"
+- Use a mesma lógica para todos os números fornecidos
 
 REGRAS DE CONTEÚDO:
-- Use EXATAMENTE os números fornecidos — nunca invente probabilidades ou placares
-- Se odds indisponíveis: avise o usuário para checar as odds antes de apostar
-- Se jogo_imprevisivel=SIM: seja honesto que é um jogo difícil de prever
+- Use EXATAMENTE os números fornecidos — NUNCA invente probabilidades ou placares
+- Se odds indisponíveis: avise para checar nas casas de aposta antes de qualquer entrada
+- Se jogo_imprevisivel: seja honesto que é difícil de prever, mas ainda escolha um lado
 - Se tem zebra alerta: explore com entusiasmo — é o conteúdo mais valioso
-- Se há vantagem de campo (sede da Copa): sempre mencione — é relevante para o apostador
+- Se há vantagem de campo (sede da Copa): sempre mencione com impacto emocional
 
-Gere EXATAMENTE estes 4 campos (uma linha por campo, sem quebras de linha internas):
+INSIGHT_JOGADORES — regra específica:
+- Só cite jogadores cujos DADOS REAIS estejam no prompt — proibido inventar qualquer número
+- Formato: "De olho no [nome] do [clube] — [stat_total] [gols ou assists] na temporada, [caps] jogos pela seleção"
+- Se stat_p90 disponível: adicione "média de [stat_p90] por jogo"
+- PROIBIDO citar: títulos, troféus, estatísticas da temporada completa oficial, odd de mercado
+- PROIBIDO usar "caps" (jogos pela seleção) como se fosse estatística de performance — caps é contexto, não gol nem assistência
+- Se um jogador só tem "caps internacionais" e zero stat de gols/assists, NÃO o cite
+- Se não houver dados de performance reais para um time: escreva "Sem dados de jogadores disponíveis" para aquele time
+
+Gere EXATAMENTE estes 5 campos (uma linha por campo, sem quebras de linha internas):
 NARRATIVA: [contexto do jogo em tom de pré-jogo — 3 frases, animado e jornalístico, sem números técnicos]
-RESUMO_RAPIDO: [1 frase curta e direta com a recomendação principal — ex: "México favorito, Over 1.5 é a entrada mais segura"]
-ALERTAS: [avisos práticos separados por | — máx 4, em linguagem simples]
-ANALISE_COMPLETA: [análise completa de 6-7 frases: por que o favorito é favorito, os 3 melhores mercados com probabilidades, o que pode surpreender, dica final — sem jargão técnico]
+RESUMO_RAPIDO: [1 frase direta com a recomendação principal + tradução humana — ex: "Brasil favorito, Over 1.5 com 73% — 7 em cada 10 jogos assim passam dessa linha"]
+ALERTAS: [avisos práticos separados por | — máx 4, linguagem simples, sem jargão]
+ANALISE_COMPLETA: [análise de 6-7 frases: favorito e por quê, 3 melhores mercados com probabilidades + tradução humana cada, o que pode surpreender, encerramento opinativo sobre o jogo — sem jargão técnico, sem conselho de carteira]
+INSIGHT_JOGADORES: [2-3 destaques de jogadores usando APENAS dados fornecidos, separados por | — ou "Sem dados de jogadores disponíveis"]
 """
 
 
@@ -1226,6 +1247,31 @@ def _incerteza_legivel(uncertainty_index: float, achatado: bool) -> str:
     if uncertainty_index >= 30:
         return "análise com grau razoável de confiança"
     return "jogo com bom nível de previsibilidade"
+
+
+def _jogadores_str(destaque: "JogadoresDestaque | None") -> str:
+    """Formata jogadores de destaque usando APENAS stats de performance reais.
+    Exclui: dados_insuficientes=True, amostra_insuficiente=True, stat_label='caps internacionais'.
+    Se todos forem fallback, retorna "" → prompt mostra '(sem dados)'."""
+    if not destaque or not destaque.jogadores:
+        return ""
+    reais = [
+        j for j in destaque.jogadores
+        if not j.dados_insuficientes
+        and not j.amostra_insuficiente
+        and j.stat_label != "caps internacionais"
+    ]
+    if not reais:
+        return ""
+    lines = []
+    for j in reais[:2]:
+        p90_txt = f" | média de {j.stat_p90:.2f} por 90min" if j.stat_p90 else ""
+        liga_txt = f" ({j.liga_nome})" if j.liga_nome else ""
+        lines.append(
+            f"  • {j.nome} ({j.clube}{liga_txt}) — {j.stat_total} {j.stat_label.replace('/90','').strip()}"
+            f" na temporada{p90_txt} | {j.caps or '?'} jogos pela seleção"
+        )
+    return "\n".join(lines)
 
 
 def _montar_prompt(
@@ -1329,6 +1375,18 @@ def _montar_prompt(
         else "\n⚠️ ODDS INDISPONÍVEIS: as probabilidades são do nosso modelo. Antes de apostar, consulte as odds nas casas de aposta."
     )
 
+    # ── Jogadores de destaque ────────────────────────────────────────────────
+    jog_c_txt = _jogadores_str(partida.jogadores_destaque_casa)
+    jog_f_txt = _jogadores_str(partida.jogadores_destaque_fora)
+    if jog_c_txt or jog_f_txt:
+        jog_section = (
+            f"\n--- JOGADORES DE DESTAQUE ---\n"
+            f"{nome_c}:\n{jog_c_txt or '  (sem dados)'}\n"
+            f"{nome_f}:\n{jog_f_txt or '  (sem dados)'}\n"
+        )
+    else:
+        jog_section = ""
+
     return f"""Escreva a análise dessa partida da Copa 2026 para um apostador brasileiro.
 
 JOGO: {nome_c} x {nome_f}
@@ -1356,13 +1414,13 @@ Histórico de confrontos: {h2h_txt}
 {incerteza_txt}
 
 --- TOP 3 APOSTAS RECOMENDADAS ---
-{top3_txt}{barbell_txt}{odds_aviso}
+{top3_txt}{barbell_txt}{odds_aviso}{jog_section}
 """
 
 
 def _parse_claude(texto: str) -> dict:
     """Parser multi-linha — captura tudo após o marcador até o próximo."""
-    campos = {"NARRATIVA": "", "RESUMO_RAPIDO": "", "ALERTAS": "", "ANALISE_COMPLETA": ""}
+    campos = {"NARRATIVA": "", "RESUMO_RAPIDO": "", "ALERTAS": "", "ANALISE_COMPLETA": "", "INSIGHT_JOGADORES": ""}
     ordem  = list(campos.keys())
     linhas = texto.splitlines()
     atual  = None
@@ -1604,6 +1662,7 @@ async def gerar_narrativa(partida: Partida, stats: StatsRecomendacao) -> Narrati
             f"Análise estatística de {nome_c} x {nome_f} gerada pelo modelo Dixon-Coles. "
             f"A narrativa detalhada está temporariamente indisponível."
         ),
+        "INSIGHT_JOGADORES": "",
     }
 
     try:
@@ -1616,7 +1675,7 @@ async def gerar_narrativa(partida: Partida, stats: StatsRecomendacao) -> Narrati
         )
         msg = await _client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=900,
+            max_tokens=1200,
             system=_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -1636,6 +1695,7 @@ async def gerar_narrativa(partida: Partida, stats: StatsRecomendacao) -> Narrati
         resumo_rapido=parsed["RESUMO_RAPIDO"],
         alertas=alertas,
         analise_completa=parsed["ANALISE_COMPLETA"],
+        insight_jogadores=parsed.get("INSIGHT_JOGADORES", ""),
         texto_completo=texto_completo,
     )
 
@@ -1691,6 +1751,7 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             resumo_rapido=narrativa.resumo_rapido,
             alertas=narrativa.alertas,
             analise_completa=narrativa.analise_completa,
+            insight_jogadores=narrativa.insight_jogadores,
             mercado=top1.mercado     if top1 else "—",
             entrada=top1.entrada     if top1 else "—",
             confianca=top1.confianca if top1 else "Baixa",

@@ -314,6 +314,7 @@ class RecomendacaoIA(BaseModel):
     resumo_rapido: str
     alertas: list[str]
     analise_completa: str
+    insight_jogadores: str = ""
 
     # Campos legados (compatibilidade com frontend existente)
     mercado: str
@@ -349,6 +350,7 @@ class NarrativaData(BaseModel):
     resumo_rapido: str = ""
     alertas: list[str] = []
     analise_completa: str = ""
+    insight_jogadores: str = ""
     texto_completo: str = ""
 
 
