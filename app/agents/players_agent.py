@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import re
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -401,34 +402,106 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
 # Cache de club team IDs (sessão)
 _club_id_cache: dict[str, int | None] = {}
 
-# Aliases: nome da Wikipedia → nome canônico na API-Football
-# Validar e expandir conforme novos mismatches aparecerem no prewarm
+# Aliases: nome da Wikipedia → search term na API-Football
+# Só para nomes genuinamente diferentes (não resolvíveis por normalização de diacríticos).
 _CLUB_ALIASES: dict[str, str] = {
-    "Paris Saint-Germain": "Paris SG",
-    "Paris Saint Germain": "Paris SG",
-    "Inter Milan":         "Internazionale",
-    "Atletico Madrid":     "Atlético Madrid",
-    "Atletico de Madrid":  "Atlético Madrid",
+    # ── Ligue 1 ──────────────────────────────────────────────────────────
+    "Paris Saint-Germain":      "Paris Saint Germain",   # ID=85  (hífen vs. espaço)
+    # ── Premier League ───────────────────────────────────────────────────
+    "Tottenham Hotspur":        "Tottenham",             # ID=47
+    "West Ham United":          "West Ham",              # ID=48
+    "Wolverhampton Wanderers":  "Wolves",                # ID=39
+    # ── Bundesliga ───────────────────────────────────────────────────────
+    "Bayern Munich":            "Bayern München",        # ID=157 (Munich vs. München)
+    "TSG Hoffenheim":           "Hoffenheim",            # ID=167
+    "Mainz 05":                 "FSV Mainz 05",          # ID=164
+    "Schalke 04":               "FC Schalke 04",         # ID=174
+    "FC St. Pauli":             "Pauli",                 # ID=186
+    # ── Serie A ──────────────────────────────────────────────────────────
+    "Milan":                    "AC Milan",              # ID=489
+    "Inter Milan":              "Inter",                 # ID=505
+    "Roma":                     "AS Roma",               # ID=497
+    # ── Süper Lig ────────────────────────────────────────────────────────
+    "Fenerbahçe":               "Fenerbahce",            # ID=611
+    "İstanbul Başakşehir":      "Basaksehir",            # ID=564
+    "Çaykur Rizespor":          "Rizespor",              # ID=1007
+    # ── Czech ────────────────────────────────────────────────────────────
+    "Slavia Prague":            "Slavia Praha",          # ID=560
+    # ── Danish ───────────────────────────────────────────────────────────
+    "Brøndby":                  "Brondby",               # ID=407 (ø não decompõe via NFKD)
+    # ── Greek ────────────────────────────────────────────────────────────
+    "Olympiacos":               "Olympiakos Piraeus",    # ID=553
+    # ── Serbian ──────────────────────────────────────────────────────────
+    "Red Star Belgrade":        "Crvena zvezda",         # ID=598
+    # ── Brazilian ────────────────────────────────────────────────────────
+    "Grêmio":                   "Gremio",                # ID=130
+    "Atlético Mineiro":         "Atletico Mineiro",      # ID=117
+    # ── Spanish ──────────────────────────────────────────────────────────
+    "Atlético Madrid":          "Atletico Madrid",       # ID=530
+    "Atletico Madrid":          "Atletico Madrid",
+    "Atletico de Madrid":       "Atletico Madrid",
 }
 
 
+def _ascii_normalizar(nome: str) -> str:
+    """Remove diacríticos via NFKD: Grêmio→Gremio, Fenerbahçe→Fenerbahce.
+    Não resolve ø (Brøndby) — esse caso está no _CLUB_ALIASES."""
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", nome)
+        if unicodedata.category(c) != "Mn"
+    )
+
+
 async def _buscar_club_id(client: httpx.AsyncClient, clube: str) -> int | None:
-    """Busca o team_id do clube via /teams?name={clube}.
-    Normaliza via _CLUB_ALIASES antes de chamar a API."""
-    clube_api = _CLUB_ALIASES.get(clube, clube)
-    if clube_api in _club_id_cache:
-        return _club_id_cache[clube_api]
-    try:
-        data = await _api_get(client, "/teams", {"name": clube_api})
-        teams = data.get("response", [])
-        if teams:
-            tid = teams[0]["team"]["id"]
-            _club_id_cache[clube_api] = tid
-            return tid
-    except Exception:
-        pass
-    _club_id_cache[clube_api] = None
-    return None
+    """Busca team_id em 3 camadas para robustez contra mismatches de nome.
+
+    1. ?name=clube         — exato, sem risco de retornar time errado (ex: Inter Milan ≠ Inter Miami)
+    2. ?name=alias         — exato para 18/21 aliases (Inter→505, Tottenham→47, Bayern München→157…)
+       → ?search=alias     — sub-fallback para aliases sem exact match (Hoffenheim, Pauli, Crvena zvezda)
+    3. ?search=normalizado — remove diacríticos automaticamente (Grêmio→Gremio, Fenerbahçe→Fenerbahce…)
+    """
+    if clube in _club_id_cache:
+        return _club_id_cache[clube]
+
+    async def _nome(termo: str) -> int | None:
+        try:
+            data = await _api_get(client, "/teams", {"name": termo})
+            teams = data.get("response", [])
+            if teams:
+                return teams[0]["team"]["id"]
+        except Exception:
+            pass
+        return None
+
+    async def _search(termo: str) -> int | None:
+        try:
+            data = await _api_get(client, "/teams", {"search": termo})
+            teams = data.get("response", [])
+            if teams:
+                return teams[0]["team"]["id"]
+        except Exception:
+            pass
+        return None
+
+    # 1. Nome exato do squad
+    tid = await _nome(clube)
+
+    # 2. Alias manual: ?name= primeiro (evita ambiguidade do ?search= para "Inter", etc.)
+    #    Sub-fallback ?search= para aliases sem exact match (Hoffenheim, Pauli, Crvena zvezda)
+    if tid is None and clube in _CLUB_ALIASES:
+        alias_val = _CLUB_ALIASES[clube]
+        tid = await _nome(alias_val)
+        if tid is None:
+            tid = await _search(alias_val)
+
+    # 3. ASCII normalizado — remove diacríticos automaticamente
+    if tid is None:
+        normalizado = _ascii_normalizar(clube)
+        if normalizado != clube:
+            tid = await _search(normalizado)
+
+    _club_id_cache[clube] = tid
+    return tid
 
 
 def _score_nome(api_name: str, nome_busca: str) -> int:
