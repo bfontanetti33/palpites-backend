@@ -509,6 +509,115 @@ async def odds_debug(authorization: str | None = Header(default=None)):
     return resultado
 
 
+# ── Refresh cirúrgico de odds no cache ───────────────────────────────────────
+
+@router.get("/admin/refresh-odds", tags=["Admin"])
+async def refresh_odds(
+    authorization: str | None = Header(default=None),
+    dry_run: bool = False,
+):
+    """
+    Atualiza partida.odds para todos os jogos futuros no cache.
+    NÃO re-busca stats/forma/h2h (sem custo de quota API-Football).
+    Invalida 'stats' de cada slug atualizado para forçar recompute de value_bets.
+
+    dry_run=true  → só inspeciona o estado atual, sem escrever nada.
+    dry_run=false → atualiza odds + invalida stats + salva no disco.
+    """
+    _checar_token(authorization)
+    import asyncio
+    from datetime import datetime, timezone
+    from app.agents.odds_agent import buscar_odds_partida
+    from app.agents.football_agent import _JOGOS
+    from app.cache import static_cache as _sc
+
+    agora = datetime.now(timezone.utc)
+
+    # Filtra jogos futuros presentes no _store
+    jogos_futuros = []
+    for jogo in _JOGOS:
+        try:
+            dt = datetime.fromisoformat(jogo["data_hora_utc"].replace("Z", "+00:00"))
+            if dt < agora:
+                continue
+        except Exception:
+            continue
+        if jogo["slug"] not in _sc._store:
+            continue
+        jogos_futuros.append(jogo)
+
+    if dry_run:
+        inspecao = []
+        for jogo in jogos_futuros:
+            slug = jogo["slug"]
+            pj = (_sc._store[slug].get("partida") or {})
+            inspecao.append({
+                "slug":       slug,
+                "odds_cache": bool(pj.get("odds")),
+                "stats_cache": bool(_sc._store[slug].get("stats")),
+            })
+        sem_odds = sum(1 for x in inspecao if not x["odds_cache"])
+        return {
+            "dry_run":            True,
+            "total_jogos_futuros": len(jogos_futuros),
+            "sem_odds_no_cache":  sem_odds,
+            "com_odds_no_cache":  len(inspecao) - sem_odds,
+            "detalhes":           inspecao,
+        }
+
+    atualizados, sem_odds, erros = 0, 0, 0
+    detalhes = []
+
+    for jogo in jogos_futuros:
+        slug = jogo["slug"]
+        home = jogo["time_casa"]
+        away = jogo["time_fora"]
+
+        try:
+            odds = await buscar_odds_partida(home, away)
+            entry = _sc._store.get(slug)
+            if entry is None:
+                continue
+
+            if odds:
+                pj = dict(entry.get("partida") or {})
+                pj["odds"] = odds
+                entry = dict(entry)
+                entry["partida"] = pj
+                entry["stats"] = None  # invalida stats → recompute na próxima chamada
+                _sc._store[slug] = entry
+                # Limpa _partida_cache (in-memory TTL 8h) para que L2 leia odds novas
+                from app.agents.football_agent import _partida_cache as _pc
+                _pc.pop(slug, None)
+                atualizados += 1
+                detalhes.append({
+                    "slug":       slug,
+                    "bookmaker":  odds.get("bookmaker"),
+                    "mercados":   [k for k in odds if k not in ("bookmaker", "event_id", "bookmakers_h2h")],
+                })
+            else:
+                sem_odds += 1
+                detalhes.append({"slug": slug, "odds": None})
+
+        except Exception as e:
+            erros += 1
+            detalhes.append({"slug": slug, "erro": str(e)})
+
+        await asyncio.sleep(0.3)  # respeita rate limit da Odds API
+
+    if atualizados > 0:
+        _sc.save_to_disk()
+
+    return {
+        "dry_run":             False,
+        "total_jogos_futuros": len(jogos_futuros),
+        "atualizados":         atualizados,
+        "sem_odds":            sem_odds,
+        "erros":               erros,
+        "detalhes":            detalhes,
+    }
+
+
 # ── Validação da semana 1 Copa 2026 (Jun 11-17, 24 jogos) ────────────────────
 
 @router.get("/admin/validar-semana", tags=["Admin"])

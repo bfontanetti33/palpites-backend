@@ -195,10 +195,12 @@ async def _get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     _last_api_call = time.time()
     resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
 
-    # Retry automático em 429 — espera o tempo indicado pelo header ou 60s
-    if resp.status_code == 429:
-        retry_after = int(resp.headers.get("retry-after", 60))
-        log.warning("API-Football 429 — aguardando %ds antes de retry", retry_after)
+    # Retry em 429 — até 5 tentativas com backoff exponencial (1,2,4,8,16s)
+    for attempt in range(5):
+        if resp.status_code != 429:
+            break
+        retry_after = int(resp.headers.get("retry-after", 0)) or (2 ** attempt)
+        log.warning("API-Football 429 (tentativa %d/5) — aguardando %ds", attempt + 1, retry_after)
         await asyncio.sleep(retry_after)
         _last_api_call = time.time()
         resp = await client.get(f"{BASE_URL}{path}", headers=HEADERS, params=params)
@@ -587,11 +589,12 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro:
 
 # ── Escanteios — busca via /fixtures/statistics ───────────────────────────────
 
-async def _media_escanteios(client: httpx.AsyncClient, team_id: int) -> float | None:
+async def _media_escanteios(client: httpx.AsyncClient, team_id: int) -> tuple[float | None, int]:
     """
     Calcula média de escanteios do time nos últimos 5 jogos sênior.
     Re-usa o cache de /fixtures?team&last=20 já feito por _forma_recente.
     Para cada fixture, chama /fixtures/statistics (cacheado por 4h).
+    Retorna (media, n) onde n = jogos com dado real de corner.
     """
     try:
         data = await _get(client, "/fixtures", {"team": team_id, "last": 20})
@@ -601,7 +604,6 @@ async def _media_escanteios(client: httpx.AsyncClient, team_id: int) -> float | 
         escanteios: list[int] = []
         for f in fixtures:
             fid = f["fixture"]["id"]
-            is_home = f["teams"]["home"]["id"] == team_id
             try:
                 sdata = await _get(client, "/fixtures/statistics", {"fixture": fid})
                 for team_stats in sdata.get("response", []):
@@ -619,9 +621,10 @@ async def _media_escanteios(client: httpx.AsyncClient, team_id: int) -> float | 
             except Exception:
                 continue
 
-        return round(sum(escanteios) / len(escanteios), 1) if escanteios else None
+        n = len(escanteios)
+        return (round(sum(escanteios) / n, 1), n) if n > 0 else (None, 0)
     except Exception:
-        return None
+        return (None, 0)
 
 
 # ── Cartões por jogo — busca via /fixtures/statistics (mesma fonte da forma) ──
@@ -1079,8 +1082,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 forma_fora,
                 h2h,
                 arb,
-                esc_casa,
-                esc_fora,
+                esc_casa_raw,
+                esc_fora_raw,
             ) = await asyncio.gather(
                 _get_team_stats(home_id, "stats_casa"),
                 _get_team_stats(away_id, "stats_fora"),
@@ -1096,13 +1099,19 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         forma_casa = forma_fora = []
         h2h = []
         arb = None
-        esc_casa = esc_fora = None
+        esc_casa_raw = esc_fora_raw = (None, 0)
 
     # ── Enriquece stats com BTTS/Over + escanteios ────────────────────────────
     stats_casa = _enriquecer_btts_over(stats_casa_raw, forma_casa)
     stats_fora = _enriquecer_btts_over(stats_fora_raw, forma_fora)
-    stats_casa.media_escanteios = esc_casa
-    stats_fora.media_escanteios = esc_fora
+    esc_c_mean, esc_c_n = esc_casa_raw
+    esc_f_mean, esc_f_n = esc_fora_raw
+    stats_casa.media_escanteios = esc_c_mean
+    stats_fora.media_escanteios = esc_f_mean
+    stats_casa.escanteios_amostra_n = esc_c_n
+    stats_fora.escanteios_amostra_n = esc_f_n
+    stats_casa.escanteios_baixa_confianca = 0 < esc_c_n < 3
+    stats_fora.escanteios_baixa_confianca = 0 < esc_f_n < 3
 
     # ── Odds + Jogadores + Ratings em paralelo ────────────────────────────────
     # Separado do gather principal: cada um usa cliente próprio.

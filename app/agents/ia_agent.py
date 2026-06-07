@@ -44,23 +44,32 @@ ELO_CENTER   = 1500.0   # centro de normalização do Elo
 ELO_SCALE    = 200.0    # escala (±1 SD ≈ 200 pontos)
 
 # ── PONTO 3: Elo fallback abrangente para todos os 48 times da Copa 2026 ─────
-# eloratings.net é um SPA (Single Page App) — não retorna dados no HTML estático.
-# Fallback calculado com base em valores históricos públicos (Elo World Football, abril/2026).
+# Fonte: eloratings.net/World.tsv — coletado em 2026-06-07.
+# Códigos TSV: EN=England, SQ=Scotland, BA=Bosnia, ZA=South Africa,
+#              SA=Saudi Arabia, KR=South Korea, CD=Congo DR, CI=Ivory Coast.
 _ELO_FALLBACK: dict[str, float] = {
-    "Argentina": 2142, "France": 2003, "Spain": 1989, "England": 1972,
-    "Portugal": 1946, "Germany": 1930, "Netherlands": 1907, "Brazil": 1900,
-    "Belgium": 1874, "Colombia": 1874, "Uruguay": 1867, "Morocco": 1856,
-    "USA": 1853, "United States": 1853, "Japan": 1849, "Mexico": 1841,
-    "Croatia": 1838, "Senegal": 1825, "Switzerland": 1824, "Ecuador": 1788,
-    "South Korea": 1782, "Australia": 1781, "Austria": 1780, "Norway": 1779,
-    "Türkiye": 1770, "Turkey": 1770, "Iran": 1760, "Canada": 1756,
-    "Sweden": 1745, "Ivory Coast": 1740, "Algeria": 1720, "Paraguay": 1718,
-    "Egypt": 1715, "Ghana": 1700, "Tunisia": 1698, "Saudi Arabia": 1695,
-    "Czech Republic": 1694, "Czechia": 1694, "Scotland": 1690,
-    "South Africa": 1641, "Panama": 1605, "New Zealand": 1598,
-    "Jordan": 1590, "Iraq": 1585, "Haiti": 1560,
-    "Cape Verde Islands": 1555, "Curaçao": 1540, "Qatar": 1530,
-    "Uzbekistan": 1525, "Bosnia & Herzegovina": 1520, "Congo DR": 1515,
+    # UEFA
+    "Spain": 2155, "France": 2062, "England": 2021, "Portugal": 1986,
+    "Netherlands": 1944, "Germany": 1932, "Norway": 1914, "Croatia": 1911,
+    "Türkiye": 1911, "Turkey": 1911, "Belgium": 1893, "Switzerland": 1891,
+    "Austria": 1830, "Scotland": 1782, "Czech Republic": 1740, "Czechia": 1740,
+    "Sweden": 1712, "Bosnia & Herzegovina": 1595,
+    # CONMEBOL
+    "Argentina": 2114, "Colombia": 1977, "Ecuador": 1935, "Uruguay": 1892,
+    "Paraguay": 1833, "Brazil": 1991,
+    # CONCACAF
+    "Mexico": 1875, "Canada": 1788, "Panama": 1730,
+    "USA": 1726, "United States": 1726, "Haiti": 1548, "Curaçao": 1434,
+    # CAF
+    "Senegal": 1867, "Algeria": 1760, "Ivory Coast": 1695, "Egypt": 1696,
+    "Cape Verde Islands": 1578, "Congo DR": 1661, "Tunisia": 1628,
+    "South Africa": 1528, "Ghana": 1510, "Morocco": 1827,
+    # AFC
+    "Japan": 1906, "Iran": 1772, "Iraq": 1618, "Australia": 1777,
+    "Jordan": 1685, "South Korea": 1758, "Saudi Arabia": 1569,
+    "Uzbekistan": 1718, "Qatar": 1421,
+    # OFC
+    "New Zealand": 1562,
 }
 
 # ── PONTO 4: Mapeamento confederação → times da Copa 2026 ─────────────────────

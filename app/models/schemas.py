@@ -42,6 +42,8 @@ class EstatisticasTemporada(BaseModel):
     media_gols_sofridos_recente: float | None = None
     # estatísticas avançadas
     media_escanteios: float | None = None       # média de escanteios/jogo (últimos 5)
+    escanteios_amostra_n: int | None = None     # jogos com dado real de corner
+    escanteios_baixa_confianca: bool = False    # True quando 1 ≤ N < 3
     chances_criadas: float | None = None         # estimativa de chances criadas/jogo
     chances_criadas_metodo: str | None = None   # "estimado" — proxy via modelo DC
 
