@@ -1209,6 +1209,14 @@ def _score_final(
         ))
 
     resultados.sort(key=lambda x: -x.score_final)
+
+    # Palpite principal = 1X2 de maior prob_dc (puro, não influenciado por value_score)
+    candidatos_1x2 = [r for r in resultados if r.mercado == "Resultado 1X2"]
+    if candidatos_1x2:
+        palpite = max(candidatos_1x2, key=lambda x: x.prob_dc)
+        resto   = sorted([r for r in resultados if r is not palpite], key=lambda x: -x.score_final)
+        return [palpite] + resto[:2]
+
     return resultados[:3]
 
 
