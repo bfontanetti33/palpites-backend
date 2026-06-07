@@ -14,9 +14,15 @@ log = logging.getLogger(__name__)
 _CACHE_PATH = Path(__file__).parent.parent.parent / "seeds" / "cache_partidas.json"
 _store: dict[str, dict] = {}
 
-TTL_OK        = 8  * 3600   # 8h — partida completa
+TTL_OK        = 8  * 3600   # 8h — partida completa (compat legado)
 TTL_INSUF     = 4  * 3600   # 4h  — dados_insuficientes, re-tenta 6×/dia
 TTL_NARRATIVE = 8  * 3600   # 8h — narrativa Claude (texto muda pouco)
+
+# TTLs diferenciados por tipo de dado
+TTL_TEAM_STATS   = 30 * 24 * 3600  # 30 dias — Copa 2022/2018 é imutável
+TTL_PLAYER_STATS =  7 * 24 * 3600  # 7 dias  — stats de jogador (temporada encerrada)
+TTL_FORMA        = 72 * 3600       # 72h     — forma recente (evento-based + fallback)
+TTL_H2H          =  7 * 24 * 3600  # 7 dias  — H2H histórico
 
 
 def _stats_ttl(horario_utc: str | None) -> float:
@@ -79,6 +85,66 @@ def _age_seconds(entry: dict) -> float:
         return float("inf")
 
 
+def _component_age(slug: str, key: str) -> float:
+    """Segundos desde o timestamp de um componente específico, ou inf se ausente."""
+    entry = _store.get(slug)
+    if not entry:
+        return float("inf")
+    ts = entry.get(key)
+    if not ts:
+        return float("inf")
+    try:
+        dt = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - dt).total_seconds()
+    except Exception:
+        return float("inf")
+
+
+def is_team_stats_fresh(slug: str) -> bool:
+    """Stats históricas do time (Copa cascata) — imutáveis, TTL 30 dias."""
+    return _component_age(slug, "team_stats_cached_at") < TTL_TEAM_STATS
+
+
+def is_player_stats_fresh(slug: str) -> bool:
+    """Stats de jogador da temporada — TTL 7 dias (temporada encerrada = imutável)."""
+    return _component_age(slug, "player_stats_cached_at") < TTL_PLAYER_STATS
+
+
+def is_h2h_fresh(slug: str) -> bool:
+    """H2H histórico — TTL 7 dias (muda só quando os times se enfrentam)."""
+    return _component_age(slug, "h2h_cached_at") < TTL_H2H
+
+
+def is_forma_fresh(slug: str) -> bool:
+    """Forma recente — TTL 72h + invalidação por evento (novo jogo detectado).
+
+    Evento-based: se ultimo_jogo_casa/fora é posterior a forma_cached_at,
+    o time jogou um novo jogo desde o último fetch → stale imediatamente.
+    Callers externos podem usar invalidate_if_stale() com novas datas de jogo.
+    """
+    if _component_age(slug, "forma_cached_at") >= TTL_FORMA:
+        return False
+    entry = _store.get(slug)
+    if not entry:
+        return False
+    forma_ts = entry.get("forma_cached_at")
+    if not forma_ts:
+        return False
+    try:
+        forma_dt = datetime.fromisoformat(str(forma_ts).replace("Z", "+00:00"))
+        for key in ("ultimo_jogo_casa", "ultimo_jogo_fora"):
+            uj = entry.get(key)
+            if uj:
+                uj_dt = datetime.fromisoformat(str(uj))
+                if uj_dt.tzinfo is None:
+                    uj_dt = uj_dt.replace(tzinfo=timezone.utc)
+                if uj_dt > forma_dt:
+                    return False  # time jogou depois do último fetch de forma
+    except Exception:
+        pass
+    return True
+
+
 def is_fresh(slug: str) -> bool:
     if slug not in _store:
         return False
@@ -88,6 +154,14 @@ def is_fresh(slug: str) -> bool:
     age = _age_seconds(entry)
     ttl = TTL_INSUF if entry.get("dados_insuficientes") else TTL_OK
     return age < ttl
+
+
+def get_partida_raw(slug: str) -> dict | None:
+    """Retorna o dict da Partida SEM verificar TTL — para reuso de componentes frescos."""
+    entry = _store.get(slug)
+    if not entry or not isinstance(entry, dict):
+        return None
+    return entry.get("partida")
 
 
 def get_partida(slug: str) -> dict | None:
@@ -143,21 +217,44 @@ def get_recomendacao_estado(slug: str) -> tuple[bool, bool, dict | None]:
     return stats_fresh, narrative_fresh, dados
 
 
-def put_partida(slug: str, partida_dict: dict) -> None:
-    """Salva Partida no cache disco. partida_dict = partida.model_dump(mode='json')."""
+def put_partida(
+    slug: str,
+    partida_dict: dict,
+    *,
+    update_team_stats: bool = True,
+    update_player_stats: bool = True,
+    update_forma: bool = True,
+    update_h2h: bool = True,
+) -> None:
+    """Salva Partida no cache disco. partida_dict = partida.model_dump(mode='json').
+
+    Flags update_* controlam quais timestamps de componente são atualizados.
+    Componentes não re-buscados preservam seus timestamps antigos (TTL longo continua válido).
+    """
     agora = datetime.now(timezone.utc).isoformat()
+    existing = _store.get(slug, {})
 
     def _ultimo_jogo(forma: list[dict]) -> str | None:
         datas = [j.get("data") for j in forma if j.get("data")]
         return max(datas) if datas else None
 
     _store[slug] = {
-        "cached_at": agora,
+        # Campos raiz (compat legado)
+        "cached_at":           agora,
         "dados_insuficientes": partida_dict.get("dados_insuficientes", False),
-        "ultimo_jogo_casa": _ultimo_jogo(partida_dict.get("forma_casa") or []),
-        "ultimo_jogo_fora": _ultimo_jogo(partida_dict.get("forma_fora") or []),
-        "partida": partida_dict,
-        "recomendacao": _store.get(slug, {}).get("recomendacao"),  # preserva rec existente
+        "ultimo_jogo_casa":    _ultimo_jogo(partida_dict.get("forma_casa") or []),
+        "ultimo_jogo_fora":    _ultimo_jogo(partida_dict.get("forma_fora") or []),
+        # Dado principal
+        "partida":             partida_dict,
+        # Sub-caches preservados (recomendacao, stats, narrativa não são tocados aqui)
+        "recomendacao":        existing.get("recomendacao"),
+        "stats":               existing.get("stats"),
+        "narrativa":           existing.get("narrativa"),
+        # Timestamps por componente — só atualiza o que foi re-buscado
+        "team_stats_cached_at":   agora if update_team_stats   else existing.get("team_stats_cached_at"),
+        "player_stats_cached_at": agora if update_player_stats else existing.get("player_stats_cached_at"),
+        "forma_cached_at":        agora if update_forma        else existing.get("forma_cached_at"),
+        "h2h_cached_at":          agora if update_h2h          else existing.get("h2h_cached_at"),
     }
     save_to_disk()
 

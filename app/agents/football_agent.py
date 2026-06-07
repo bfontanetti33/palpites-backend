@@ -316,8 +316,8 @@ async def _stats_time(client: httpx.AsyncClient, team_id: int) -> EstatisticasTe
                 media_gols_marcados=float(goals["for"]["average"]["total"]),
                 media_gols_sofridos=float(goals["against"]["average"]["total"]),
                 clean_sheets=clean.get("total"),
-                media_amarelos=round(total_yellow / jogos, 2) if jogos else None,
-                media_vermelhos=round(total_red / jogos, 2) if jogos else None,
+                media_amarelos=None,    # derivado da forma recente — ver _enriquecer_forma_com_cartoes
+                media_vermelhos=None,
                 penaltis_marcados=pen.get("scored", {}).get("total"),
                 penaltis_total=pen.get("total"),
             )
@@ -391,6 +391,7 @@ async def _forma_recente(client: httpx.AsyncClient, team_id: int) -> list[Entrad
         gols_contra = f["goals"]["away"]            if is_home else f["goals"]["home"]
         resultado   = "W" if winner is True else ("L" if winner is False else "D")
         forma.append(EntradaForma(
+            fixture_id=f["fixture"]["id"],
             data=f["fixture"]["date"][:10],
             adversario=adversario,
             placar_proprio=gols_pro,
@@ -432,6 +433,18 @@ def _enriquecer_btts_over(
     stats.under25_pct                  = 100 - stats.over25_pct
     stats.media_gols_marcados_recente  = round(sum(gols_pro)    / n, 2)
     stats.media_gols_sofridos_recente  = round(sum(gols_contra) / n, 2)
+
+    # Cartões — derivados da forma (fonte: /fixtures/statistics, mesma temporalidade dos gols)
+    jogos_com_cartoes = [j for j in forma if j.cartoes_amarelos is not None]
+    if jogos_com_cartoes:
+        stats.media_amarelos  = round(
+            sum(j.cartoes_amarelos                for j in jogos_com_cartoes) / len(jogos_com_cartoes), 2
+        )
+        stats.media_vermelhos = round(
+            sum((j.cartoes_vermelhos or 0)        for j in jogos_com_cartoes) / len(jogos_com_cartoes), 2
+        )
+    # Se nenhum jogo tem dado, deixa None (stats de _stats_time já foram zeradas)
+
     return stats
 
 
@@ -494,11 +507,12 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro:
     _default = Arbitro(
         nome=None,
         pais=None,
-        cartoes_por_jogo=_MEDIA_COPA.get("cartoes_por_jogo"),
-        penaltis_por_jogo=_MEDIA_COPA.get("penaltis_por_jogo"),
-        tendencia="Moderado",
+        cartoes_por_jogo=None,
+        penaltis_por_jogo=None,
+        tendencia=None,
         fonte="media_copa_2026",
-        nota="Árbitro ainda não designado — baseado na média dos 52 árbitros da Copa",
+        nota="Árbitro ainda não designado",
+        dados_insuficientes=True,
     )
 
     try:
@@ -610,6 +624,45 @@ async def _media_escanteios(client: httpx.AsyncClient, team_id: int) -> float | 
         return None
 
 
+# ── Cartões por jogo — busca via /fixtures/statistics (mesma fonte da forma) ──
+
+async def _enriquecer_forma_com_cartoes(
+    client: httpx.AsyncClient, team_id: int, forma: list[EntradaForma]
+) -> list[EntradaForma]:
+    """
+    Para cada EntradaForma com fixture_id, chama /fixtures/statistics e preenche
+    cartoes_amarelos/cartoes_vermelhos do time.
+    Endpoint já cacheado por _media_escanteios — zero quota adicional nos 5 jogos sobrepostos.
+    Jogos sem dado ficam com None: não contam na média, mas contam na amostra.
+    """
+    for entrada in forma:
+        if entrada.fixture_id is None:
+            continue
+        try:
+            sdata = await _get(client, "/fixtures/statistics", {"fixture": entrada.fixture_id})
+            for team_stats in sdata.get("response", []):
+                if team_stats.get("team", {}).get("id") != team_id:
+                    continue
+                amarelos = vermelhos = 0
+                for stat in team_stats.get("statistics", []):
+                    tipo = (stat.get("type") or "").lower()
+                    val  = stat.get("value")
+                    try:
+                        val = int(val) if val is not None else 0
+                    except (TypeError, ValueError):
+                        val = 0
+                    if "yellow" in tipo:
+                        amarelos += val
+                    elif "red" in tipo:
+                        vermelhos += val
+                entrada.cartoes_amarelos  = amarelos
+                entrada.cartoes_vermelhos = vermelhos
+                break
+        except Exception:
+            continue
+    return forma
+
+
 # ── Chances criadas — estimativa via modelo Dixon-Coles ───────────────────────
 
 def _calc_chances_criadas(
@@ -703,10 +756,30 @@ def _insight_curto(nome_casa: str, nome_fora: str, prob: "Probabilidades | None"
     return f"Confronto equilibrado — {nome_casa} {vc}% / Empate {emp}% / {nome_fora} {vf}%"
 
 
-def _jogo_para_resumo(j: dict, partida: "Partida | None" = None) -> PartidaResumo:
+def _jogo_para_resumo(
+    j: dict,
+    partida: "Partida | None" = None,
+    stats_dados: dict | None = None,
+) -> PartidaResumo:
     nome_casa = j["time_casa"]
     nome_fora = j["time_fora"]
-    prob = partida.probabilidades if partida else None
+
+    # Preferência: probs pós-boost do stats cache (modelo_gols pós-Camada 4).
+    # Fallback: partida.probabilidades (pré-boost, Poisson simples) — nunca quebra.
+    prob: Probabilidades | None = None
+    if stats_dados:
+        mg = stats_dados.get("modelo_gols") or {}
+        vc  = mg.get("prob_vitoria_casa")
+        emp = mg.get("prob_empate")
+        vf  = mg.get("prob_vitoria_fora")
+        if vc is not None and emp is not None and vf is not None:
+            prob = Probabilidades(
+                vitoria_casa=round(vc), empate=round(emp), vitoria_fora=round(vf),
+                lambda_casa=mg.get("lambda_casa", 1.2),
+                lambda_fora=mg.get("lambda_fora", 1.2),
+            )
+    if prob is None:
+        prob = partida.probabilidades if partida else None
 
     fav, prob_fav = _favorito_e_prob(nome_casa, nome_fora, prob)
 
@@ -724,7 +797,6 @@ def _jogo_para_resumo(j: dict, partida: "Partida | None" = None) -> PartidaResum
         time_fora_logo=j.get("time_fora_logo") or "",
         gols_casa=j.get("gols_casa"),
         gols_fora=j.get("gols_fora"),
-        # Probabilidades (do cache, se disponível)
         prob_vitoria_casa=float(prob.vitoria_casa) if prob else None,
         prob_empate=float(prob.empate)              if prob else None,
         prob_vitoria_fora=float(prob.vitoria_fora)  if prob else None,
@@ -873,23 +945,68 @@ def _gerar_insight_probabilidades(
 async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
     """
     72 jogos da fase de grupos — lidos do seed, zero quota.
-    Enriquece com probabilidades e insights do _partida_cache quando disponível.
+    Enriquece com probs pós-boost do stats cache (modelo_gols pós-Camada 4).
+    Fallback: partida.probabilidades (pré-boost) quando stats não disponível.
     """
-    return [_jogo_para_resumo(j, _partida_cache.get(j["slug"])) for j in _JOGOS]
+    from app.cache import static_cache
+    return [
+        _jogo_para_resumo(j, _partida_cache.get(j["slug"]), static_cache.get_stats(j["slug"]))
+        for j in _JOGOS
+    ]
 
 
 def _enriquecer_odds(partida: "Partida", slug: str) -> "Partida":
-    """Preenche partida.odds do cache de odds quando a partida foi cacheada sem odds."""
-    if partida.odds is not None:
-        return partida
+    """
+    Preenche odds (se ausentes) e enriquece probs pós-boost do stats cache.
+    Chamada em todos os caminhos de retorno de buscar_detalhe_partida (L1 e L2).
+    """
+    updates: dict = {}
+
+    # Odds
+    if partida.odds is None:
+        try:
+            from app.cache.odds_cache import get_odds_dinamicas
+            odds = get_odds_dinamicas(slug)
+            if odds:
+                updates["odds"] = odds
+        except Exception:
+            pass
+
+    # Probs pós-boost — sobrepõe prob_vitoria_* pré-boost da Partida
     try:
-        from app.cache.odds_cache import get_odds_dinamicas
-        odds = get_odds_dinamicas(slug)
-        if odds:
-            return partida.model_copy(update={"odds": odds})
+        from app.cache import static_cache as _sc
+        sd = _sc.get_stats(slug)
+        if sd:
+            mg  = sd.get("modelo_gols") or {}
+            vc  = mg.get("prob_vitoria_casa")
+            emp = mg.get("prob_empate")
+            vf  = mg.get("prob_vitoria_fora")
+            if vc is not None and emp is not None and vf is not None:
+                prob_b = Probabilidades(
+                    vitoria_casa=round(vc), empate=round(emp), vitoria_fora=round(vf),
+                    lambda_casa=mg.get("lambda_casa", 1.2),
+                    lambda_fora=mg.get("lambda_fora", 1.2),
+                )
+                fav_b, prob_fav_b = _favorito_e_prob(
+                    partida.time_casa_nome, partida.time_fora_nome, prob_b
+                )
+                updates.update({
+                    "prob_vitoria_casa": vc,
+                    "prob_empate":       emp,
+                    "prob_vitoria_fora": vf,
+                    "favorito":          fav_b,
+                    "prob_favorito":     prob_fav_b,
+                    "insight_curto":     _insight_curto(
+                        partida.time_casa_nome, partida.time_fora_nome, prob_b
+                    ),
+                    "resumo_rapido":     _gerar_insight_probabilidades(
+                        partida.time_casa_nome, partida.time_fora_nome, prob_b
+                    ),
+                })
     except Exception:
         pass
-    return partida
+
+    return partida.model_copy(update=updates) if updates else partida
 
 
 async def buscar_detalhe_partida(slug: str) -> Partida | None:
@@ -900,16 +1017,23 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
             _partida_cache[slug] = p   # persiste enriquecimento
         return p
 
-    # L2 — disk cache (sobrevive redeploys sem consumir quota)
+    # L2 — disk cache com TTL diferenciado por componente
+    cached_dict: dict | None = None
     try:
         from app.cache import static_cache
-        partida_dict = static_cache.get_partida(slug)
-        if partida_dict:
-            partida = _enriquecer_odds(Partida.model_validate(partida_dict), slug)
+        cached_dict = static_cache.get_partida_raw(slug)
+        if cached_dict and (
+            static_cache.is_team_stats_fresh(slug)
+            and static_cache.is_player_stats_fresh(slug)
+            and static_cache.is_forma_fresh(slug)
+            and static_cache.is_h2h_fresh(slug)
+        ):
+            # Todos os componentes frescos — zero chamadas de API
+            partida = _enriquecer_odds(Partida.model_validate(cached_dict), slug)
             _partida_cache[slug] = partida
             return partida
     except Exception:
-        pass
+        cached_dict = None
 
     jogo = _POR_SLUG.get(slug)
     if not jogo:
@@ -921,7 +1045,31 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     home_nome  = jogo["time_casa"]
     away_nome  = jogo["time_fora"]
 
-    # ── 8 chamadas paralelas à API-Football ──────────────────────────────────
+    # Determina quais componentes precisam de rebusca
+    needs_team  = cached_dict is None or not static_cache.is_team_stats_fresh(slug)
+    needs_forma = cached_dict is None or not static_cache.is_forma_fresh(slug)
+    needs_h2h   = cached_dict is None or not static_cache.is_h2h_fresh(slug)
+    needs_plyr  = cached_dict is None or not static_cache.is_player_stats_fresh(slug)
+
+    # ── Wrappers condicionais: retorna valor do cache se fresco, senão busca API ──
+    async def _get_team_stats(team_id: int, cache_key: str) -> EstatisticasTemporada:
+        if not needs_team and cached_dict and cache_key in cached_dict:
+            return EstatisticasTemporada.model_validate(cached_dict[cache_key])
+        return await _stats_time(client, team_id)
+
+    async def _get_forma_enriched(team_id: int, cache_key: str) -> list[EntradaForma]:
+        if not needs_forma and cached_dict:
+            # Cache fresco — cartoes_amarelos/vermelhos já estão no cached_dict
+            return [EntradaForma.model_validate(j) for j in (cached_dict.get(cache_key) or [])]
+        forma = await _forma_recente(client, team_id)
+        return await _enriquecer_forma_com_cartoes(client, team_id, forma)
+
+    async def _get_h2h() -> list[dict]:
+        if not needs_h2h and cached_dict:
+            return cached_dict.get("head_to_head") or []
+        return await _h2h(client, home_id, away_id, slug)
+
+    # ── Chamadas paralelas à API-Football (só para componentes stale) ─────────
     try:
         async with httpx.AsyncClient(timeout=25) as client:
             (
@@ -934,11 +1082,11 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
                 esc_casa,
                 esc_fora,
             ) = await asyncio.gather(
-                _stats_time(client, home_id),
-                _stats_time(client, away_id),
-                _forma_recente(client, home_id),
-                _forma_recente(client, away_id),
-                _h2h(client, home_id, away_id, slug),
+                _get_team_stats(home_id, "stats_casa"),
+                _get_team_stats(away_id, "stats_fora"),
+                _get_forma_enriched(home_id, "forma_casa"),
+                _get_forma_enriched(away_id, "forma_fora"),
+                _get_h2h(),
                 _arbitro(client, fixture_id),
                 _media_escanteios(client, home_id),
                 _media_escanteios(client, away_id),
@@ -971,10 +1119,15 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         except Exception as e:
             return e
 
+    async def _get_jogadores(team_nome: str, cache_key: str):
+        if not needs_plyr and cached_dict and cached_dict.get(cache_key):
+            return cached_dict[cache_key]  # dict no formato esperado por _to_destaque
+        return await buscar_jogadores_destaque(team_nome)
+
     resultados = await asyncio.gather(
         _timed(_odds_api(home_nome, away_nome), 15),
-        _timed(buscar_jogadores_destaque(home_nome), 25),
-        _timed(buscar_jogadores_destaque(away_nome), 25),
+        _timed(_get_jogadores(home_nome, "jogadores_destaque_casa"), 25),
+        _timed(_get_jogadores(away_nome, "jogadores_destaque_fora"), 25),
         _timed(_buscar_fifa_ranking_wikipedia(), 8),
         _timed(_calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"]), 10),
         _timed(_calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"]), 10),
@@ -1113,7 +1266,14 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     _partida_cache[slug] = partida
     try:
         from app.cache import static_cache
-        static_cache.put_partida(slug, partida.model_dump(mode="json"))
+        static_cache.put_partida(
+            slug,
+            partida.model_dump(mode="json"),
+            update_team_stats=needs_team,
+            update_player_stats=needs_plyr,
+            update_forma=needs_forma,
+            update_h2h=needs_h2h,
+        )
     except Exception:
         pass
     return partida

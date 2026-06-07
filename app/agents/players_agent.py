@@ -306,11 +306,17 @@ async def _api_get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     key = f"{path}:{sorted(params.items())}"
     if key in _stats_cache:
         return _stats_cache[key]
-    r = await client.get(f"{BASE_URL}{path}", headers=API_HDR, params=params)
-    r.raise_for_status()
-    data = r.json()
-    _stats_cache[key] = data
-    return data
+    for tentativa in range(3):
+        r = await client.get(f"{BASE_URL}{path}", headers=API_HDR, params=params)
+        if r.status_code == 429:
+            await asyncio.sleep(2 ** tentativa)  # 1s, 2s, 4s
+            continue
+        r.raise_for_status()
+        data = r.json()
+        _stats_cache[key] = data
+        return data
+    r.raise_for_status()  # propaga o 429 se todas as tentativas falharem
+    return {}
 
 
 def _agregar_stats(response_list: list[dict]) -> dict | None:

@@ -619,24 +619,30 @@ def _calcular_contexto(
     fad_c = fadiga(partida.forma_casa)
     fad_f = fadiga(partida.forma_fora)
 
-    # Home advantage — país-sede jogando em casa
-    pais_sede = _pais_sede_da_cidade(partida.cidade or "")
-    home_adv  = False
-    home_time = ""
-    lam_boost   = 1.0
-    away_pen    = 1.0
+    # Home advantage — país-sede jogando em casa (ou como "fora" pelo sorteio)
+    pais_sede    = _pais_sede_da_cidade(partida.cidade or "")
+    home_adv     = False
+    home_time    = ""
+    lam_boost    = 1.0
+    away_pen     = 1.0
+    host_is_away = False  # True quando anfitrião é listado como time_fora pelo sorteio
 
     if pais_sede:
         home_nome = partida.time_casa_nome
         away_nome = partida.time_fora_nome
-        # Time da casa é o país-sede?
         if home_nome in _HOST_NATIONS or home_nome == pais_sede:
             home_adv  = True
             home_time = home_nome
-            lam_boost   = HOME_BOOST
-            away_pen    = AWAY_PENALTY
-        # Time visitante é o país-sede jogando fora (não tem vantagem extra)
-        # — nenhum ajuste necessário
+            lam_boost = HOME_BOOST
+            away_pen  = AWAY_PENALTY
+        elif away_nome in _HOST_NATIONS or away_nome == pais_sede:
+            # Anfitrião listado como "fora" pelo sorteio mas joga em solo-sede
+            # (ex: czech-republic-mexico em Mexico City)
+            home_adv     = True
+            home_time    = away_nome
+            lam_boost    = HOME_BOOST
+            away_pen     = AWAY_PENALTY
+            host_is_away = True
 
     # Primeira rodada
     primeira = "Rodada 1" in partida.rodada
@@ -729,8 +735,13 @@ def _calcular_contexto(
 
     # Home advantage (país-sede) — aplicado antes da fadiga
     if home_adv:
-        lam = round(lam * lam_boost, 3)
-        mu  = round(mu  * away_pen,  3)
+        if host_is_away:
+            # anfitrião = mu (visitante nominal); penaliza o mandante nominal
+            mu  = round(mu  * lam_boost, 3)
+            lam = round(lam * away_pen,  3)
+        else:
+            lam = round(lam * lam_boost, 3)
+            mu  = round(mu  * away_pen,  3)
 
     if fad_c: lam = round(lam * 0.95, 3)
     if fad_f: mu  = round(mu  * 0.95, 3)
@@ -1183,6 +1194,13 @@ REGRAS DE CONTEÚDO:
 - Se tem zebra alerta: explore com entusiasmo — é o conteúdo mais valioso
 - Se há vantagem de campo (sede da Copa): sempre mencione com impacto emocional
 
+REGRA ANTI-INVENÇÃO (crítica — máxima prioridade):
+- Use SOMENTE os dados fornecidos neste prompt. NUNCA mencione árbitro, escalação, lesões, clima, declarações, motivação ou qualquer fator que não esteja explicitamente nos dados acima
+- Se um dado não foi fornecido, ele não existe para você — não invente, não estime, não mencione
+- O prompt NUNCA contém dados de árbitro — PROIBIDO mencionar árbitro, juiz, cartões por decisão do árbitro ou disciplina arbitral
+- PROIBIDO: "considerando o árbitro", "árbitro rigoroso", "juiz apita muito cartão", qualquer referência a lesão, convocação, declaração ou fator externo não listado acima
+- Cartões podem ser mencionados APENAS como estatística do time (ex: "time faz muitas faltas"), nunca como característica do árbitro
+
 INSIGHT_JOGADORES — regra específica:
 - Só cite jogadores cujos DADOS REAIS estejam no prompt — proibido inventar qualquer número
 - Formato: "De olho no [nome] do [clube] — [stat_total] [gols ou assists] na temporada, [caps] jogos pela seleção"
@@ -1573,7 +1591,6 @@ async def calcular_stats(partida: Partida) -> StatsRecomendacao:
         }
         odds_result = _processar_odds(partida.odds, _probs_01)
         odds_disp   = odds_result["odds_disponiveis"]
-        _, value_bets = _calcular_value_bets(modelo, partida.odds)
     except Exception as e:
         log.error("calcular_stats camada3 (%s x %s): %s", nome_c, nome_f, e)
 
@@ -1584,6 +1601,12 @@ async def calcular_stats(partida: Partida) -> StatsRecomendacao:
         modelo_final = modelo_c4
     except Exception as e:
         log.error("calcular_stats camada4 (%s x %s): %s", nome_c, nome_f, e)
+
+    # Value bets calculados com modelo pós-boost (Camada 4 já aplicada)
+    try:
+        _, value_bets = _calcular_value_bets(modelo_c4, partida.odds)
+    except Exception as e:
+        log.error("calcular_stats value_bets (%s x %s): %s", nome_c, nome_f, e)
 
     # Camada 4B — Tail Risk
     try:

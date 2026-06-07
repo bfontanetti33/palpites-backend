@@ -53,6 +53,9 @@ class EntradaForma(BaseModel):
     placar_adversario: int | None = None
     resultado: str                        # "W", "D", "L"
     competicao: str
+    fixture_id: int | None = None         # ID da fixture — usado para buscar /fixtures/statistics
+    cartoes_amarelos: int | None = None   # amarelos do time neste jogo (None = sem dado)
+    cartoes_vermelhos: int | None = None  # vermelhos do time neste jogo (None = sem dado)
 
 
 class PlacarProvavel(BaseModel):
@@ -82,6 +85,7 @@ class Arbitro(BaseModel):
     tendencia: str | None = None            # "Rigoroso" / "Moderado" / "Permissivo"
     fonte: str | None = None                # "seed" / "api-football" / "media_copa_2026"
     nota: str | None = None                 # mensagem para o frontend
+    dados_insuficientes: bool = False       # True quando árbitro não foi designado ainda
 
 
 # ── Modelos de jogadores (devem vir antes de Partida) ────────────────────────
