@@ -1,7 +1,7 @@
 # CONTEXT — Palpites da IA (Copa 2026)
 
 > Documento único de contexto para retomar o desenvolvimento em qualquer sessão.
-> Atualizado: 2026-06-05 | Branch: claude/recomendacao-500-errors-9eNqU
+> Atualizado: 2026-06-07 | Branch: main
 
 ---
 
@@ -57,7 +57,7 @@ palpites-backend/
 │   │   ├── static_cache.py     # Cache disco (cache_partidas.json) + TTL tiered
 │   │   └── odds_cache.py       # Cache memória odds (TTLCache 25h, 80 slots)
 │   ├── models/
-│   │   └── schemas.py          # Pydantic models: Partida, RecomendacaoIA, etc.
+│   │   └── schemas.py          # Pydantic models: Partida, RecomendacaoIA, EntradaForma, etc.
 │   ├── monitoring/
 │   │   ├── cron_jobs.py        # 4 background tasks asyncio
 │   │   └── telegram_bot.py     # Alertas Telegram + estado global
@@ -73,7 +73,7 @@ palpites-backend/
 │   ├── forma_recente_seed.json # Forma real de 48 seleções (até mai/2026) ← FALLBACK ATIVO
 │   ├── squads_copa_2026.json   # Elencos 47/48 times (Curaçao sem dados)
 │   ├── arbitros_copa_2026.json # 52 árbitros com stats Copa 2022/2018
-│   └── cache_partidas.json     # Cache disco de partidas computadas (vazio no git — ver §11)
+│   └── cache_partidas.json     # Cache disco de partidas computadas
 ├── scripts/
 │   ├── backtest_copa.py        # Backtest do modelo vs Copa 2022/2018
 │   ├── registrar_resultado.py  # Registra resultado real após cada jogo
@@ -102,6 +102,8 @@ palpites-backend/
 
 **Regra de ouro:** nunca retorna 500 — cada camada tem fallback independente.
 
+**Calibração:** `ALPHA_REG = 0.5` (provisório, conservador pré-Copa). Recalibrar após fase de grupos 2026 via `calibrar_alpha_backtest.py`.
+
 ---
 
 ## 5. Fontes de Dados
@@ -122,16 +124,18 @@ palpites-backend/
 ```
 Usuário abre /copa/jogos/{slug}/recomendacao
     │
-    ├─ Cache hit (static_cache)? → Retorna em <100ms, zero API
+    ├─ Cache hit (static_cache, todos componentes frescos)? → Retorna <100ms, zero API
     │
-    └─ Cache miss → football_agent.buscar_detalhe_partida()
+    └─ Cache miss parcial ou total → football_agent.buscar_detalhe_partida()
             │
-            ├─ API-Football /teams/statistics      (stats históricas; falha para nacionais)
-            ├─ API-Football /fixtures?team&last=20  (forma recente)
+            ├─ API-Football /teams/statistics      (stats históricas — NÃO é fonte de cartões)
+            ├─ API-Football /fixtures?team&last=20  (forma recente — inclui amistosos ✅)
+            │        ├─ /fixtures/statistics por fixture → cartões amarelos/vermelhos por jogo ✅
             │        └─ FALLBACK: forma_recente_seed.json se API retornar vazio ✅
             ├─ API-Football /fixtures/headtohead   (H2H; frequentemente vazio)
-            ├─ API-Football /fixtures?id=           (árbitro)
-            └─ The Odds API                        (odds 1X2, over/under)
+            ├─ API-Football /fixtures?id=           (árbitro — coletado mas NÃO passado ao Claude)
+            ├─ API-Football /fixtures/statistics    (escanteios — últimos 5 jogos)
+            └─ The Odds API (soccer_fifa_world_cup) (odds 1X2; over/under ainda sem cobertura)
                     │
                     └─ ia_agent.gerar_recomendacao()
                             │
@@ -142,7 +146,7 @@ Usuário abre /copa/jogos/{slug}/recomendacao
 
 ---
 
-## 7. Sistema de Cache
+## 7. Sistema de Cache — TTL Tiered por Componente (Fase 3)
 
 ### Camadas
 
@@ -154,13 +158,17 @@ Usuário abre /copa/jogos/{slug}/recomendacao
 | `football_api_cache.json` | Disco | 8h | ~5MB | Backup do `_cache` — sobrevive restart/redeploy |
 | `cache_partidas.json` | Disco + git | tiered | ilimitado | Partidas + stats + narrativa |
 
-### TTL do cache_partidas (tiered por proximidade do jogo)
-| Distância | TTL stats | TTL narrativa | TTL partida |
-|-----------|-----------|---------------|-------------|
-| > 12h | 24h | 8h | 8h |
-| 2–12h | 1h | 8h | 8h |
-| < 2h | 30min | 8h | 8h |
-| dados_insuficientes | — | — | 4h |
+### TTL por componente (static_cache.py — Fase 3)
+
+| Componente | TTL | Gatilho de invalidade |
+|-----------|-----|----------------------|
+| team_stats | 168h (7 dias) | Competição terminada |
+| forma | 72h | Time jogar novo jogo |
+| h2h | 720h (30 dias) | Raramente muda |
+| player_stats | 72h | Atualização de squad |
+| narrativa | 8h | Stats mudarem |
+
+**Resultado Fase 3:** 8.247 → 0 chamadas de API em cache hit (economia 100%). Cada componente rebusca somente quando stale — não no restart, não no deploy.
 
 ### Consumo estimado mensal
 - API-Football: ~200–300 req/mês (rate limit 2s entre chamadas reais)
@@ -186,12 +194,12 @@ Usuário abre /copa/jogos/{slug}/recomendacao
 |----------|-----------|-----------|
 | `GET /api/v1/copa/jogos/{slug}/recomendacao` | 5/min | Análise completa 5 camadas + narrativa Claude |
 
-### Admin (ADMIN_TOKEN opcional)
+### Admin
 | Endpoint | Descrição |
 |----------|-----------|
-| `GET /api/v1/admin/health-check` | Status completo (quota APIs, Supabase, erros 24h) |
-| `GET /api/v1/admin/prewarm?dias=N` | Dispara prewarm em background (retorna imediatamente) |
-| `GET /api/v1/admin/validar-semana` | Valida 24 jogos semana 1 (instantâneo, sem API) |
+| `GET /api/v1/admin/health-check` | Status completo (quota APIs, Supabase, erros 24h, vars_configuradas) |
+| `GET /api/v1/admin/prewarm?dias=N` | Dispara prewarm em background |
+| `GET /api/v1/admin/validar-semana` | Valida 24 jogos semana 1 |
 | `GET /api/v1/admin/cache-snapshot` | Exporta cache_partidas.json completo |
 | `GET /api/v1/admin/odds-debug` | Testa Odds API |
 | `GET /api/v1/admin/acuracia` | Métricas de acerto do modelo |
@@ -236,43 +244,60 @@ Usuário abre /copa/jogos/{slug}/recomendacao
 
 ---
 
-## 11. Problema Crítico: Cache Reseta em Cada Deploy
+## 11. Comportamento de Dados — Decisões e Armadilhas Conhecidas
 
-**O que acontece:** Cada push para `main` cria um container novo no Railway com memória zerada. O `cache_partidas.json` commitado no git é `{}` (vazio), então o deploy começa sem dados. O cron de prewarm repopula tudo em ~8–10min.
+### `_stats_time` — cascata de Copa do Mundo (bug parcialmente corrigido)
+`_stats_time` tenta competições em cascata: Copa 2022 → Copa 2018 → Copa 2014 → Copa 2010 → AFCON → Euro → etc. Para na **primeira com `jogos > 0`**. Times que participaram de Copas antigas (ex: África do Sul 2010 como anfitriã, Argélia 2014) caem nessas fontes com `media_amarelos=0.0` porque a API-Football não tem dados de cartões para 2010/2014.
 
-**Solução pendente:**
-```bash
-# 1. Aguardar prewarm terminar (~10min após deploy)
-# 2. Chamar:
-curl https://palpites-backend-production.up.railway.app/api/v1/admin/cache-snapshot > cache_snapshot.json
+**6 times afetados (18 entradas = 14% do cache):**
+- Copa 2010: Africa do Sul, Nova Zelândia, Paraguai
+- Copa 2014: Argélia, Bósnia & Herzegovina, Costa do Marfim
 
-# 3. Salvar o conteúdo de "dados" em seeds/cache_partidas.json
-# 4. Commitar:
-git add seeds/cache_partidas.json
-git commit -m "chore: snapshot cache 24 jogos semana 1"
-git push
-```
-Após isso, cada deploy começa com os 24 jogos prontos — cron só atualiza o stale.
+**Fix (Fase 4):** cartões agora derivados da forma recente via `/fixtures/statistics`. `_stats_time` não é mais fonte de cartões.
+
+### `_forma_recente` — inclui amistosos ✅
+`_EXCLUIR_LIGA` exclui apenas feminino, sub-17/20/21/23, olímpico. **"Friendlies" NÃO é excluído.** A forma pega amistosos corretamente — era hipótese falsa que haveria filtro de clube vazando.
+
+### Árbitro — coletado mas nunca passado ao Claude
+`_arbitro()` coleta dados e os guarda em `Partida.arbitro`, mas `_montar_prompt()` **nunca inclui o árbitro no prompt**. Se Claude mencionar "considerando o árbitro" na narrativa = **alucinação pura**. Fix A aplicado: `_SYSTEM` proíbe explicitamente.
+
+### `media_amarelos = 0.0` vs `null`
+Quando `_stats_time` encontra fonte antiga (2010/2014), o campo é `0.0` (float real), **não null**. Claude recebia `"South Africa: 0.0 cartões amarelos por jogo"` e usava o dado falso. Após Fase 4, o campo vem de `/fixtures/statistics` dos jogos recentes.
+
+### Odds API — dois níveis de value_bets
+O response de `/recomendacao` tem dois campos com value bets:
+1. `value_bets[]` (via `_calcular_value_bets` — ia_agent.py): `prob_dc`, `prob_impl`, `edge`, `odd_ref`, `value_score`, `tem_value`
+2. `odds_analise.value_bets[]` (via `odds_engine.py`): `prob_modelo`, `prob_consenso`, `z_score`, `confianca`, `sharp_confirma`
+
+O frontend pode exibir "modelo X% vs mercado Y%" usando campos já existentes.
+
+### Odds API — cobertura Copa 2026
+- Esporte: `soccer_fifa_world_cup` (72 eventos disponíveis) ✅
+- Mercados: `h2h` (1X2) disponível ✅
+- Mercados `totals` (Over/Under) e `btts`: **sem cobertura** — `odd_ref` null no top3
+- A chave local `.env` é a velha (free 500 req, esgotada). **Testes de odds = sempre via Railway** (chave nova 20k)
 
 ---
 
 ## 12. Variáveis de Ambiente
 
-| Variável | Status | Descrição |
-|----------|--------|-----------|
-| `ANTHROPIC_API_KEY` | ✅ | Narrativas Claude |
-| `API_FOOTBALL_KEY` | ✅ | Pro — 20k req/mês |
-| `ODDS_API_KEY` | ✅ | The Odds API |
-| `PREMIUM_TOKEN` | ✅ | Token fixo admin/bypass |
-| `SUPABASE_URL` | ✅ | https://jwzvuixvuptazfyasmlm.supabase.co |
-| `SUPABASE_KEY` | ✅ | Chave secret |
-| `SUPABASE_JWT_SECRET` | ✅ | Verificação JWT usuários |
-| `TELEGRAM_BOT_TOKEN` | ✅ | Bot palpitesdaia_monitor_bot |
-| `TELEGRAM_CHAT_ID` | ✅ | 8802057413 |
-| `ADMIN_TOKEN` | ⚠️ opcional | Protege endpoints admin |
-| `SENTRY_DSN` | ⚠️ opcional | Rastreamento de erros |
-| `MERCADOPAGO_ACCESS_TOKEN` | ⏳ pendente | Pagamentos |
-| `MERCADOPAGO_WEBHOOK_SECRET` | ⏳ pendente | HMAC dos webhooks |
+| Variável | Local .env | Railway | Descrição |
+|----------|-----------|---------|-----------|
+| `ANTHROPIC_API_KEY` | ✅ | ✅ | Narrativas Claude |
+| `API_FOOTBALL_KEY` | ✅ | ✅ | Pro — 20k req/mês |
+| `ODDS_API_KEY` | ✅ (velha/esgotada) | ✅ (nova, 20k) | The Odds API — usar Railway para testes |
+| `PREMIUM_TOKEN` | ✅ | ✅ | Token fixo admin/bypass |
+| `SUPABASE_URL` | ❌ ausente | ✅ | https://jwzvuixvuptazfyasmlm.supabase.co |
+| `SUPABASE_KEY` | ❌ ausente | ✅ | Chave secret |
+| `SUPABASE_JWT_SECRET` | ❌ ausente | ✅ | Verificação JWT usuários |
+| `TELEGRAM_BOT_TOKEN` | ❌ ausente | ✅ | Bot palpitesdaia_monitor_bot |
+| `TELEGRAM_CHAT_ID` | ❌ ausente | ✅ | 8802057413 |
+| `ADMIN_TOKEN` | — | ⚠️ opcional | Protege endpoints admin |
+| `SENTRY_DSN` | — | ⚠️ false | Rastreamento de erros |
+| `MERCADOPAGO_ACCESS_TOKEN` | — | ⏳ pendente | Pagamentos |
+| `MERCADOPAGO_WEBHOOK_SECRET` | — | ⏳ pendente | HMAC dos webhooks |
+
+**Decisão de segurança:** Supabase/Telegram são serviços de produção — não copiar para `.env` local. Testes que precisam dessas vars rodam via Railway.
 
 **CORS configurado para:** palpitesdaia.com.br, www.palpitesdaia.com.br, *.lovable.app, *.lovableproject.com, localhost:3000/5173
 
@@ -322,30 +347,54 @@ Após isso, cada deploy começa com os 24 jogos prontos — cron só atualiza o 
 
 ---
 
-## 17. Estado Atual em Produção (2026-06-05)
+## 17. Estado Atual em Produção (2026-06-07)
 
-### Métricas
+### Métricas (health-check)
 ```
-quota_api_football : 7.499 req restantes (plano Pro 20k/mês)
-quota_odds_api     : 19.672 créditos restantes
+quota_api_football : 67.507 req restantes (plano Pro 20k/mês — boa margem)
+quota_odds_api     : 18.824 créditos restantes (chave nova 20k)
+jogos_em_cache     : 35
 erros_24h          : 0
 supabase           : conectado
 telegram           : configurado
-uptime             : reseta a cada push para main
+uptime_segundos    : 6.790 (no momento da verificação)
 ```
 
-### Validação semana 1 — após prewarm completo (~10min)
+### Value bets testados em produção — Mexico × África do Sul
 ```
-Com stats   : 24/24  ✅ modelo Elo + Poisson funciona para todos
-Com odds    : 22/24  ⚠️ Australia e Portugal/Congo sem cobertura Odds API
-Com forma   : 24/24  ✅ fix deployado: seed local como fallback
-dados_insuf :  0/24  ✅ fix deployado: flag só True quando forma ausente
-Status OK   : ?/24   ⏳ verificar após merge para main + prewarm
+odds_disponiveis : True (25 casas no consensus Shin)
+value_bets       : 3 itens
+  Vitória Fora   → modelo 27.5% vs mercado 11.8% | edge +15.7pp | odd 8.49 | retorno +133.5%
+  Empate         → modelo 27.2% vs mercado 22.0% | edge +5.2pp  | odd 4.55 | retorno +23.8%
+  Vitória Casa   → modelo 45.3% vs mercado 69.9% | edge -24.6pp | odd 1.43 | retorno -35.2%
+top3 (over/btts) : odd_ref null — mercados totals/btts sem cobertura na Odds API
 ```
+
+**Nota sobre divergência México:** modelo diz 45%, mercado diz 70% de vitória para o México. Sinal de que o modelo subestima o favorito — confirma necessidade de recalibração pós-Copa (ALPHA_REG).
 
 ---
 
-## 18. Slugs — Semana 1 (Jun 11-17)
+## 18. Fixes Implementados nesta Sessão (aguardando commit)
+
+### Fix A — Anti-alucinação árbitro (`ia_agent.py`)
+Adicionado bloco `ÁRBITRO — REGRA ANTI-INVENÇÃO` no `_SYSTEM`:
+- Proíbe Claude de mencionar árbitro, juiz ou disciplina arbitral
+- Árbitro é coletado mas **nunca incluído no prompt** — qualquer menção seria alucinação
+
+### Fix C — Retry 429 em `players_agent.py`
+`_api_get` agora tenta 3× com backoff exponencial (1s → 2s → 4s) antes de propagar o 429. Recupera jogadores como Kimmich/Goretzka quando a API está temporariamente sobrecarregada.
+
+### Fase 4 — Cartões da mesma fonte da forma (`football_agent.py`, `schemas.py`)
+- `EntradaForma` ganha `fixture_id`, `cartoes_amarelos`, `cartoes_vermelhos`
+- Nova `_enriquecer_forma_com_cartoes()`: busca `/fixtures/statistics` por fixture, extrai cartões por time
+- `_enriquecer_btts_over`: deriva `media_amarelos/vermelhos` dos jogos com dado (ignora jogos sem dado na média)
+- `_stats_time`: zerada de responsabilidade sobre cartões (`media_amarelos=None`)
+- Orquestração: `_get_forma_enriched` encadeia `_forma_recente` + `_enriquecer_forma_com_cartoes`
+- **Quota:** `/fixtures/statistics` já era chamada por `_media_escanteios` (5 fixtures). Fase 4 aproveita cache — zero quota extra nos 5 mais recentes; até 5 fixtures adicionais para jogos 6-10 na forma.
+
+---
+
+## 19. Slugs — Semana 1 (Jun 11-17)
 
 ```
 Jun 11: mexico-south-africa, south-korea-czech-republic
@@ -362,14 +411,19 @@ Jun 17: austria-jordan, portugal-congo-dr, england-croatia,
 
 ---
 
-## 19. Roadmap
+## 20. Roadmap
 
 ### Fase 1 — Dados reais ✅ COMPLETA
-### Fase 2 — Agente IA + Monetização (85%)
+### Fase 2 — Agente IA + Monetização (88%)
 - ✅ Modelo 5 camadas
 - ✅ Cache inteligente 2 camadas
 - ✅ Forma recente com fallback seed
-- ⏳ Fix dados_insuficientes sistêmico
+- ✅ Fase 3: cache tiered por componente (economia 100% em hits)
+- ✅ Fix A: anti-alucinação árbitro no _SYSTEM
+- ✅ Fix C: retry 429 em players_agent
+- ✅ Fase 4: cartões da mesma fonte da forma (aguardando commit)
+- ⏳ Mercados totals/btts na Odds API (Over/Under, BTTS com odd real)
+- ⏳ Recalibrar ALPHA_REG após fase de grupos (está 0.5 provisório)
 - ⏳ Cache persistente entre deploys (cache-snapshot → commit)
 - ⏳ Supabase no Lovable (login/cadastro real)
 - ⏳ Mercado Pago funcional
@@ -377,19 +431,16 @@ Jun 17: austria-jordan, portugal-congo-dr, england-croatia,
 ### Fase 3 — Monitoramento (após lançamento)
 - Sentry + UptimeRobot + backtest contínuo pós-Copa
 
-### Fase 4 — Escala (futuro)
+### Fase 4 (produto) — Escala (futuro)
 - Dataset próprio Copa 2026, modelo XGBoost, histórico de acertos rastreado
 
 ---
 
-## 20. Comandos Úteis
+## 21. Comandos Úteis
 
 ```bash
 # Pasta local do projeto (Windows)
 cd "C:\Users\brunn\OneDrive\Documentos\CLAUDIO\Palpites_da_IA\palpites-backend"
-
-# Pasta remota (Claude Code / Railway)
-/home/user/palpites-backend
 
 # Deploy (Railway auto-deploya no push)
 git add . && git commit -m "mensagem" && git push origin main
@@ -411,47 +462,56 @@ curl https://palpites-backend-production.up.railway.app/api/v1/admin/health-chec
 
 # Seed árbitros (após quota reset às 21h BRT)
 python scripts/gerar_seed_arbitros.py --min-jogos 15 --delay 2
+
+# ATENÇÃO: testes que envolvem odds usam chave Railway (não a local, que está esgotada)
+# Testar via: curl + PREMIUM_TOKEN, ou endpoint /api/v1/admin/odds-debug em produção
 ```
 
 ---
 
-## 21. Próximas Ações Prioritárias
+## 22. Próximas Ações Prioritárias
 
 ```
-1. [URGENTE] Commitar cache_partidas.json populado
-   → chamar /admin/cache-snapshot após prewarm
-   → salvar JSON em seeds/cache_partidas.json e commitar
+1. [AGORA] Revisar e commitar os 4 arquivos modificados:
+   → Fix A (ia_agent.py), Fix C (players_agent.py), Fase 4 (football_agent.py, schemas.py)
+   → Não rodar prewarm antes de aprovar o diff
 
-2. [FEITO ✅] Fix dados_insuficientes sistêmico — branch claude/recomendacao-500-errors-9eNqU
-   → dados_insuficientes=True apenas quando forma ausente (não por /teams/statistics)
-   → validador: status "incompleto" não depende mais de tem_stats (StatsRecomendacao)
-   → merge para main pendente
+2. [ALTA] Adicionar mercados totals/btts na busca de odds (odds_agent.py)
+   → markets=h2h,totals — Over/Under e BTTS chegam com odd real
+   → Permite top3 completo com value_score para Over/Under
 
-3. [ALTA] H2H: criar seeds/h2h_seed.json com confrontos históricos Copa
-   → elimina h2h_count=0 para todos os jogos
+3. [ALTA] Prewarm completo pós-commit
+   → /admin/prewarm?dias=7 após merge
+   → Verificar que 6 times afetados pelo bug de cartões estão corrigidos
 
-4. [MÉDIA] Supabase no Lovable
-   → Settings → Integrations → Supabase
-   → login/cadastro real para usuários
+4. [MÉDIA] Cache persistente entre deploys
+   → /admin/cache-snapshot → seeds/cache_partidas.json → commit
 
-5. [MÉDIA] Mercado Pago — testar fluxo completo
-   → Webhook: /api/v1/pagamentos/mercadopago/webhook
+5. [MÉDIA] Supabase no Lovable (login/cadastro real)
 
-6. Lançamento TikTok (Chi) — Copa começa 11/06/2026
+6. [MÉDIA] Mercado Pago — testar fluxo completo
+
+7. Lançamento TikTok (Chi) — Copa começa 11/06/2026
 ```
 
 ---
 
-## 22. Decisões Arquiteturais
+## 23. Decisões Arquiteturais
 
 **Por que seeds em vez de só API?**
 API-Football tem limite diário e falha para seleções nacionais em alguns endpoints. Seeds garantem dados básicos sem custo. API enriquece quando disponível.
 
 **Por que cache em disco (`cache_partidas.json`)?**
-Railway usa containers efêmeros. Cache disco sobrevive a restarts dentro do mesmo deploy. Commitado no git, sobrevive a deploys também — desde que não seja `{}`.
+Railway usa containers efêmeros. Cache disco sobrevive a restarts dentro do mesmo deploy. Commitado no git, sobrevive a deploys também.
 
 **Por que forma_recente_seed.json como fallback?**
-`/fixtures?team&last=20` para seleções nacionais retorna vazio frequentemente durante a Copa (fixtures em andamento, IDs específicos). O seed cobre os últimos 10 jogos de cada seleção até mai/2026 e ativa automaticamente.
+`/fixtures?team&last=20` para seleções nacionais retorna vazio frequentemente. O seed cobre os últimos 10 jogos de cada seleção até mai/2026 e ativa automaticamente quando API retorna vazio.
 
-**Por que dados_insuficientes=True mesmo com Elo e forma? (histórico)**
-Flag original combinava duas condições: sem forma (bloqueia modelo) e sem stats API (não bloqueia — usa Elo fallback). Para seleções nacionais, a segunda sempre falha. Fix aplicado: `dados_insuficientes=True` somente quando `len(forma_casa)==0 OR len(forma_fora)==0`.
+**Por que cartões vêm da forma e não de `_stats_time`?**
+`_stats_time` usa cascata Copa do Mundo — para na primeira edição com `jogos > 0`. Times que participaram de Copas antigas (2010/2014) recebiam `media_amarelos=0.0` porque a API não tem dados de cartões para jogos antigos. A forma recente (via `/fixtures/statistics`) usa os últimos 10 jogos de qualquer competição, garantindo dado atual e real.
+
+**Por que árbitro não vai ao prompt do Claude?**
+Decisão de design: árbitro é coletado e exposto via API (campo `Partida.arbitro`), mas `_montar_prompt` deliberadamente não o inclui — o dado pode ser "a confirmar" ou vir de média, o que causaria narrativas vagas. Claude gera texto melhor sem dado ruidoso.
+
+**Por que ODDS_API_KEY local está diferente do Railway?**
+A chave local é do plano free (500 req, esgotada). O Railway tem a chave do plano pago (20k). Decisão consciente: não copiar secrets de produção para ambiente local.
