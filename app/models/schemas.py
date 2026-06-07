@@ -303,6 +303,7 @@ class RecomendacaoIA(BaseModel):
     # Camada 3 — legado + odds_engine
     odds_disponiveis: bool
     value_bets: list[dict]
+    palpite_principal: dict | None = None
     odds_analise: dict | None = None   # output completo do odds_engine (Shin, consensus, z-score)
 
     # Camada 4
@@ -341,6 +342,7 @@ class StatsRecomendacao(BaseModel):
     modelo_gols: ModeloGols
     odds_disponiveis: bool
     value_bets: list[dict]
+    palpite_principal: dict | None = None
     odds_analise: dict | None = None
     contexto: FatorContexto
     tail_risk: TailRiskResult

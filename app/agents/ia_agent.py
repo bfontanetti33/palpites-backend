@@ -505,13 +505,29 @@ _LABELS = {
 }
 
 
-def _calcular_value_bets(modelo: ModeloGols, odds: dict | None) -> tuple[bool, list[dict]]:
+_MERCADOS_1X2 = {"vitoria_casa", "empate", "vitoria_fora"}
+
+
+def _edge_minimo(prob_dc: float) -> float:
+    if prob_dc >= 40: return 3.0
+    if prob_dc >= 25: return 7.0
+    return 12.0
+
+
+def _calcular_value_bets(modelo: ModeloGols, odds: dict | None) -> tuple[bool, list[dict], dict | None]:
     """
     REGRA CRÍTICA: só calcula se odds vier da API (não None, não vazio).
-    Retorna (odds_disponiveis, value_bets).
+    Retorna (odds_disponiveis, value_bets, palpite_principal).
+
+    Filtro de sanidade A+B (ambos necessários para tem_value=True):
+      A: rejeita 1X2 onde prob_dc < 25% E favorito de mercado > 50%
+      B: edge mínimo crescente — ≥40%→3pp | 25-40%→7pp | <25%→12pp
+
+    palpite_principal: quando nenhum value passa, retorna o mercado com maior
+    prob_dc do modelo com label honesto para o frontend.
     """
     if not odds:
-        return False, []
+        return False, [], None
 
     probs_dc = {
         "vitoria_casa": modelo.prob_vitoria_casa,
@@ -523,28 +539,65 @@ def _calcular_value_bets(modelo: ModeloGols, odds: dict | None) -> tuple[bool, l
         "over35":       modelo.prob_over35, "under35": modelo.prob_under35,
     }
 
+    # Favorito do mercado: maior prob_impl entre os mercados 1X2 com odds
+    max_prob_impl_1x2 = max(
+        (round(1 / odds[m] * 100, 1) for m in _MERCADOS_1X2 if m in odds and odds[m] > 0),
+        default=0.0,
+    )
+
     results = []
     for mercado, odd in odds.items():
-        prob_key = mercado  # chave coincide com probs_dc
-        prob_dc  = probs_dc.get(prob_key)
+        prob_dc = probs_dc.get(mercado)
         if prob_dc is None or odd <= 0:
             continue
         prob_impl = round(1 / odd * 100, 1)
+        edge      = round(prob_dc - prob_impl, 1)
         value     = round((prob_dc / 100 * odd) - 1, 3)
         tipo, entrada = _LABELS.get(mercado, ("Outro", mercado))
+
+        # A: azarão extremo (<25%) contra favorito claro (>50%) nos mercados 1X2
+        rejeita_a = (
+            mercado in _MERCADOS_1X2
+            and max_prob_impl_1x2 > 50
+            and prob_dc < 25
+        )
+        # B: edge mínimo crescente com o risco
+        rejeita_b = edge < _edge_minimo(prob_dc)
+
+        tem_value = value >= VALUE_MIN and not rejeita_a and not rejeita_b
+
         results.append({
-            "mercado":   tipo,
-            "entrada":   entrada,
-            "prob_dc":   prob_dc,
-            "prob_impl": prob_impl,
-            "edge":      round(prob_dc - prob_impl, 1),
-            "odd_ref":   odd,
+            "mercado":     tipo,
+            "entrada":     entrada,
+            "prob_dc":     prob_dc,
+            "prob_impl":   prob_impl,
+            "edge":        edge,
+            "odd_ref":     odd,
             "value_score": value,
-            "tem_value": value >= VALUE_MIN,
+            "tem_value":   tem_value,
         })
 
     results.sort(key=lambda x: -x["value_score"])
-    return True, results
+
+    # Parte 2: palpite_principal quando nenhum value passou no filtro
+    palpite_principal: dict | None = None
+    if not any(r["tem_value"] for r in results):
+        melhor = max(
+            ((m, p) for m, p in probs_dc.items() if m in odds and odds.get(m, 0) > 0),
+            key=lambda x: x[1],
+            default=None,
+        )
+        if melhor:
+            chave, prob = melhor
+            tipo, entrada = _LABELS.get(chave, ("Outro", chave))
+            palpite_principal = {
+                "mercado": tipo,
+                "entrada": entrada,
+                "prob_dc": prob,
+                "label":   f"Sem entrada de valor clara — palpite do modelo: {entrada} {prob:.0f}%",
+            }
+
+    return True, results, palpite_principal
 
 
 # ── Home advantage — países-sede Copa 2026 ───────────────────────────────────
@@ -1542,6 +1595,7 @@ async def calcular_stats(partida: Partida) -> StatsRecomendacao:
     modelo_final = modelo
     odds_disp   = False
     value_bets: list[dict] = []
+    palpite_principal: dict | None = None
     odds_result: dict = {"odds_disponiveis": False}
     ctx         = FatorContexto()
     tail_risk   = _tail_risk_fallback(modelo)
@@ -1604,7 +1658,7 @@ async def calcular_stats(partida: Partida) -> StatsRecomendacao:
 
     # Value bets calculados com modelo pós-boost (Camada 4 já aplicada)
     try:
-        _, value_bets = _calcular_value_bets(modelo_c4, partida.odds)
+        _, value_bets, palpite_principal = _calcular_value_bets(modelo_c4, partida.odds)
     except Exception as e:
         log.error("calcular_stats value_bets (%s x %s): %s", nome_c, nome_f, e)
 
@@ -1635,6 +1689,7 @@ async def calcular_stats(partida: Partida) -> StatsRecomendacao:
         modelo_gols=modelo_final,
         odds_disponiveis=odds_disp,
         value_bets=value_bets,
+        palpite_principal=palpite_principal,
         odds_analise=odds_result,
         contexto=ctx,
         tail_risk=tail_risk,
@@ -1766,6 +1821,7 @@ async def gerar_recomendacao(partida: Partida) -> RecomendacaoIA:
             modelo_gols=stats.modelo_gols,
             odds_disponiveis=stats.odds_disponiveis,
             value_bets=stats.value_bets,
+            palpite_principal=stats.palpite_principal,
             odds_analise=stats.odds_analise,
             contexto=stats.contexto,
             tail_risk=stats.tail_risk,
