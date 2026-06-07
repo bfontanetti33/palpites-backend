@@ -38,7 +38,8 @@ ALPHA_REG    = 0.5
 DECAY        = 0.98     # decaimento temporal por dia
 DC_RHO       = -0.1     # correção Dixon-Coles para placares baixos
 MAX_GOALS    = 6        # máximo de gols na matriz (0..5)
-VALUE_MIN    = 0.05     # value mínimo para recomendar (5%)
+VALUE_MIN       = 0.05  # value mínimo para recomendar (5%)
+THRESHOLD_ZEBRA = 33.0  # abaixo = azarão → roteado pra aba Zebras, não card de valor
 ELO_CENTER   = 1500.0   # centro de normalização do Elo
 ELO_SCALE    = 200.0    # escala (±1 SD ≈ 200 pontos)
 
@@ -564,17 +565,22 @@ def _calcular_value_bets(modelo: ModeloGols, odds: dict | None) -> tuple[bool, l
         # B: edge mínimo crescente com o risco
         rejeita_b = edge < _edge_minimo(prob_dc)
 
-        tem_value = value >= VALUE_MIN and not rejeita_a and not rejeita_b
+        passa_filtro  = value >= VALUE_MIN and not rejeita_a and not rejeita_b
+        is_value_pick = passa_filtro and prob_dc >= THRESHOLD_ZEBRA
+        is_zebra      = passa_filtro and prob_dc < THRESHOLD_ZEBRA
+        tem_value     = is_value_pick or is_zebra  # compat retroativa
 
         results.append({
-            "mercado":     tipo,
-            "entrada":     entrada,
-            "prob_dc":     prob_dc,
-            "prob_impl":   prob_impl,
-            "edge":        edge,
-            "odd_ref":     odd,
-            "value_score": value,
-            "tem_value":   tem_value,
+            "mercado":      tipo,
+            "entrada":      entrada,
+            "prob_dc":      prob_dc,
+            "prob_impl":    prob_impl,
+            "edge":         edge,
+            "odd_ref":      odd,
+            "value_score":  value,
+            "tem_value":    tem_value,
+            "is_value_pick": is_value_pick,
+            "is_zebra":     is_zebra,
         })
 
     results.sort(key=lambda x: -x["value_score"])

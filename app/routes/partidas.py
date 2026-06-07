@@ -149,8 +149,11 @@ def _stats_valida(stats: dict) -> bool:
 @limiter.limit("30/minute")
 async def zebras(request: Request, response: Response):
     """
-    Jogos com alerta de zebra — azarão com edge estatístico real identificado pelo modelo.
-    Populado proativamente pelo cron de pré-aquecimento de stats (sem precisar de usuário premium).
+    Jogos com alerta de zebra.
+    IDEAL     = critério esportivo (Elo+forma) E value de odds (is_zebra=True).
+    estatística = só critério esportivo, sem odds de valor confirmadas.
+    só-valor  = is_zebra=True sem sinal esportivo Elo+forma.
+    Fallback: mostra zebra estatística quando odds não disponíveis.
     """
     response.headers["Cache-Control"] = "public, max-age=900"   # 15min
 
@@ -170,8 +173,14 @@ async def zebras(request: Request, response: Response):
                 stats = rec.get("dados")
         if not _stats_valida(stats):
             continue
-        ctx = stats.get("contexto", {})
-        if not ctx.get("zebra_alerta", False):
+
+        ctx           = stats.get("contexto", {})
+        zebra_alerta  = ctx.get("zebra_alerta", False)
+        value_bets    = stats.get("value_bets") or []
+        zebras_valor  = [vb for vb in value_bets if vb.get("is_zebra")]
+
+        # Inclui se ao menos um dos critérios estiver ativo
+        if not zebra_alerta and not zebras_valor:
             continue
 
         jogo = _POR_SLUG.get(slug)
@@ -189,23 +198,42 @@ async def zebras(request: Request, response: Response):
         except Exception:
             pass
 
+        # Tipo da zebra
+        if zebra_alerta and zebras_valor:
+            zebra_tipo = "IDEAL"
+        elif zebra_alerta:
+            zebra_tipo = "estatística"
+        else:
+            zebra_tipo = "só-valor"
+
+        # Palpite = top1 (sempre o 1X2 de maior prob_dc desde Parte 1)
         top3 = stats.get("top3") or []
         top1 = top3[0] if top3 else {}
 
+        # Melhor mercado zebra por value_score
+        melhor_zebra = (
+            max(zebras_valor, key=lambda vb: vb.get("value_score", 0))
+            if zebras_valor else None
+        )
+
         resultado.append({
-            "slug":            slug,
-            "horario":         jogo.get("data_hora_brasilia", ""),
-            "horario_utc":     jogo.get("data_hora_utc", ""),
-            "time_casa_nome":  jogo["time_casa"],
-            "time_casa_logo":  jogo.get("time_casa_logo", ""),
-            "time_fora_nome":  jogo["time_fora"],
-            "time_fora_logo":  jogo.get("time_fora_logo", ""),
-            "zebra_descricao": ctx.get("zebra_descricao", ""),
-            "mercado":         top1.get("mercado", ""),
-            "entrada":         top1.get("entrada", ""),
-            "odd_ref":         top1.get("odd_ref"),
-            "prob_dc":         top1.get("prob_dc", 0.0),
-            "confianca":       top1.get("confianca", ""),
+            "slug":              slug,
+            "horario":           jogo.get("data_hora_brasilia", ""),
+            "horario_utc":       jogo.get("data_hora_utc", ""),
+            "time_casa_nome":    jogo["time_casa"],
+            "time_casa_logo":    jogo.get("time_casa_logo", ""),
+            "time_fora_nome":    jogo["time_fora"],
+            "time_fora_logo":    jogo.get("time_fora_logo", ""),
+            "zebra_descricao":   ctx.get("zebra_descricao", ""),
+            "zebra_tipo":        zebra_tipo,
+            # Palpite da IA (quem o modelo acha que ganha)
+            "mercado":           top1.get("mercado", ""),
+            "entrada":           top1.get("entrada", ""),
+            "odd_ref":           top1.get("odd_ref"),
+            "prob_dc":           top1.get("prob_dc", 0.0),
+            "confianca":         top1.get("confianca", ""),
+            # Mercado zebra de valor (se disponível)
+            "mercado_zebra":     melhor_zebra,
         })
 
     resultado.sort(key=lambda x: x.get("horario_utc", ""))
