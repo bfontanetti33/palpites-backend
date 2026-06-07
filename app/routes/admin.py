@@ -312,11 +312,14 @@ async def prewarm_stats(
         import logging
         _log = logging.getLogger("admin.prewarm")
         from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
-        from app.agents.ia_agent import calcular_stats
+        from app.agents.ia_agent import calcular_stats, gerar_narrativa
         from app.cache import static_cache as _sc
 
         agora = datetime.now(timezone.utc)
         aquecidos, pulados, erros = 0, 0, 0
+
+        # Warm-up: garante janela de rate limit limpa antes do 1º jogo
+        await asyncio.sleep(10)
 
         for jogo in _JOGOS:
             slug = jogo["slug"]
@@ -337,12 +340,15 @@ async def prewarm_stats(
                 if partida is None:
                     erros += 1
                     continue
-                await calcular_stats(partida)
+                stats = await calcular_stats(partida)
+                await gerar_narrativa(partida, stats)
                 aquecidos += 1
                 _log.info("prewarm: %s ok (%d aquecidos até agora)", slug, aquecidos)
             except Exception as e:
                 _log.warning("prewarm: %s erro: %s", slug, e)
                 erros += 1
+
+            await asyncio.sleep(1.5)  # pacing entre jogos — evita burst de cold-start
 
         _log.info("prewarm concluído: %d aquecidos, %d pulados, %d erros", aquecidos, pulados, erros)
 
@@ -567,6 +573,7 @@ async def refresh_odds(
 
     atualizados, sem_odds, erros = 0, 0, 0
     detalhes = []
+    from app.agents.football_agent import _partida_cache as _pc
 
     for jogo in jogos_futuros:
         slug = jogo["slug"]
@@ -579,16 +586,15 @@ async def refresh_odds(
             if entry is None:
                 continue
 
+            entry = dict(entry)
+            # Invalida stats para TODOS os slugs — garante Elo TSV novo no recompute
+            entry["stats"] = None
+            entry["recomendacao"] = None
+
             if odds:
                 pj = dict(entry.get("partida") or {})
                 pj["odds"] = odds
-                entry = dict(entry)
                 entry["partida"] = pj
-                entry["stats"] = None  # invalida stats → recompute na próxima chamada
-                _sc._store[slug] = entry
-                # Limpa _partida_cache (in-memory TTL 8h) para que L2 leia odds novas
-                from app.agents.football_agent import _partida_cache as _pc
-                _pc.pop(slug, None)
                 atualizados += 1
                 detalhes.append({
                     "slug":       slug,
@@ -599,13 +605,17 @@ async def refresh_odds(
                 sem_odds += 1
                 detalhes.append({"slug": slug, "odds": None})
 
+            _sc._store[slug] = entry
+            # Limpa L1 (in-memory TTL 8h) para que odds novas sejam lidas imediatamente
+            _pc.pop(slug, None)
+
         except Exception as e:
             erros += 1
             detalhes.append({"slug": slug, "erro": str(e)})
 
         await asyncio.sleep(0.3)  # respeita rate limit da Odds API
 
-    if atualizados > 0:
+    if jogos_futuros:
         _sc.save_to_disk()
 
     return {
