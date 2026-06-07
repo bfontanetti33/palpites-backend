@@ -306,10 +306,10 @@ async def _api_get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
     key = f"{path}:{sorted(params.items())}"
     if key in _stats_cache:
         return _stats_cache[key]
-    for tentativa in range(3):
+    for tentativa in range(5):
         r = await client.get(f"{BASE_URL}{path}", headers=API_HDR, params=params)
         if r.status_code == 429:
-            await asyncio.sleep(2 ** tentativa)  # 1s, 2s, 4s
+            await asyncio.sleep(2 ** tentativa)  # 1s, 2s, 4s, 8s, 16s
             continue
         r.raise_for_status()
         data = r.json()

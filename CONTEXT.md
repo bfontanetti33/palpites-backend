@@ -1,7 +1,7 @@
 # CONTEXT — Palpites da IA (Copa 2026)
 
 > Documento único de contexto para retomar o desenvolvimento em qualquer sessão.
-> Atualizado: 2026-06-07 | Branch: main
+> Atualizado: 2026-06-07 (sessão 3) | Branch: main
 
 ---
 
@@ -349,15 +349,12 @@ O frontend pode exibir "modelo X% vs mercado Y%" usando campos já existentes.
 
 ## 17. Estado Atual em Produção (2026-06-07)
 
-### Métricas (health-check)
+### Cache (commit 5191469 — em main)
 ```
-quota_api_football : 67.507 req restantes (plano Pro 20k/mês — boa margem)
-quota_odds_api     : 18.824 créditos restantes (chave nova 20k)
-jogos_em_cache     : 35
+jogos_em_cache     : 72 / 72  (fase de grupos completa)
+cobertura_jogadores: ~92% (9 jogadores recuperados via cirurgia 1)
+media_amarelos     : Bosnia=2.75 | New Zealand=1.25 | Ivory Coast=0.89
 erros_24h          : 0
-supabase           : conectado
-telegram           : configurado
-uptime_segundos    : 6.790 (no momento da verificação)
 ```
 
 ### Value bets testados em produção — Mexico × África do Sul
@@ -374,23 +371,25 @@ top3 (over/btts) : odd_ref null — mercados totals/btts sem cobertura na Odds A
 
 ---
 
-## 18. Fixes Implementados nesta Sessão (aguardando commit)
+## 18. Histórico de Fixes por Sessão
 
-### Fix A — Anti-alucinação árbitro (`ia_agent.py`)
-Adicionado bloco `ÁRBITRO — REGRA ANTI-INVENÇÃO` no `_SYSTEM`:
-- Proíbe Claude de mencionar árbitro, juiz ou disciplina arbitral
-- Árbitro é coletado mas **nunca incluído no prompt** — qualquer menção seria alucinação
+### Sessão 1 (commit 7a5bcc8) — Fix A ao Fix F
+- **Fix A** (ia_agent.py) — anti-alucinação árbitro: bloco `ÁRBITRO — REGRA ANTI-INVENÇÃO` no `_SYSTEM`
+- **Fix B** (ia_agent.py) — home advantage anfitrião-fora: host team recebe boost mesmo listado como visitante
+- **Fix C** (players_agent.py) — retry 429 com backoff exponencial (1s → 2s → 4s)
+- **Fix D** (football_agent.py) — `_forma_do_seed` como fallback quando API retorna 0 fixtures
+- **Fix E** (football_agent.py) — `_e_jogo_senior_masculino` filtra feminino/sub sem afetar amistosos
+- **Fix F** (schemas.py + football_agent.py) — Fase 4: cartões da forma (`EntradaForma.fixture_id`, `_enriquecer_forma_com_cartoes`)
 
-### Fix C — Retry 429 em `players_agent.py`
-`_api_get` agora tenta 3× com backoff exponencial (1s → 2s → 4s) antes de propagar o 429. Recupera jogadores como Kimmich/Goretzka quando a API está temporariamente sobrecarregada.
+### Sessão 2 (commits em andamento) — Prewarm, cirurgias, cartões
+- **Fix A (prewarm)** — `scripts/prewarm_copa2026.py`: warm-up `asyncio.sleep(10)` antes do jogo 1 evita cold-start burst (asyncio.gather dispara 15-25 requests simultâneos → estoura rate limit da API-Football)
+- **Fix B (retry)** — `players_agent._api_get`: `range(3)` → `range(5)`, backoff exponencial até 16s
+- **Cirurgia 1** — 3 jogos removidos e re-buscados: australia-türkiye, canada-bosnia, south-korea-czech. 9 jogadores recuperados de cap fallback para stats reais
+- **Cirurgia 2** — 2 jogos removidos e re-buscados: iran-new-zealand, ivory-coast-ecuador. Causa raiz: `_forma_do_seed` cria `EntradaForma` sem `fixture_id` → `_enriquecer_forma_com_cartoes` pula todos → `media_amarelos=None`. Após re-fetch da API com IDs corretos: NZ=1.25, Ivory Coast=0.89
+- **Cache commitado** em `seeds/cache_partidas.json` (commit 5191469)
 
-### Fase 4 — Cartões da mesma fonte da forma (`football_agent.py`, `schemas.py`)
-- `EntradaForma` ganha `fixture_id`, `cartoes_amarelos`, `cartoes_vermelhos`
-- Nova `_enriquecer_forma_com_cartoes()`: busca `/fixtures/statistics` por fixture, extrai cartões por time
-- `_enriquecer_btts_over`: deriva `media_amarelos/vermelhos` dos jogos com dado (ignora jogos sem dado na média)
-- `_stats_time`: zerada de responsabilidade sobre cartões (`media_amarelos=None`)
-- Orquestração: `_get_forma_enriched` encadeia `_forma_recente` + `_enriquecer_forma_com_cartoes`
-- **Quota:** `/fixtures/statistics` já era chamada por `_media_escanteios` (5 fixtures). Fase 4 aproveita cache — zero quota extra nos 5 mais recentes; até 5 fixtures adicionais para jogos 6-10 na forma.
+### Causa raiz cold-start burst (documentada)
+`buscar_detalhe_partida` usa `asyncio.gather` disparando ~15-25 requests paralelos no jogo 1. Se a janela de rate limit da API-Football já tem requests recentes, o burst gera 14+ erros 429 nos primeiros 30 segundos. O retry antigo (`range(3)`, max 7s) não aguenta throttling prolongado → jogadores caem para cap fallback. Fix A+B resolvem: warm-up garante janela limpa, retry aguarda até 16s.
 
 ---
 
@@ -414,17 +413,19 @@ Jun 17: austria-jordan, portugal-congo-dr, england-croatia,
 ## 20. Roadmap
 
 ### Fase 1 — Dados reais ✅ COMPLETA
-### Fase 2 — Agente IA + Monetização (88%)
+### Fase 2 — Agente IA + Monetização (92%)
 - ✅ Modelo 5 camadas
 - ✅ Cache inteligente 2 camadas
 - ✅ Forma recente com fallback seed
 - ✅ Fase 3: cache tiered por componente (economia 100% em hits)
 - ✅ Fix A: anti-alucinação árbitro no _SYSTEM
-- ✅ Fix C: retry 429 em players_agent
-- ✅ Fase 4: cartões da mesma fonte da forma (aguardando commit)
+- ✅ Fix B: home advantage anfitrião-fora (host listado como visitante)
+- ✅ Fix C: retry 429 em players_agent (backoff 16s)
+- ✅ Fase 4: cartões da forma (fixture_id + _enriquecer_forma_com_cartoes)
+- ✅ Prewarm Fix A+B: warm-up 10s + retry 5× (resolve cold-start burst)
+- ✅ Cache 72/72 jogos persistido no git (commit 5191469)
 - ⏳ Mercados totals/btts na Odds API (Over/Under, BTTS com odd real)
 - ⏳ Recalibrar ALPHA_REG após fase de grupos (está 0.5 provisório)
-- ⏳ Cache persistente entre deploys (cache-snapshot → commit)
 - ⏳ Supabase no Lovable (login/cadastro real)
 - ⏳ Mercado Pago funcional
 
@@ -472,26 +473,28 @@ python scripts/gerar_seed_arbitros.py --min-jogos 15 --delay 2
 ## 22. Próximas Ações Prioritárias
 
 ```
-1. [AGORA] Revisar e commitar os 4 arquivos modificados:
-   → Fix A (ia_agent.py), Fix C (players_agent.py), Fase 4 (football_agent.py, schemas.py)
-   → Não rodar prewarm antes de aprovar o diff
+1. [AGORA] Commitar Fix A (prewarm warm-up) e Fix B (retry 5×) — ainda não commitados
+   → git add app/agents/players_agent.py scripts/prewarm_copa2026.py
+   → git commit -m "fix: prewarm warm-up 10s + retry 5x backoff 16s (resolve cold-start burst)"
 
 2. [ALTA] Adicionar mercados totals/btts na busca de odds (odds_agent.py)
    → markets=h2h,totals — Over/Under e BTTS chegam com odd real
    → Permite top3 completo com value_score para Over/Under
 
-3. [ALTA] Prewarm completo pós-commit
-   → /admin/prewarm?dias=7 após merge
-   → Verificar que 6 times afetados pelo bug de cartões estão corrigidos
+3. [ALTA] Supabase no Lovable (login/cadastro real)
+   → Settings → Integrations → Supabase no editor Lovable
 
-4. [MÉDIA] Cache persistente entre deploys
-   → /admin/cache-snapshot → seeds/cache_partidas.json → commit
+4. [MÉDIA] Mercado Pago — testar fluxo completo em produção
+   → Configurar MERCADOPAGO_ACCESS_TOKEN + MERCADOPAGO_WEBHOOK_SECRET no Railway
 
-5. [MÉDIA] Supabase no Lovable (login/cadastro real)
+5. [MÉDIA] Recalibrar ALPHA_REG após fase de grupos
+   → Modelo subestima favoritos (México 45% vs mercado 70%). ALPHA_REG=0.5 é provisório.
+   → Rodar calibrar_alpha_backtest.py após primeiros resultados reais
 
-6. [MÉDIA] Mercado Pago — testar fluxo completo
+6. [BAIXA] Backtesting: registrar resultados reais após cada jogo
+   → scripts/registrar_resultado.py pronto, seeds/historico_predicoes.json vazio
 
-7. Lançamento TikTok (Chi) — Copa começa 11/06/2026
+7. Copa começa 11/06/2026 — lançamento TikTok (Chi)
 ```
 
 ---

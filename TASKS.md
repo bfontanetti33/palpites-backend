@@ -1,7 +1,7 @@
 # TASKS — Palpites da IA (Copa 2026)
 
-> Atualizado: 2026-06-05
-> Estado geral: **Backend estável. Forma via seed: ✅ deployado. Cache pós-deploy: ⚠️ reseta a cada push. dados_insuficientes: ❌ fix pendente.**
+> Atualizado: 2026-06-07 (sessão 3)
+> Estado geral: **Backend estável. Cache 72/72 jogos commitado no git. Fix A+B (prewarm + retry) no código mas não commitados ainda.**
 
 ---
 
@@ -21,7 +21,7 @@
 - [x] `seeds/squads_copa_2026.json` — elencos de 47/48 times
 - [x] `seeds/forma_recente_seed.json` — forma real de 48 seleções (amistosos + eliminatórias até mai/2026)
 - [x] `seeds/arbitros_copa_2026.json` — 52 árbitros com stats Copa 2022/2018
-- [x] `seeds/cache_partidas.json` — cache persistente em disco (sobrevive deploy)
+- [x] `seeds/cache_partidas.json` — 72/72 jogos com stats, commitado em git (commit 5191469)
 
 ### Modelo de Predição (5 camadas)
 - [x] **Camada 1** — Elo Rating + Pi Rating + FIFA Ranking (normalização regional)
@@ -84,37 +84,51 @@
 - [x] Quota preservada em redeploys via `football_api_cache.json` (disco)
 - [x] Prewarm não-bloqueante (asyncio.create_task) — endpoint retorna em <1s
 - [x] Scripts: backtest, registrar_resultado, prewarm_primeira_semana
+- [x] Prewarm Fix A: warm-up `asyncio.sleep(10)` antes do jogo 1 (evita cold-start burst 429)
+- [x] Prewarm Fix B: `_api_get` retry `range(5)` com backoff até 16s (players_agent.py)
+- [x] Cirurgia 1: 9 jogadores recuperados (australia-türkiye, canada-bosnia, south-korea-czech)
+- [x] Cirurgia 2: cartões recuperados — NZ media_amarelos=1.25, Ivory Coast=0.89
+- [x] Cache 72/72 persistido no git — copa completa validada
 
 ---
 
-## ❌ PROBLEMA ATIVO — Alta Prioridade
+## ⚠️ PROBLEMAS CONHECIDOS — Sem Fix Ativo
 
 ### `dados_insuficientes=True` sistêmico
-- **Causa:** A flag é True quando `stats_casa.dados_insuficientes OR stats_fora.dados_insuficientes` — e as stats de `/teams/statistics` da API-Football falham para **todas** as seleções nacionais (times nacionais não têm stats de temporada no formato de clubes).
-- **Impacto:** Todos os 24 jogos da semana 1 aparecem como "incompleto" no validador, mesmo com forma e odds corretos. O modelo ainda gera probabilidades via Elo, mas a flag polui os logs e a UX.
-- **Fix sugerido:** Separar `dados_insuficientes` em dois flags: `sem_forma` (bloqueia modelo) e `sem_stats_api` (não bloqueia — usa Elo fallback). OU: mudar a condição para só ser True quando forma também estiver vazia.
+- **Causa:** A flag é True quando `stats_casa.dados_insuficientes OR stats_fora.dados_insuficientes` — e as stats de `/teams/statistics` da API-Football falham para **todas** as seleções nacionais.
+- **Impacto:** Jogos aparecem como "incompleto" no validador, mesmo com forma e odds corretos. Modelo usa Elo fallback.
+- **Fix sugerido:** Separar flag em `sem_forma` (bloqueia modelo) e `sem_stats_api` (não bloqueia).
 
-### H2H vazio para todos os jogos
-- **Causa:** A chamada `/fixtures/headtohead` retorna vazio para muitos confrontos entre seleções nacionais que raramente se enfrentam.
-- **Impacto:** `h2h_count=0` em todos os 24 jogos. O modelo usa `confianca_h2h=0.85` de fallback mas perde contexto real.
-- **Fix sugerido:** Criar `seeds/h2h_seed.json` com confrontos históricos Copa do Mundo (dados públicos do Wikipedia/FIFA). Formato igual ao `forma_recente_seed.json`.
+### H2H vazio para muitos jogos
+- **Causa:** `/fixtures/headtohead` retorna vazio para confrontos raros entre seleções nacionais.
+- **Impacto:** `h2h_count=0`. Modelo usa `confianca_h2h=0.85` de fallback.
+- **Fix sugerido:** `seeds/h2h_seed.json` com confrontos históricos Copa do Mundo (Wikipedia/FIFA).
+
+### `_forma_do_seed` não tem `fixture_id`
+- **Causa:** Quando API retorna 0 fixtures para um time, `_forma_do_seed` cria `EntradaForma` sem `fixture_id`. `_enriquecer_forma_com_cartoes` pula todas as entradas → `media_amarelos=None`.
+- **Impacto:** Times que caem no fallback seed têm cartões None mesmo que a API tenha dados. Resolvido temporariamente via cirurgias (re-fetch dos jogos afetados), mas pode reaparecer em novos jogos se a API falhar.
+- **Fix definitivo:** `_forma_do_seed` buscar fixture IDs via `/fixtures?team={id}&date={data}` ou manter lista de fixture IDs no seed.
 
 ---
 
-## ⚠️ PENDENTE — Média Prioridade
+## ⚠️ PENDENTE — Alta Prioridade
+
+### Código
+- [ ] **Commitar Fix A+B** — `scripts/prewarm_copa2026.py` e `app/agents/players_agent.py` modificados mas não commitados
+  ```
+  git add app/agents/players_agent.py scripts/prewarm_copa2026.py
+  git commit -m "fix: prewarm warm-up 10s + retry 5x backoff 16s (resolve cold-start burst)"
+  git push origin main
+  ```
 
 ### Dados
-- [ ] **URGENTE** — Commitar `cache_partidas.json` populado no git: chamar `/admin/cache-snapshot` após prewarm, salvar em `seeds/cache_partidas.json` e commitar. Hoje o arquivo no git é `{}` — cada deploy reseta o cache e gasta ~200 chamadas API para repopular
-- [ ] Odds ausentes para **Australia × Türkiye** e **Portugal × Congo DR** — investigar se a Odds API não cobre esses confrontos ou se é timing
-- [ ] Seed H2H para os 24 jogos da semana 1 (eliminaria H2H vazio sistêmico)
-
-### Modelo
-- [ ] Modelo discorda das odds para Canada × Bosnia, Brazil × Morocco, Spain × Cape Verde — investigar se é bug de calibração ou discrepância real aceitável
-- [ ] Validar dados de times pequenos: Curaçao, Jordan, Congo DR, Cape Verde, Uzbekistan — podem ter IDs errados no seed ou dados inexistentes na API
+- [ ] Odds ausentes para **Australia × Türkiye** e **Portugal × Congo DR** — investigar cobertura na Odds API
+- [ ] Mercados `totals` e `btts` na busca de odds (`odds_agent.py`: `markets=h2h,totals`) — Over/Under e BTTS com odd real para top3 completo
+- [ ] Seed H2H — `seeds/h2h_seed.json` para jogos com H2H vazio
 
 ### Frontend / Produto
 - [ ] Supabase configurado no Lovable (frontend ainda não usa auth real)
-- [ ] MercadoPago — testar fluxo completo de pagamento em produção
+- [ ] MercadoPago — configurar vars Railway + testar fluxo completo (Pix + cartão)
 - [ ] Lovable: conectar endpoint `/recomendacao` atrás de paywall real
 
 ---
@@ -124,14 +138,17 @@
 ### Backtesting e Acurácia
 - [ ] Registrar resultados reais após cada jogo (script `scripts/registrar_resultado.py` pronto)
 - [ ] Popular `seeds/historico_predicoes.json` — hoje retorna `total_jogos: 0`
+- [ ] Recalibrar `ALPHA_REG` após fase de grupos (está 0.5 provisório — modelo subestima favoritos)
 - [ ] Calibração do modelo via backtesting Copa 2022/2018 (`scripts/backtest_copa.py` pronto)
 
 ### Infraestrutura
-- [ ] Railway volume mount para cache persistente entre deploys (alternativa a commitar JSON)
 - [ ] CI/CD: testes automatizados antes do deploy
 - [ ] Endpoint `/api/v1/copa/jogos/{slug}/recomendacao` — testar fluxo completo com usuário premium real
+- [ ] Fix definitivo `_forma_do_seed` sem `fixture_id` (ver Problemas Conhecidos)
 
 ### Produto
-- [ ] Segunda semana Copa 2026 (jogos 18-48) — validar cobertura após semana 1 rodar
+- [ ] Validar cobertura fase de grupos completa após Copa começar (11/06)
 - [ ] Arbitragem de odds (comparar múltiplos bookmakers para value bets mais precisos)
-- [ ] Página de performance pública — mostra acertos históricos do modelo para vender o produto
+- [ ] Página de performance pública — mostra acertos históricos do modelo
+- [ ] Limpar scripts temporários de diagnóstico: `scripts/_check_9players.py`, `scripts/_find_team_ids.py`, `scripts/_inspect_forma_cartoes.py`, `scripts/_test_cards_*.py`
+- [ ] Limpar backups temporários: `seeds/cache_partidas.antes_cirurgia*.json`, `seeds/cache_partidas.backup*.json`

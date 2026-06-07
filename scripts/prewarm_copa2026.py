@@ -128,6 +128,14 @@ async def main(dias: int, force: bool, dry_run: bool) -> None:
     print(f"  Quota API-Football inicial: {quota_inicio or 'indisponível'}")
     print()
 
+    # Warm-up: pausa antes do jogo 1 para garantir janela de rate limit limpa.
+    # O burst de cold-start (asyncio.gather dispara 15-25 requests em paralelo)
+    # estoura o rate limit da API-Football se a janela já tiver requests recentes.
+    if a_calcular:
+        print("  Warm-up: aguardando 10s para garantir janela de rate limit limpa...")
+        await asyncio.sleep(10)
+        print()
+
     aquecidos = 0
     erros     = 0
     t_inicio  = time.time()
