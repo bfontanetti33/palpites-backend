@@ -534,6 +534,8 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
             club_id = await _buscar_club_id(client, clube)
 
             # ── Tentativa 1: search + team (mais preciso) ─────────────────────
+            # 1a: nome completo; 1b: só sobrenome — a API rejeita nomes multi-token
+            # (ex: "Joshua Kimmich" → 0; "Kimmich" → 1 resultado)
             entry = None
             if club_id:
                 d1 = await _api_get(client, "/players", {
@@ -545,6 +547,19 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
                     if _score_nome(e.get("player", {}).get("name", ""), nome_busca) > 0:
                         entry = e
                         break
+
+                # 1b: fallback por sobrenome quando nome completo retorna 0
+                if not entry and " " in nome_busca:
+                    sobrenome = nome_busca.split()[-1]
+                    d1b = await _api_get(client, "/players", {
+                        "search": sobrenome,
+                        "team":   club_id,
+                        "season": SEASON,
+                    })
+                    for e in d1b.get("response", []):
+                        if _score_nome(e.get("player", {}).get("name", ""), nome_busca) > 0:
+                            entry = e
+                            break
 
             # ── Tentativa 2: todos os jogadores do clube ───────────────────────
             if not entry and club_id:
