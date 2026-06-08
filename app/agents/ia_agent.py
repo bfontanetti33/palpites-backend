@@ -598,7 +598,7 @@ def _calcular_value_bets(modelo: ModeloGols, odds: dict | None) -> tuple[bool, l
     palpite_principal: dict | None = None
     if not any(r["tem_value"] for r in results):
         melhor = max(
-            ((m, p) for m, p in probs_dc.items() if m in odds and odds.get(m, 0) > 0),
+            ((m, p) for m, p in probs_dc.items() if m in _MERCADOS_1X2 and m in odds and odds.get(m, 0) > 0),
             key=lambda x: x[1],
             default=None,
         )
