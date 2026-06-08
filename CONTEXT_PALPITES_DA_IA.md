@@ -48,7 +48,7 @@ palpites-backend/
 │   ├── auth/
 │   │   └── supabase_client.py       # JWT auth, premium status, usage log
 │   ├── payments/
-│   │   └── mercadopago_webhook.py   # Webhook pagamentos MP
+│   │   └── mercadopago_webhook.py   # Webhook pagamentos MP + /criar-preferencia
 │   ├── monitoring/
 │   │   ├── telegram_bot.py          # Alertas + resumo diário 8h BRT
 │   │   └── cron_jobs.py             # Jobs automáticos em background
@@ -124,6 +124,7 @@ palpites-backend/
 | GET | /api/v1/admin/stats | — | Métricas do servidor |
 | GET | /api/v1/admin/telegram-test | — | Envia mensagem teste no Telegram |
 | POST | /api/v1/webhooks/mercadopago | HMAC | Webhook pagamentos |
+| POST | /api/v1/pagamentos/criar-preferencia | JWT ou PREMIUM_TOKEN | Cria preference MP Checkout Pro |
 
 ---
 
@@ -185,6 +186,7 @@ Mensagem 429 em PT-BR com Retry-After header.
 | ADMIN_TOKEN | ✅ (criado 08/06 — protege /api/v1/admin/*; TROCAR pós-lançamento, apareceu no chat) |
 | MERCADOPAGO_ACCESS_TOKEN | ⏳ pendente |
 | MERCADOPAGO_WEBHOOK_SECRET | ⏳ pendente |
+| SUPABASE_JWT_SECRET | ⏳ pendente — CRÍTICO: sem ela todo JWT de usuário retorna None e paywall rejeita 403 |
 | SENTRY_DSN | ⏳ opcional |
 
 **CORS:** `ALLOWED_ORIGIN` inclui palpitesdaia.com.br, www.palpitesdaia.com.br, magic-guess-stream.lovable.app e lovableproject.com
@@ -194,7 +196,7 @@ Mensagem 429 em PT-BR com Retry-After header.
 ## 12. Monitoramento (Telegram)
 
 - Bot: `palpitesdaia_monitor_bot`
-- Token: 8890660681:AAEUnEfn4vzZUNp-Od5l8D_P4z6S7kvrjZ0
+- Token: <TELEGRAM_BOT_TOKEN> (ver Railway env vars)
 - Chat ID: 8802057413
 - Resumo diário: 8h BRT
 - Alertas imediatos: erro 500, quota < 500, Anthropic < $2, sharp money
@@ -217,7 +219,7 @@ Mensagem 429 em PT-BR com Retry-After header.
 - **Modelo de cobrança:** começar com PAGAMENTO ÚNICO por período (não recorrente). Detalhes na seção 21.
 - **Paywall:** homepage gratuita, análise completa paga
 - **Estratégia lançamento:** 100% gratuito no dia 1 (segunda 08/06), ativa paywall sábado
-- **Pagamento:** Mercado Pago (Pix + cartão) — integração PENDENTE (risco nº 1, ver seção 21)
+- **Pagamento:** Mercado Pago (Pix + cartão) — backend implementado (cb1c62b), aguarda variáveis Railway
 - **Break-even:** ~26 assinantes (a R$14,90 muda o cálculo — recalcular)
 
 ---
@@ -257,12 +259,13 @@ Mensagem 429 em PT-BR com Retry-After header.
 - Supabase conectado, Telegram bot ativo, domínio ativo, GA4, compliance Lei 14.790
 - Página de planos com ancoragem de preço
 - **Segurança: ADMIN_TOKEN criado no Railway** (endpoints /admin/* estavam fail-open, agora fechados)
+- **Backend MP implementado e commitado (cb1c62b)** — webhook fail-closed, 3 planos, endpoint /criar-preferencia
 
 ### ❌ Problemas Conhecidos / Backlog imediato
 - **6 jogos sem odds (Türkiye/Congo DR)** — provável problema de ENCODING do slug (türkiye/curaçao caractere especial). Investigar.
 - **Escanteios N=None** internamente — lag de cache L2 (TTL team_stats 30 dias). A média aparece na tela; só o N interno falta. Some quando o cache expirar ou em full-fetch.
 - **Fraseado "favorita com 39/48%"** na narrativa — num jogo de 3 vias, 39% é "ligeiramente à frente", não "favorita". Ajuste de narrativa.
-- **Mercado Pago NÃO funcional** (botões "Assinar" sem ação) — RISCO Nº 1, ver seção 21.
+- **Mercado Pago NÃO funcional** (botões "Assinar" sem ação) — RISCO Nº 1, ver seção 21. Backend pronto, faltam variáveis Railway + login Lovable.
 - **Login real NÃO existe** (Supabase Auth) — pré-requisito do pagamento.
 - **ADMIN_TOKEN apareceu no chat** — trocar por higiene pós-lançamento.
 
@@ -287,8 +290,9 @@ Mensagem 429 em PT-BR com Retry-After header.
 - ✅ Palpite 1X2 / Valor / Zebra separados
 - ✅ Elo TSV (eloratings.net, rastreável)
 - ✅ Rating auditado e selado (58/32/10)
+- ✅ Backend Mercado Pago (webhook + /criar-preferencia) — commit cb1c62b
 - ⏳ Login (Supabase Auth) — pré-requisito do pagamento
-- ⏳ Mercado Pago funcional (pagamento único primeiro)
+- ⏳ Variáveis Railway MP + JWT secret (destrava paywall)
 
 ### Fase 3 — Monitoramento (após lançamento)
 - Agente Claude monitora site, pagamentos, usuários e bugs
@@ -324,6 +328,14 @@ git add . && git commit -m "mensagem" && git push origin main
 # Forçar redeploy sem mudança de código
 git commit --allow-empty -m "chore: force redeploy"
 git push origin main
+
+# Testar /criar-preferencia em sandbox (com PREMIUM_TOKEN real do Railway)
+curl -s -X POST "https://palpites-backend-production.up.railway.app/api/v1/pagamentos/criar-preferencia" \
+  -H "Authorization: Bearer <PREMIUM_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"plano":"mensal","email":"teste@teste.com"}'
+# Resposta esperada: {"preference_id":..., "init_point":..., "sandbox_init_point":...}
+# 503 = MERCADOPAGO_ACCESS_TOKEN ausente | 403 = token errado | 400 = plano inválido
 ```
 
 ---
@@ -335,8 +347,8 @@ LANÇAMENTO segunda 08/06 = GRÁTIS (paywall desligado). Modelo/cache prontos e 
 Copa começa 11/06. Paywall previsto pra sábado (depende do Mercado Pago — ver seção 21).
 
 1. Mercado Pago + Login (RISCO Nº 1) — ver seção 21 para o plano completo
-   → decidido: começar com PAGAMENTO ÚNICO por período (não recorrente)
-   → login (Supabase Auth) é pré-requisito — é majoritariamente frontend (Lovable)
+   → backend PRONTO (cb1c62b) — falta: 3 variáveis Railway + frontend login
+   → SUPABASE_JWT_SECRET é o desbloqueio mais crítico (sem ela todo usuário leva 403)
    → testar TUDO em sandbox antes de produção
 
 2. Encoding dos 6 slugs Türkiye/Congo (sem odds)
@@ -361,31 +373,89 @@ Copa começa 11/06. Paywall previsto pra sábado (depende do Mercado Pago — ve
 
 ---
 
-## 21. Plano Mercado Pago + Login (decisões tomadas 08/06)
+## 21. Plano Mercado Pago + Login (decisões + diagnóstico + implementação 08/06)
 
 ### Decisões
 - **Preços:** R$2,90/jogo (24h) · R$6,90/semana · R$14,90/mês
   - ATENÇÃO: o site ainda mostra R$19,90/mês — propagar R$14,90 no Lovable
-- **Modelo:** começar com PAGAMENTO ÚNICO por período (preference), NÃO recorrente
+- **Modelo:** PAGAMENTO ÚNICO por período (preference / Checkout Pro), NÃO recorrente
   - paga 1x, vale 1/7/30 dias; renova manualmente. Recorrente (preapproval) fica pra depois.
-  - razão: recorrente + login do zero é muito trabalho/risco até sábado
-- **Login:** Supabase Auth — NÃO existe ainda, é PRÉ-REQUISITO de tudo, majoritariamente frontend (Lovable)
+- **Integração escolhida:** Checkout Pro (MP cuida da tela de pagamento; backend cria preference, webhook confirma). NÃO usar Checkout Transparente (lida com cartão, PCI) nem link/botão (manual).
+- **Login:** Supabase Auth — backend JÁ valida JWT; falta o frontend (Lovable) gerar (cadastro/login)
 
-### Cadeia de dependências (ordem)
-1. Login (Supabase Auth) — sem saber quem é o usuário, nada funciona
-2. Criar preference no MP (backend) quando clica "Assinar"
-3. Webhook (já existe parcial em mercadopago_webhook.py) marca is_premium + premium_until no Supabase
-4. Paywall checa "é premium e dentro da validade?"
+### DIAGNÓSTICO (o que já existe — descoberto 08/06)
+Quase tudo da fundação JÁ EXISTE. Falta menos do que parecia:
+- ✅ **app/auth/supabase_client.py** — verify_jwt_token, get_user_premium_status, set_premium, deduct_avulso_credit, register_usage, get_user_id_by_email (novo). COMPLETO.
+- ✅ **Paywall** — _verificar_acesso_recomendacao (partidas.py linha 57-99): admin token / JWT premium ou crédito / 403. Fail-closed, completo.
+- ✅ **Tabela users** (Supabase) — is_premium, premium_until, avulso_credits — lida e escrita.
+- ✅ **Webhook** /api/v1/webhooks/mercadopago — recebe, busca pagamento, notifica Telegram. Os 3 bugs foram corrigidos (ver abaixo).
 
-### Quem faz o quê
-- **Backend (Claude Code):** criar preference, processar webhook, marcar premium no Supabase
-- **Frontend (Lovable):** login (cadastro/senha), botão Assinar→backend, paywall
-- **Brunno:** credenciais MP no Railway, configurar Supabase Auth, testar pagamento
+### BACKEND IMPLEMENTADO E COMMITADO (commit cb1c62b — em produção)
+- **Bug 1 (segurança CRÍTICA) — webhook fail-closed:** _verificar_assinatura agora retorna False (não True) se secret ausente/exceção; webhook faz `if not MP_WEBHOOK_SECRET: return 403`; enforça `if not _verificar_assinatura(): return 403`. Manifest HMAC corrigido (data_id do body, request_id do header). ANTES era fail-open — qualquer POST forjado virava premium de graça.
+- **Bug 2:** get_user_id_by_email(email) antes de set_premium (filtrava por user_id, recebia email). Se não acha: loga + Telegram [ERRO: conta não encontrada].
+- **Bug 3:** _PLANOS dict centralizado — jogo (24h/R$2,90), semanal (7d/R$6,90), mensal (30d/R$14,90) + aliases. credito=True (avulso→add_avulso_credit) / False (temporal→set_premium).
+- **NOVO endpoint:** `POST /api/v1/pagamentos/criar-preferencia`
+  - Header: `Authorization: Bearer <JWT-Supabase>` (extrai email) OU `Bearer <PREMIUM_TOKEN>` + email no body (atalho de teste sandbox sem login)
+  - Body: `{ "plano": "jogo"|"semanal"|"mensal", "slug": "<slug>" (só plano jogo) }`
+  - Resposta: `{ "preference_id", "init_point", "sandbox_init_point", "plano", "preco", "label" }`
+  - 503 se MP_ACCESS_TOKEN ausente. Usa httpx direto (sem SDK MP).
+
+### VARIÁVEIS Railway pendentes (Brunno adiciona — DESTRAVA tudo)
+- **SUPABASE_JWT_SECRET** — Supabase → Settings → API → JWT Settings. SEM ela todo usuário leva 403 (paywall morto pra usuários reais). É o desbloqueio mais crítico.
+- **MERCADOPAGO_ACCESS_TOKEN** — chave de TESTE (sandbox) já criada por Brunno.
+- **MERCADOPAGO_WEBHOOK_SECRET** — painel MP (config webhooks). SEM ela o webhook é fail-closed (rejeita 403).
+
+### ORDEM DE EXECUÇÃO (retomar daqui)
+1. ~~Commitar o backend (webhook fixes + endpoint criar-preferencia) → push → deploy~~ ✅ FEITO (cb1c62b)
+2. Brunno adiciona as 3 variáveis no Railway
+3. TESTAR backend isolado em sandbox (sem depender do Lovable), via atalho PREMIUM_TOKEN+email:
+   ```
+   curl -s -X POST "https://palpites-backend-production.up.railway.app/api/v1/pagamentos/criar-preferencia" \
+     -H "Authorization: Bearer <SEU_PREMIUM_TOKEN_DO_RAILWAY>" \
+     -H "Content-Type: application/json" \
+     -d '{"plano":"mensal","email":"teste@teste.com"}'
+   ```
+   → deve retornar sandbox_init_point. Usar o PREMIUM_TOKEN real (não texto literal).
+4. Lovable implementa login + botões + paywall (prompt na seção 21b abaixo)
+5. Teste ponta a ponta sandbox: login → botão → checkout MP (cartão teste) → webhook → premium → acesso libera
+6. Só depois: trocar MP_ACCESS_TOKEN pra PRODUÇÃO e ligar o paywall (sábado)
 
 ### CRÍTICO — segurança de pagamento
-- Testar TUDO em SANDBOX (credenciais de teste) antes de produção. Nunca testar direto em produção.
-- Variáveis Railway pendentes: MERCADOPAGO_ACCESS_TOKEN, MERCADOPAGO_WEBHOOK_SECRET
-- Próximo passo: rodar o DIAGNÓSTICO (o que já existe: login? webhook faz o quê? tabela users? variáveis?) antes de implementar
+- Testar TUDO em SANDBOX antes de produção. NUNCA testar cobrança em produção.
+- O acesso premium é liberado pelo BACKEND via webhook — o frontend só mostra confirmação.
+
+---
+
+## 21b. Prompt pronto pro Lovable (login + pagamento)
+
+```
+Implementar login de usuário e fluxo de pagamento (Mercado Pago Checkout Pro) no site.
+CONTEXTO: o backend (FastAPI no Railway) já valida JWT do Supabase Auth e tem o paywall pronto.
+Backend: https://palpites-backend-production.up.railway.app
+
+1. AUTENTICAÇÃO (Supabase Auth)
+- Login e cadastro (email+senha) via Supabase Auth — projeto já usa Supabase (jwzvuixvuptazfyasmlm.supabase.co)
+- Telas "Entrar"/"Criar conta" no header; guardar o access_token JWT; header reflete logado/deslogado
+
+2. PÁGINA DE PLANOS — preços: jogo R$2,90 (24h) · semanal R$6,90 (7d, NOVO) · mensal R$14,90 (corrigir, hoje R$19,90)
+Ao clicar Assinar: se não logado→login; se logado→
+POST https://palpites-backend-production.up.railway.app/api/v1/pagamentos/criar-preferencia
+  Header: Authorization: Bearer {access_token Supabase} + Content-Type: application/json
+  Body: { "plano": "jogo"|"semanal"|"mensal", "slug": "<slug>" (só plano jogo) }
+  Resposta: { "init_point", "sandbox_init_point" } → redireciona pro init_point (sandbox_init_point em teste)
+
+3. RETORNO: criar /pagamento/sucesso, /pagamento/erro, /pagamento/pendente. Sucesso: "Pagamento confirmado!".
+   Acesso liberado pelo BACKEND via webhook (não pelo frontend).
+
+4. PAYWALL: análise completa é paga. Enviar JWT pro backend. 403→mostra paywall (Desbloquear+planos); 200→mostra análise.
+
+IMPORTANTE: NÃO lidar com cartão no frontend (Checkout Pro do MP cuida). Manter visual (tema escuro, verde).
+Em teste usar sandbox_init_point; em produção init_point.
+```
+
+### Backlog MP pós-lançamento
+- Assinatura RECORRENTE (preapproval) — substituir pagamento único quando houver tempo de testar
+- Recalcular break-even com preços novos (R$14,90, não R$19,90)
 
 ---
 
@@ -416,6 +486,7 @@ A desconexão código↔tela foi o bug MAIS RECORRENTE do projeto (cache não pr
 - **16252a4:** admin.py — narrativa no prewarm + warm-up 10s + pacing 1.5s
 - **dbd0afe:** Fix palpite 1X2 (m in _MERCADOS_1X2 na linha 601 — estava esquecido, fazia Over virar palpite em jogos equilibrados)
 - **74c9fb5:** Cache validado — 72 jogos, Elo TSV, palpite 1X2, odds Pinnacle
+- **cb1c62b:** Mercado Pago backend — webhook fail-closed + Bug 2 (email→user_id) + Bug 3 (3 planos) + endpoint /criar-preferencia
 - (de sessões/etapas anteriores no mesmo arco: c3678df palpite 1X2 puro, 6899429 roteamento valor/zebra)
 
 ### Trabalho principal do dia
@@ -425,13 +496,71 @@ A desconexão código↔tela foi o bug MAIS RECORRENTE do projeto (cache não pr
 4. **Odds** — causa do value_bets vazio era partida.odds=None congelado (busca falhou no prewarm). Endpoint /admin/refresh-odds busca odds reais (Pinnacle). Resultado: 66/72 com odds.
 5. **Recálculo único** — refresh-odds + prewarm, zero 429 (warm-up + pacing + Fix B domaram o burst de cold-start)
 6. **Check de tela** (Claude in Chrome) — validado: palpite 1X2, Elo propagado, sem false value, zebras, value honesto, árbitro honesto
+7. **Mercado Pago backend** — diagnóstico completo, 3 bugs corrigidos, novo endpoint /criar-preferencia
 
 ### Lições/achados
 - Fix B "existia mas não" — estava no players_agent (ffe8d0a), não no football_agent. Corrigido hoje.
 - Endpoints admin eram fail-open (sem ADMIN_TOKEN = aberto). Token criado. Backlog: revisar pra fail-closed.
 - Path dos endpoints admin: /api/v1/admin/... (não /admin/...). Header: Authorization (com ou sem Bearer).
 - haiti-scotland mostrava Over como palpite (linha 601 sem filtro _MERCADOS_1X2) — corrigido, afetava jogos equilibrados.
+- Webhook MP tinha manifest HMAC errado (usava request_id para data_id). Corrigido: data_id vem do body `data.data.id`.
 
 ### Frentes abertas no fim da sessão
-- Playground (2º terminal): descoberta se a The Odds API tem odds dos amistosos pro value bet real
-- Mercado Pago: diagnóstico pendente (ver seção 21)
+- **Playground (2º terminal): FECHADO.** A The Odds API NÃO cobre amistosos internacionais (sport_key soccer_international_friendlies dá 404; nenhuma das 65 chaves soccer cobre amistosos). Conclusão: value bet só valida com odds reais nos JOGOS DA COPA (soccer_fifa_world_cup, Pinnacle) — já validado no check de tela (Ghana×Panama). Amistosos servem pra testar o MODELO/rating, não value bet. Playground ficou com value bet section + degradação honesta, bug :.1f de escanteios corrigido, early-exit após 404. Nada de produção tocado.
+- **Mercado Pago: BACKEND PRONTO (cb1c62b).** Diagnóstico feito, backend commitado e deployado, prompt do Lovable pronto. Ver seções 21 e 21b. Próximo: variáveis Railway → teste sandbox → Lovable. Prazo: paywall sábado. NÃO bloqueia o lançamento de segunda (que é grátis).
+
+### Lembretes pra retomada
+- O LANÇAMENTO de segunda 08/06 é GRÁTIS (paywall desligado) — o produto pra isso está PRONTO e validado.
+- O Mercado Pago é pro paywall de SÁBADO — atacar com calma, em sandbox, cabeça fresca.
+- Tráfego vem do TikTok = MOBILE. Vale um check de tela responsivo (não feito ainda) antes de divulgar pesado.
+- Backlog rápido: encoding dos 6 slugs Türkiye/Congo · trocar ADMIN_TOKEN · fraseado "favorita 39%".
+
+---
+
+## 24. Notas Técnicas Claude (pós cb1c62b)
+
+### Detalhes de implementação que vale registrar
+
+**webhook HMAC — manifest exato:**
+```
+manifest = f"id:{data_id};request-id:{x_request_id};ts:{ts};"
+```
+- `data_id` vem de `body["data"]["id"]` (campo no body do POST)
+- `x_request_id` vem do header `x-request-id` (não confundir com data_id)
+- `ts` vem do próprio header `x-signature` (formato `ts=...,v1=...`)
+- Erro clássico: usar request_id no lugar de data_id para o campo `id:` — manifesto errado = todas as assinaturas falham
+
+**supabase_client.py — qual função usa o quê:**
+- `add_avulso_credit(email)` — aceita email, faz lookup internamente (ok usar direto)
+- `set_premium(user_id, iso_date)` — exige UUID, NÃO aceita email. Sempre usar `get_user_id_by_email(email)` antes
+- `deduct_avulso_credit(user_id)` — exige UUID, leitura+escrita (não atômica, risco de race se usuário fizer duas requisições simultâneas — ok pra escala atual)
+- `verify_jwt_token(token)` — depende de `SUPABASE_JWT_SECRET`; retorna None imediatamente se env ausente (linha 75)
+
+**por que SUPABASE_JWT_SECRET é o bloqueador mais crítico:**
+Sem ela, `verify_jwt_token()` retorna `None` para qualquer JWT válido do Supabase Auth. O paywall (`_verificar_acesso_recomendacao`) interpreta `None` como não-autenticado e retorna 403. Resultado: usuários que pagaram e têm conta não conseguem acessar. Adicioná-la ao Railway destrava o paywall para TODOS os usuários com JWT real, sem nenhuma mudança de código.
+
+**fire test (scripts/_fire_test.py) — resultados pós-dbd0afe:**
+- 24/24 jogos Rodada 1 com palpite 1X2 correto (zero "Over" como palpite)
+- haiti-scotland: `palpite_principal.mercado = "Resultado 1X2"` confirmado
+- 3 falhas transientes no primeiro batch (timeout) — individuais reruns OK; Railway sem cold start após prewarm
+
+**_MERCADOS_1X2 — onde está definido:**
+```python
+# ia_agent.py linha 518
+_MERCADOS_1X2 = {"vitoria_casa", "empate", "vitoria_fora"}
+
+# ia_agent.py linha 601 (fix dbd0afe)
+((m, p) for m, p in probs_dc.items() if m in _MERCADOS_1X2 and m in odds and odds.get(m, 0) > 0)
+```
+Sem o `m in _MERCADOS_1X2`, jogos com probs DC equilibradas podiam ter "Over 2.5" ou "BTTS" como palpite principal por terem prob_dc mais alta que qualquer mercado 1X2.
+
+**cache_partidas.json — estrutura correta:**
+- Correto: `_store[slug]["stats"]["dados"].rating_casa.elo_score`
+- Errado (camada velha): `_store[slug]["partida"].rating_casa.elo_score`
+- O campo `partida` é da L1 (pode ter Elo antigo). Os dados de Elo TSV ficam em `stats.dados`.
+
+**endpoint /criar-preferencia — path completo:**
+`POST /api/v1/pagamentos/criar-preferencia`
+- Definido em `app/payments/mercadopago_webhook.py` com decorator `@router.post("/pagamentos/criar-preferencia")`
+- Montado em `main.py` linha 88: `app.include_router(mp_router, prefix="/api/v1", tags=["Pagamentos"])`
+- Retorna: `preference_id`, `init_point` (produção), `sandbox_init_point` (teste), `plano`, `preco`, `label`
