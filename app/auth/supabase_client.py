@@ -182,6 +182,24 @@ async def deduct_avulso_credit(user_id: str) -> bool:
         return False
 
 
+async def get_user_id_by_email(email: str) -> str | None:
+    """Retorna o user_id (UUID) do usuário pelo e-mail. None se não encontrado."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(
+                f"{SUPABASE_URL}/rest/v1/users",
+                headers=_HEADERS,
+                params={"email": f"eq.{email}", "select": "id"},
+            )
+            r.raise_for_status()
+            data = r.json()
+            return data[0]["id"] if data else None
+    except Exception:
+        return None
+
+
 async def set_premium(user_id: str, premium_until_iso: str) -> None:
     """Ativa premium para o usuário até a data indicada (ISO 8601)."""
     if not SUPABASE_URL or not SUPABASE_KEY:
