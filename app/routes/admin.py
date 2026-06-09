@@ -298,17 +298,19 @@ async def admin_stats():
 @router.get("/admin/prewarm", tags=["Admin"])
 async def prewarm_stats(
     dias: int = 14,
+    force: bool = False,
     authorization: str | None = Header(default=None),
 ):
     """
     Dispara pré-aquecimento em background e retorna imediatamente.
+    force=true recalcula todos os jogos ignorando cache existente.
     Use /admin/validar-semana para acompanhar progresso.
     """
     _checar_token(authorization)
     import asyncio
     from datetime import datetime, timezone
 
-    async def _run_prewarm(max_horas: int) -> None:
+    async def _run_prewarm(max_horas: int, force_recalc: bool) -> None:
         import logging
         _log = logging.getLogger("admin.prewarm")
         from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
@@ -331,7 +333,7 @@ async def prewarm_stats(
             except Exception:
                 continue
 
-            if _sc.get_stats(slug) is not None:
+            if not force_recalc and _sc.get_stats(slug) is not None:
                 pulados += 1
                 continue
 
@@ -360,16 +362,19 @@ async def prewarm_stats(
         try:
             dt = datetime.fromisoformat(jogo["data_hora_utc"].replace("Z", "+00:00"))
             horas = (dt - agora).total_seconds() / 3600
-            if 0 < horas <= dias * 24 and _sc.get_stats(jogo["slug"]) is None:
+            em_janela = 0 < horas <= dias * 24
+            sem_cache = _sc.get_stats(jogo["slug"]) is None
+            if em_janela and (force or sem_cache):
                 pendentes.append(jogo["slug"])
         except Exception:
             pass
 
-    asyncio.create_task(_run_prewarm(dias * 24))
+    asyncio.create_task(_run_prewarm(dias * 24, force))
     return {
         "status": "iniciado",
+        "force": force,
         "jogos_pendentes": len(pendentes),
-        "slugs_pendentes": pendentes,
+        "slugs_pendentes": pendentes[:10],  # mostra só os primeiros 10 no retorno
         "mensagem": "Prewarm rodando em background. Use /admin/validar-semana para acompanhar.",
     }
 
