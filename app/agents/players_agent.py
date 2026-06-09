@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import re
+import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +32,11 @@ UA       = "Mozilla/5.0 (compatible; PalpitesIA/2)"
 _stats_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
 # Squad cache (sessão)
 _squad_cache: dict = {}
+
+# Rate-limit global: serializa chamadas à API-Football a no máximo ~6.7 req/s
+_api_lock: asyncio.Lock | None = None  # inicializado no primeiro uso (event loop ativo)
+_api_last_call: float = 0.0
+_API_MIN_INTERVAL: float = 0.15  # segundos entre chamadas
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 MIN_MINUTOS = 540   # mín. minutos de clube (≈6 jogos completos) para elegível no P90
@@ -303,10 +309,23 @@ def _salvar_squad_cache(team_name: str, players: list[dict]) -> None:
 # ════════════════════════════════════════════════════════════════════════════════
 
 async def _api_get(client: httpx.AsyncClient, path: str, params: dict) -> dict:
+    global _api_lock, _api_last_call
+    if _api_lock is None:
+        _api_lock = asyncio.Lock()
+
     key = f"{path}:{sorted(params.items())}"
     if key in _stats_cache:
         return _stats_cache[key]
+
     for tentativa in range(5):
+        # Throttle global: no máximo 1 chamada a cada _API_MIN_INTERVAL segundos
+        async with _api_lock:
+            elapsed = time.monotonic() - _api_last_call
+            wait = _API_MIN_INTERVAL - elapsed
+            if wait > 0:
+                await asyncio.sleep(wait)
+            _api_last_call = time.monotonic()
+
         r = await client.get(f"{BASE_URL}{path}", headers=API_HDR, params=params)
         if r.status_code == 429:
             await asyncio.sleep(2 ** tentativa)  # 1s, 2s, 4s, 8s, 16s
@@ -446,14 +465,35 @@ _CLUB_ALIASES: dict[str, str] = {
     "Atlético Madrid":          "Atletico Madrid",       # ID=530
     "Atletico Madrid":          "Atletico Madrid",
     "Atletico de Madrid":       "Atletico Madrid",
+    # ── Saudi Pro League ─────────────────────────────────────────────────
+    "Al-Hilal":                 "Al-Hilal Saudi FC",     # ID=2932; ?name=Al-Hilal retorna clube sudanês
+    # ── Qatar Stars League ───────────────────────────────────────────────
+    "Al-Duhail":                "Al-Duhail SC",          # ID=2904; sem sufixo = 0 resultados
+    "Al-Rayyan":                "Al-Rayyan SC",          # ID=2897; sem sufixo retorna B team
+    # ── UAE Pro League ───────────────────────────────────────────────────
+    "Al-Ahli":                  "Shabab Al Ahli Dubai",  # ID=2870; ambíguo (Djeddá, Cairo, Dubai)
+    "Shabab Al Ahli":           "Shabab Al Ahli Dubai",  # ID=2870
+    # ── Iraq Premier League ──────────────────────────────────────────────
+    "Al-Quwa Al-Jawiya":        "Al Quwa Al Jawiya",     # ID=8009; hífens travam ?name=
 }
 
 
+_DIACRITIC_MAP = str.maketrans({
+    "ø": "o", "Ø": "O",
+    "æ": "ae", "Æ": "AE",
+    "ı": "i",              # dotless-i turco (ex: Kadıoğlu)
+    "ð": "d", "Ð": "D",   # eth islandês
+    "þ": "th", "Þ": "TH",
+})
+
+
 def _ascii_normalizar(nome: str) -> str:
-    """Remove diacríticos via NFKD: Grêmio→Gremio, Fenerbahçe→Fenerbahce.
-    Não resolve ø (Brøndby) — esse caso está no _CLUB_ALIASES."""
+    """Remove diacríticos via NFKD + mapeamento manual para chars sem decomposição Unicode.
+    NFKD cobre: ç→c, ü→u, ğ→g, ž→z, ñ→n, etc.
+    Manual cobre: ø→o, æ→ae, ı→i (não decompõem via NFKD).
+    """
     return "".join(
-        c for c in unicodedata.normalize("NFKD", nome)
+        c for c in unicodedata.normalize("NFKD", nome.translate(_DIACRITIC_MAP))
         if unicodedata.category(c) != "Mn"
     )
 
@@ -821,7 +861,7 @@ async def buscar_jogadores_destaque(team_name: str) -> dict:
     squad_sorted = sorted(squad, key=lambda p: p.get("caps") or 0, reverse=True)
     top_squad    = _selecionar_para_fetch(squad)
 
-    # Passo 2 — stats em paralelo (semáforo 5 para compensar squad maior)
+    # Passo 2 — stats em paralelo (semáforo 3; throttle real é o _api_lock global)
     stats_map: dict[str, dict] = {}
 
     async def fetch_one(p: dict) -> None:
@@ -829,7 +869,7 @@ async def buscar_jogadores_destaque(team_name: str) -> dict:
         if raw:
             stats_map[p["nome"]] = calcular_p90(raw)
 
-    semaphore = asyncio.Semaphore(5)
+    semaphore = asyncio.Semaphore(3)
     async def fetch_limited(p):
         async with semaphore:
             await fetch_one(p)
