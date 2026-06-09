@@ -90,6 +90,13 @@ async def _buscar_pagamento(payment_id: str) -> dict | None:
 # ── Processamento do pagamento aprovado ──────────────────────────────────────
 
 async def _processar_pagamento_aprovado(payment: dict) -> None:
+    try:
+        await _processar_pagamento_aprovado_inner(payment)
+    except Exception as e:
+        log.error("_processar_pagamento_aprovado: exceção não capturada — %s", e, exc_info=True)
+
+
+async def _processar_pagamento_aprovado_inner(payment: dict) -> None:
     if payment.get("status") != "approved":
         return
 

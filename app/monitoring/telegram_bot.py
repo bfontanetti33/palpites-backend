@@ -39,7 +39,10 @@ state = MonitorState()
 
 async def send_telegram(mensagem: str) -> bool:
     """Envia mensagem para o chat configurado. Retorna True se enviou."""
+    import logging as _tg_log
+    _log = _tg_log.getLogger(__name__)
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT:
+        _log.warning("send_telegram: TELEGRAM_BOT_TOKEN ou TELEGRAM_CHAT_ID não configurados")
         return False
     try:
         async with httpx.AsyncClient(timeout=8) as c:
@@ -52,8 +55,11 @@ async def send_telegram(mensagem: str) -> bool:
                     "disable_web_page_preview": True,
                 },
             )
+            if r.status_code != 200:
+                _log.warning("send_telegram: HTTP %s — %s", r.status_code, r.text[:300])
             return r.status_code == 200
-    except Exception:
+    except Exception as e:
+        _log.warning("send_telegram: exceção — %s", e)
         return False
 
 

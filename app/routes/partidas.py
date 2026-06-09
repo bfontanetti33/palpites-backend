@@ -140,6 +140,54 @@ async def recomendacao_ia(
         )
 
 
+@router.get("/usuario/assinatura")
+@limiter.limit("30/minute")
+async def assinatura_usuario(
+    request: Request,
+    authorization: str | None = Header(default=None),
+):
+    """
+    Retorna o status de assinatura do usuário autenticado.
+    Usado pelo frontend para saber o que bloquear/desbloquear sem tentar /recomendacao.
+
+    Auth: Bearer <JWT Supabase> (usuário logado no site).
+    PREMIUM_TOKEN NÃO deve ser usado pelo frontend — é só para testes manuais.
+    """
+    token = (authorization or "").removeprefix("Bearer ").strip()
+
+    if not token:
+        raise HTTPException(status_code=403, detail="Faça login para continuar.")
+
+    # Admin/teste manual — nunca embutir no frontend
+    if PREMIUM_TOKEN and token == PREMIUM_TOKEN:
+        return {
+            "is_premium": True,
+            "premium_until": None,
+            "avulso_credits": 999,
+            "email": "admin",
+        }
+
+    from app.auth.supabase_client import verify_jwt_token, get_user_premium_status
+    payload = verify_jwt_token(token)
+    if not payload:
+        raise HTTPException(status_code=403, detail="Token inválido. Faça login novamente.")
+
+    user_id = payload.get("sub", "")
+    email   = payload.get("email", "") or payload.get("sub", "")
+
+    if not user_id:
+        raise HTTPException(status_code=403, detail="Token sem identificador de usuário.")
+
+    status = await get_user_premium_status(user_id)
+
+    return {
+        "is_premium":      status["is_premium"],
+        "premium_until":   status["premium_until"],
+        "avulso_credits":  status["avulso_credits"],
+        "email":           email,
+    }
+
+
 def _stats_valida(stats: dict) -> bool:
     """Retorna True se o dict de StatsRecomendacao tem dados reais calculados."""
     return bool(stats and stats.get("top3") and stats.get("modelo_gols"))
