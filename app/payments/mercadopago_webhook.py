@@ -216,7 +216,13 @@ async def criar_preferencia(
     """
     import os as _os
     PREMIUM_TOKEN = _os.getenv("PREMIUM_TOKEN", "")
-    token = (authorization or "").removeprefix("Bearer ").strip()
+    raw_auth = authorization or ""
+    token = raw_auth.removeprefix("Bearer ").strip()
+
+    log.info(
+        "criar_preferencia: Authorization header presente=%s token_prefix=%s...",
+        bool(raw_auth), token[:20] if token else "(vazio)",
+    )
 
     # Identifica o e-mail do comprador
     if PREMIUM_TOKEN and token == PREMIUM_TOKEN:
@@ -224,15 +230,20 @@ async def criar_preferencia(
         if not body.email:
             raise HTTPException(status_code=400, detail="Campo 'email' obrigatório ao usar PREMIUM_TOKEN.")
         email = body.email
+        log.info("criar_preferencia: auth via PREMIUM_TOKEN email=%s", email)
     elif token:
         from app.auth.supabase_client import verify_jwt_token
         payload = verify_jwt_token(token)
         if not payload:
+            log.warning("criar_preferencia: verify_jwt_token retornou None para token_prefix=%s...", token[:20])
             raise HTTPException(status_code=403, detail="Token inválido. Faça login novamente.")
         email = payload.get("email", "") or payload.get("sub", "")
+        log.info("criar_preferencia: JWT válido email=%s claims=%s", email, list(payload.keys()))
         if not email:
+            log.warning("criar_preferencia: JWT sem email/sub — claims: %s", payload)
             raise HTTPException(status_code=403, detail="Token sem e-mail. Faça login novamente.")
     else:
+        log.warning("criar_preferencia: sem Authorization header")
         raise HTTPException(status_code=403, detail="Faça login para continuar.")
 
     # Valida plano

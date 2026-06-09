@@ -72,22 +72,40 @@ def verify_jwt_token(token: str) -> Optional[dict]:
     Valida JWT emitido pelo Supabase Auth.
     Retorna o payload (dict com 'sub', 'email', etc.) se válido, None se inválido.
     """
+    import base64 as _b64
+    import json as _json
     import logging as _logging
     _log = _logging.getLogger(__name__)
-    if not SUPABASE_JWT_SECRET:
+
+    # Relê do env em tempo de execução (evita problema de var adicionada pós-import)
+    secret = os.getenv("SUPABASE_JWT_SECRET", "")
+
+    if not secret:
         _log.warning("verify_jwt_token: SUPABASE_JWT_SECRET não configurado — rejeitando JWT")
         return None
     if not token:
         return None
+
+    # Decodifica header sem verificação para diagnosticar o algoritmo
+    try:
+        header_b64 = token.split(".")[0]
+        header_b64 += "=" * (4 - len(header_b64) % 4)
+        header = _json.loads(_b64.urlsafe_b64decode(header_b64))
+        alg = header.get("alg", "?")
+        _log.info("verify_jwt_token: alg=%s typ=%s (token prefix: %s...)", alg, header.get("typ"), token[:20])
+    except Exception as he:
+        alg = "?"
+        _log.warning("verify_jwt_token: falhou ao decodificar header — %s", he)
+
     try:
         return jwt.decode(
             token,
-            SUPABASE_JWT_SECRET,
+            secret,
             algorithms=["HS256"],
             options={"verify_aud": False},
         )
     except JWTError as e:
-        _log.warning("verify_jwt_token: JWTError — %s", e)
+        _log.warning("verify_jwt_token: JWTError alg=%s — %s", alg, e)
         return None
 
 
