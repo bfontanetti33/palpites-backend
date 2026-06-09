@@ -72,7 +72,12 @@ def verify_jwt_token(token: str) -> Optional[dict]:
     Valida JWT emitido pelo Supabase Auth.
     Retorna o payload (dict com 'sub', 'email', etc.) se válido, None se inválido.
     """
-    if not SUPABASE_JWT_SECRET or not token:
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+    if not SUPABASE_JWT_SECRET:
+        _log.warning("verify_jwt_token: SUPABASE_JWT_SECRET não configurado — rejeitando JWT")
+        return None
+    if not token:
         return None
     try:
         return jwt.decode(
@@ -81,7 +86,8 @@ def verify_jwt_token(token: str) -> Optional[dict]:
             algorithms=["HS256"],
             options={"verify_aud": False},
         )
-    except JWTError:
+    except JWTError as e:
+        _log.warning("verify_jwt_token: JWTError — %s", e)
         return None
 
 
