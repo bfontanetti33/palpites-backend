@@ -320,6 +320,21 @@ async def prewarm_stats(
         agora = datetime.now(timezone.utc)
         aquecidos, pulados, erros = 0, 0, 0
 
+        # force=True: invalida player_stats + L1 para todos os slugs na janela
+        # (1 disk write total, não por slug)
+        if force_recalc:
+            from app.agents.football_agent import _partida_cache as _l1_cache
+            for jogo in _JOGOS:
+                try:
+                    dt = datetime.fromisoformat(jogo["data_hora_utc"].replace("Z", "+00:00"))
+                    horas = (dt - agora).total_seconds() / 3600
+                    if -0.5 <= horas <= max_horas:
+                        _l1_cache.pop(jogo["slug"], None)
+                        _sc.invalidate_player_stats(jogo["slug"], save=False)
+                except Exception:
+                    continue
+            _sc.save_to_disk()  # 1 write para todos os slugs
+
         # Warm-up: garante janela de rate limit limpa antes do 1º jogo
         await asyncio.sleep(10)
 

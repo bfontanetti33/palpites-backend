@@ -363,6 +363,18 @@ def invalidate(slug: str) -> bool:
     return False
 
 
+def invalidate_player_stats(slug: str, *, save: bool = True) -> None:
+    """Limpa timestamp de player stats para forçar re-fetch na próxima chamada.
+
+    save=False para operações em batch — chame save_to_disk() manualmente depois.
+    """
+    entry = _store.get(slug)
+    if entry:
+        entry["player_stats_cached_at"] = None
+    if save:
+        save_to_disk()
+
+
 def invalidate_if_stale(slug: str, nova_data_casa: str | None, nova_data_fora: str | None) -> bool:
     """Invalida se um time jogou novo jogo após o cached_at. Retorna True se invalidado."""
     if slug not in _store:
