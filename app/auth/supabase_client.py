@@ -4,7 +4,8 @@ Supabase — autenticação JWT e operações de banco de dados.
 Env vars necessárias:
   SUPABASE_URL         — ex: https://xyzxyz.supabase.co
   SUPABASE_KEY         — chave anon ou service_role
-  SUPABASE_JWT_SECRET  — secret do JWT (Settings → API → JWT Settings)
+  SUPABASE_JWT_SECRET  — secret HS256 (legado). Projetos novos usam ES256 via JWKS;
+                         nesse caso esta var não é usada na verificação de JWT.
 """
 import os
 from datetime import datetime, timezone
@@ -67,46 +68,84 @@ async def ping() -> dict:
 
 # ── JWT ───────────────────────────────────────────────────────────────────────
 
+import logging as _jwt_log_mod
+import time as _time_mod
+
+_log_jwt = _jwt_log_mod.getLogger(__name__)
+
+# Cache JWKS (chaves públicas ES256/RS256 do Supabase)
+_jwks_cache: dict = {}
+_jwks_fetched_at: float = 0.0
+
+
+def _get_public_key(kid: str | None) -> dict | None:
+    """Busca chave pública do JWKS do Supabase, com cache de 1h."""
+    global _jwks_cache, _jwks_fetched_at
+    url = os.getenv("SUPABASE_URL", "")
+    if not url:
+        return None
+    if not _jwks_cache or (_time_mod.time() - _jwks_fetched_at) > 3600:
+        try:
+            r = httpx.get(f"{url}/auth/v1/.well-known/jwks.json", timeout=5)
+            r.raise_for_status()
+            keys = r.json().get("keys", [])
+            _jwks_cache = {k.get("kid"): k for k in keys}
+            _jwks_fetched_at = _time_mod.time()
+            _log_jwt.info("_get_public_key: JWKS carregado — %d chave(s)", len(_jwks_cache))
+        except Exception as e:
+            _log_jwt.warning("_get_public_key: falhou ao buscar JWKS — %s", e)
+            return None
+    key = _jwks_cache.get(kid) if kid else next(iter(_jwks_cache.values()), None)
+    if not key:
+        _log_jwt.warning("_get_public_key: kid=%s não encontrado. kids disponíveis: %s", kid, list(_jwks_cache.keys()))
+    return key
+
+
 def verify_jwt_token(token: str) -> Optional[dict]:
     """
     Valida JWT emitido pelo Supabase Auth.
-    Retorna o payload (dict com 'sub', 'email', etc.) se válido, None se inválido.
+    Suporta HS256 (secret simétrico) e ES256/RS256 (chave pública via JWKS).
+    Retorna o payload se válido, None se inválido.
     """
     import base64 as _b64
     import json as _json
-    import logging as _logging
-    _log = _logging.getLogger(__name__)
 
-    # Relê do env em tempo de execução (evita problema de var adicionada pós-import)
-    secret = os.getenv("SUPABASE_JWT_SECRET", "")
-
-    if not secret:
-        _log.warning("verify_jwt_token: SUPABASE_JWT_SECRET não configurado — rejeitando JWT")
-        return None
     if not token:
         return None
 
-    # Decodifica header sem verificação para diagnosticar o algoritmo
+    # Decodifica header sem verificação para detectar algoritmo
     try:
-        header_b64 = token.split(".")[0]
-        header_b64 += "=" * (4 - len(header_b64) % 4)
-        header = _json.loads(_b64.urlsafe_b64decode(header_b64))
-        alg = header.get("alg", "?")
-        _log.info("verify_jwt_token: alg=%s typ=%s (token prefix: %s...)", alg, header.get("typ"), token[:20])
+        h_b64 = token.split(".")[0]
+        h_b64 += "=" * (4 - len(h_b64) % 4)
+        header = _json.loads(_b64.urlsafe_b64decode(h_b64))
+        alg = header.get("alg", "HS256")
+        kid = header.get("kid")
     except Exception as he:
-        alg = "?"
-        _log.warning("verify_jwt_token: falhou ao decodificar header — %s", he)
+        _log_jwt.warning("verify_jwt_token: falhou ao ler header — %s", he)
+        alg, kid = "HS256", None
 
-    try:
-        return jwt.decode(
-            token,
-            secret,
-            algorithms=["HS256"],
-            options={"verify_aud": False},
-        )
-    except JWTError as e:
-        _log.warning("verify_jwt_token: JWTError alg=%s — %s", alg, e)
-        return None
+    _log_jwt.info("verify_jwt_token: alg=%s kid=%s prefix=%s...", alg, kid, token[:20])
+
+    if alg == "HS256":
+        secret = os.getenv("SUPABASE_JWT_SECRET", "")
+        if not secret:
+            _log_jwt.warning("verify_jwt_token: SUPABASE_JWT_SECRET ausente para HS256")
+            return None
+        try:
+            return jwt.decode(token, secret, algorithms=["HS256"], options={"verify_aud": False})
+        except JWTError as e:
+            _log_jwt.warning("verify_jwt_token: JWTError HS256 — %s", e)
+            return None
+    else:
+        # ES256, RS256 — verifica via JWKS
+        jwk_key = _get_public_key(kid)
+        if not jwk_key:
+            return None
+        try:
+            return jwt.decode(token, jwk_key, algorithms=[alg], options={"verify_aud": False})
+        except JWTError as e:
+            _log_jwt.warning("verify_jwt_token: JWTError %s kid=%s — %s", alg, kid, e)
+            return None
 
 
 # ── Consultas Supabase (PostgREST) ────────────────────────────────────────────
