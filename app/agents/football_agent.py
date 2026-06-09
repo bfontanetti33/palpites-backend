@@ -1275,11 +1275,12 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     _partida_cache[slug] = partida
     try:
         from app.cache import static_cache
+        got_player_data = dest_casa is not None or dest_fora is not None
         static_cache.put_partida(
             slug,
             partida.model_dump(mode="json"),
             update_team_stats=needs_team,
-            update_player_stats=needs_plyr,
+            update_player_stats=needs_plyr and got_player_data,
             update_forma=needs_forma,
             update_h2h=needs_h2h,
         )
