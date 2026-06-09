@@ -8,6 +8,7 @@ Passo 4: Top 6 por time com mercados sugeridos
 Passo 5: Integrado em /copa/jogos/{slug} via buscar_jogadores_destaque()
 """
 import asyncio
+import html as _html_module
 import json
 import os
 import re
@@ -473,8 +474,86 @@ _CLUB_ALIASES: dict[str, str] = {
     # ── UAE Pro League ───────────────────────────────────────────────────
     "Al-Ahli":                  "Shabab Al Ahli Dubai",  # ID=2870; ambíguo (Djeddá, Cairo, Dubai)
     "Shabab Al Ahli":           "Shabab Al Ahli Dubai",  # ID=2870
+    "Kalba":                    "Al-Ittihad Kalba",      # ID=2876
+    "Dibba":                    "Dibba Al-Fujairah",     # ID=2867
+    "Baniyas":                  "Baniyas SC",            # ID=2877
     # ── Iraq Premier League ──────────────────────────────────────────────
     "Al-Quwa Al-Jawiya":        "Al Quwa Al Jawiya",     # ID=8009; hífens travam ?name=
+    # ── Premier League (England) ─────────────────────────────────────────
+    "Brighton & Hove Albion":   "Brighton",              # ID=51  (seed tem &amp; → decodificado antes do lookup)
+    "Newcastle United":         "Newcastle",             # ID=34
+    "Ipswich Town":             "Ipswich",               # ID=57
+    # ── Championship / League One ────────────────────────────────────────
+    "Leeds United":             "Leeds",                 # ID=63
+    "Leicester City":           "Leicester",             # ID=46
+    "Coventry City":            "Coventry",              # ID=1346
+    "Sheffield United":         "Sheffield Utd",         # ID=62
+    "Swansea City":             "Swansea",               # ID=76
+    "Birmingham City":          "Birmingham",            # ID=54
+    "Braintree Town":           "Braintree",             # ID=1831
+    "Charlton Athletic":        "Charlton",              # ID=1335
+    "Luton Town":               "Luton",                 # ID=1359
+    "Peterborough United":      "Peterborough",          # ID=1350
+    "Rotherham United":         "Rotherham",             # ID=73
+    # ── Portuguese ───────────────────────────────────────────────────────
+    "Braga":                    "SC Braga",              # ID=217
+    "Porto":                    "FC Porto",              # ID=212 (seed "Porto" → API wrong id 26759, real=212)
+    # ── Spanish ──────────────────────────────────────────────────────────
+    "Athletic Bilbao":          "Athletic Club",         # ID=531
+    # ── Danish ───────────────────────────────────────────────────────────
+    "Copenhagen":               "FC Copenhagen",         # ID=400
+    "Midtjylland":              "FC Midtjylland",        # ID=397
+    # ── Dutch ────────────────────────────────────────────────────────────
+    "Almere City":              "Almere City FC",        # ID=419
+    "Heracles Almelo":          "Heracles",              # ID=206
+    # ── Polish ───────────────────────────────────────────────────────────
+    "Cracovia":                 "Cracovia Krakow",       # ID=350
+    "Jagiellonia Białystok":    "Jagiellonia",           # ID=336
+    # ── Norwegian ────────────────────────────────────────────────────────
+    "Sarpsborg 08":             "Sarpsborg 08 FF",       # ID=333
+    # ── Swiss ────────────────────────────────────────────────────────────
+    "Servette":                 "Servette FC",           # ID=2184
+    # ── Croatian ─────────────────────────────────────────────────────────
+    "Hajduk Split":             "HNK Hajduk Split",      # ID=608
+    "Rijeka":                   "HNK Rijeka",            # ID=561
+    "Lokomotiva Zagreb":        "NK Lokomotiva Zagreb",  # ID=1017
+    # ── Bulgarian ────────────────────────────────────────────────────────
+    "Ludogorets Razgrad":       "Ludogorets",            # ID=566
+    # ── Russian ──────────────────────────────────────────────────────────
+    "Krasnodar":                "FC Krasnodar",          # ID=621
+    "Lokomotiv Moscow":         "Lokomotiv",             # ID=597
+    "Rostov":                   "FC Rostov",             # ID=779
+    "Zenit Saint Petersburg":   "Zenit",                 # ID=596
+    "Akron Tolyatti":           "Akron",                 # ID=6786
+    # ── Kazakh ───────────────────────────────────────────────────────────
+    "Astana":                   "FC Astana",             # ID=562
+    # ── Iranian ──────────────────────────────────────────────────────────
+    "Persepolis":               "Persepolis FC",         # ID=2742
+    "Sepahan":                  "Sepahan FC",            # ID=2744
+    "Tractor":                  "Tractor Sazi",          # ID=2737
+    # ── Egyptian ─────────────────────────────────────────────────────────
+    "Pyramids":                 "Pyramids FC",           # ID=1036
+    "Zamalek":                  "Zamalek SC",            # ID=1040
+    # ── Cypriot ──────────────────────────────────────────────────────────
+    "APOEL":                    "Apoel",                 # ID=557
+    "Omonia":                   "Omonia Nicosia",        # ID=3402
+    # ── Haitian ──────────────────────────────────────────────────────────
+    "Violette":                 "Violette AC",           # ID=4441
+    # ── South Korean ─────────────────────────────────────────────────────
+    "Jeonbuk Hyundai Motors":   "Jeonbuk Motors",        # ID=2762
+    "Ulsan HD":                 "Ulsan Hyundai FC",      # ID=2767
+    "Daejeon Hana Citizen":     "Daejeon Citizen",       # ID=2750
+    # ── Costa Rican ──────────────────────────────────────────────────────
+    "Saprissa":                 "Deportivo Saprissa",    # ID=816
+    # ── Mexican ──────────────────────────────────────────────────────────
+    "Tijuana":                  "Club Tijuana",          # ID=2280
+    "UANL":                     "Tigres UANL",           # ID=2279
+    "Pachuca":                  "CF Pachuca",            # ID=2292
+    # ── MLS ──────────────────────────────────────────────────────────────
+    "Seattle Sounders FC":      "Seattle Sounders",      # ID=1595
+    "Vancouver Whitecaps FC":   "Vancouver Whitecaps",   # ID=1603
+    "San Diego FC":             "San Diego",             # ID=25484
+    "El Paso Locomotive FC":    "El Paso Locomotive",    # ID=3993
 }
 
 
@@ -506,6 +585,9 @@ async def _buscar_club_id(client: httpx.AsyncClient, clube: str) -> int | None:
        → ?search=alias     — sub-fallback para aliases sem exact match (Hoffenheim, Pauli, Crvena zvezda)
     3. ?search=normalizado — remove diacríticos automaticamente (Grêmio→Gremio, Fenerbahçe→Fenerbahce…)
     """
+    # Decodifica entidades HTML do seed (ex: "Brighton &amp; Hove Albion" → "Brighton & Hove Albion")
+    clube = _html_module.unescape(clube)
+
     if clube in _club_id_cache:
         return _club_id_cache[clube]
 
