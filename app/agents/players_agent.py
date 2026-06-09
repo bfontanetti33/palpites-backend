@@ -373,7 +373,9 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
         "_lss_min_weighted": 0.0,
         "_minutos_liga": 0,   # minutos em ligas (não copas) — para detectar copa_apenas
     }
-    _mins_por_liga: dict[str, float] = {}   # FIX 2: tracking para liga principal
+    _mins_por_liga: dict[str, float] = {}              # FIX 2: tracking para liga principal
+    # FIX 4: clube -> {liga -> mins} para garantir clube_nome e liga_nome do mesmo clube
+    _clube_ligas: dict[str, dict] = {}  # clube_nome -> {"logo": str, "ligas": {liga_nm: mins}}
     found = False
     for entry in response_list:
         stats = entry.get("statistics", [])
@@ -392,10 +394,18 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
                 continue
             found = True
             lss = _lss_da_liga(liga_nm)
+            tm = st.get("team", {})
+            clube_nm = tm.get("name", "")
             total["minutes"]           += mins
             total["appearances"]       += g.get("appearences") or 0
             total["_lss_min_weighted"] += lss * mins
             _mins_por_liga[liga_nm]     = _mins_por_liga.get(liga_nm, 0) + mins  # FIX 2
+            # FIX 4: acumula por clube → liga
+            if clube_nm not in _clube_ligas:
+                _clube_ligas[clube_nm] = {"logo": tm.get("logo", ""), "ligas": {}}
+            _clube_ligas[clube_nm]["ligas"][liga_nm] = (
+                _clube_ligas[clube_nm]["ligas"].get(liga_nm, 0) + mins
+            )
             if not _e_copa(liga_nm):
                 total["_minutos_liga"] += mins
             gl = st.get("goals", {})
@@ -410,17 +420,18 @@ def _agregar_stats(response_list: list[dict]) -> dict | None:
             total["dribbles"]     += dr.get("success") or 0
             ca = st.get("cards", {})
             total["yellow_cards"] += ca.get("yellow") or 0
-            if not total["clube_nome"]:
-                tm = st.get("team", {})
-                total["clube_nome"] = tm.get("name", "")
-                total["clube_logo"] = tm.get("logo", "")
 
     if found and total["minutes"] > 0:
         total["liga_lss"] = round(total["_lss_min_weighted"] / total["minutes"], 3)
         total["copa_apenas"] = total.get("_minutos_liga", 0) == 0
-        # FIX 2: liga_nome = liga com mais minutos (não a primeira encontrada)
-        if _mins_por_liga:
-            total["liga_nome"] = max(_mins_por_liga, key=_mins_por_liga.__getitem__)
+        # FIX 2+4: clube com mais minutos totais → sua liga principal (mais minutos)
+        # Garante que clube_nome e liga_nome são sempre do MESMO clube
+        if _clube_ligas:
+            best_clube = max(_clube_ligas, key=lambda c: sum(_clube_ligas[c]["ligas"].values()))
+            best_liga  = max(_clube_ligas[best_clube]["ligas"], key=_clube_ligas[best_clube]["ligas"].__getitem__)
+            total["clube_nome"] = best_clube
+            total["clube_logo"] = _clube_ligas[best_clube]["logo"]
+            total["liga_nome"]  = best_liga
 
     return total if found else None
 
@@ -550,6 +561,7 @@ _CLUB_ALIASES: dict[str, str] = {
     "UANL":                     "Tigres UANL",           # ID=2279
     "Pachuca":                  "CF Pachuca",            # ID=2292
     # ── MLS ──────────────────────────────────────────────────────────────
+    "Inter Miami CF":           "Inter Miami",           # ID=9568; API não resolve "Lionel Messi" por nome completo → T1b usa sobrenome
     "Seattle Sounders FC":      "Seattle Sounders",      # ID=1595
     "Vancouver Whitecaps FC":   "Vancouver Whitecaps",   # ID=1603
     "San Diego FC":             "San Diego",             # ID=25484
