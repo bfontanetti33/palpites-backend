@@ -840,10 +840,12 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
 def calcular_p90(raw: dict) -> dict:
     """
     Passo 3: Calcula P90 e aplica League Strength Score.
-    stat_ajustada = stat_p90 × LSS
-    Filtra jogadores com < 900 min de clube (amostra_insuficiente=True).
+    stat_ajustada = stat_p90 × LSS  — usado para ranking interno.
+    stat_per_game = stat / appearances — exibição na tela (mais intuitivo para o público).
+    Filtra jogadores com < 540 min de clube (amostra_insuficiente=True).
     """
     mins = raw.get("minutes", 0)
+    apps = raw.get("appearances", 0)
     ok   = mins >= MIN_MINUTOS
     lss  = raw.get("liga_lss", _LSS_FALLBACK)
     liga = raw.get("liga_nome", "")
@@ -857,11 +859,16 @@ def calcular_p90(raw: dict) -> dict:
         val = p90(campo)
         return round(val * lss, 2) if val is not None else None
 
+    def per_game(campo: str) -> float | None:
+        if not ok or not apps:
+            return None
+        return round((raw.get(campo, 0) or 0) / apps, 2)
+
     copa_apenas = raw.get("copa_apenas", False)
 
     return {
         "minutes":              mins,
-        "appearances":          raw.get("appearances", 0),
+        "appearances":          apps,
         "amostra_insuficiente": not ok,
         "copa_apenas":          copa_apenas,
         "clube_nome":           raw.get("clube_nome", ""),
@@ -883,13 +890,20 @@ def calcular_p90(raw: dict) -> dict:
         "key_passes_p90":       p90("key_passes"),
         "dribbles_p90":         p90("dribbles"),
         "yellow_cards_p90":     p90("yellow_cards"),
-        # P90 ajustado pelo LSS (usado para ranking)
+        # P90 ajustado pelo LSS (usado para ranking — nunca exibido ao público)
         "goals_p90_adj":        p90_adj("goals"),
         "assists_p90_adj":      p90_adj("assists"),
         "shots_on_goal_p90_adj": p90_adj("shots_on_goal"),
         "key_passes_p90_adj":   p90_adj("key_passes"),
         "dribbles_p90_adj":     p90_adj("dribbles"),
         "yellow_cards_p90_adj": p90_adj("yellow_cards"),
+        # Por jogo (exibição na tela — mais legível para o público)
+        "goals_per_game":           per_game("goals"),
+        "assists_per_game":         per_game("assists"),
+        "shots_on_goal_per_game":   per_game("shots_on_goal"),
+        "key_passes_per_game":      per_game("key_passes"),
+        "dribbles_per_game":        per_game("dribbles"),
+        "yellow_cards_per_game":    per_game("yellow_cards"),
     }
 
 
@@ -901,6 +915,7 @@ def _card_jogador(player: dict, stats_p90: dict, cat_key: str,
                   stat_campo: str, icone: str, label: str, mercado: str) -> dict:
     val_p90  = stats_p90.get(f"{stat_campo}_p90")
     val_adj  = stats_p90.get(f"{stat_campo}_p90_adj")
+    val_pg   = stats_p90.get(f"{stat_campo}_per_game")
     val_tot  = stats_p90.get(f"{stat_campo}_total", 0)
     mins     = stats_p90.get("minutes", 0)
     lss      = stats_p90.get("liga_lss", _LSS_FALLBACK)
@@ -928,6 +943,7 @@ def _card_jogador(player: dict, stats_p90: dict, cat_key: str,
         "stat_label":       label,
         "stat_p90":         val_p90,
         "stat_p90_adj":     val_adj,
+        "stat_per_game":    val_pg,   # exibição na tela; ranking usa stat_p90_adj
         "liga_lss":         lss,
         "liga_nome":        liga,
         "stat_total":       val_tot,
@@ -1011,7 +1027,7 @@ async def buscar_jogadores_destaque(team_name: str) -> dict:
     """
     Orquestra os 5 passos e retorna o dict para o campo jogadores_destaque_*.
     Busca stats para FW+MF + DF ofensivos (GK excluídos, sem corte por caps).
-    Elegível no P90: >= 900 min de clube na temporada (≈10 jogos completos).
+    Elegível no P90: >= 540 min de clube na temporada (≈6 jogos completos).
     """
     # Passo 1 — squad
     squad = await buscar_squad(team_name)
