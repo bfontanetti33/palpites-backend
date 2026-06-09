@@ -929,3 +929,35 @@ async def validar_semana(authorization: str | None = Header(default=None)):
     }
 
     return {"resumo": resumo, "jogos": resultados}
+
+
+# ── Debug temporário: cronometra buscar_jogadores_destaque ────────────────────
+
+@router.get("/admin/debug-players/{team_name}", tags=["Admin"])
+async def debug_players(team_name: str, authorization: str | None = Header(default=None)):
+    """Diagnóstico: mede tempo e resultado de buscar_jogadores_destaque. Remover após uso."""
+    _checar_token(authorization)
+    import time
+    from app.agents.players_agent import buscar_jogadores_destaque
+    t0 = time.monotonic()
+    try:
+        result = await buscar_jogadores_destaque(team_name)
+        elapsed = round(time.monotonic() - t0, 1)
+        return {
+            "team":                team_name,
+            "elapsed_s":           elapsed,
+            "jogadores_count":     len(result.get("jogadores", [])),
+            "jogadores_analisados": result.get("jogadores_analisados", 0),
+            "dados_insuficientes": result.get("dados_insuficientes", False),
+            "jogadores": [
+                {"nome": j.get("nome"), "categoria": j.get("categoria"), "mins": j.get("minutos_jogados")}
+                for j in result.get("jogadores", [])
+            ],
+        }
+    except Exception as e:
+        return {
+            "team":      team_name,
+            "elapsed_s": round(time.monotonic() - t0, 1),
+            "error":     type(e).__name__,
+            "detail":    str(e),
+        }
