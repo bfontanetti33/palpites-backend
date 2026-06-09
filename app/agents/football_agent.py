@@ -1135,8 +1135,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
 
     resultados = await asyncio.gather(
         _timed(_odds_api(home_nome, away_nome), 15),
-        _timed(_get_jogadores(home_nome, "jogadores_destaque_casa"), 25),
-        _timed(_get_jogadores(away_nome, "jogadores_destaque_fora"), 25),
+        _timed(_get_jogadores(home_nome, "jogadores_destaque_casa"), 60),
+        _timed(_get_jogadores(away_nome, "jogadores_destaque_fora"), 60),
         _timed(_buscar_fifa_ranking_wikipedia(), 8),
         _timed(_calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"]), 10),
         _timed(_calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"]), 10),
