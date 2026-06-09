@@ -33,7 +33,7 @@ _stats_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
 _squad_cache: dict = {}
 
 # ── Constantes ────────────────────────────────────────────────────────────────
-MIN_MINUTOS = 900   # mín. minutos de clube (≈10 jogos completos) para elegível no P90
+MIN_MINUTOS = 540   # mín. minutos de clube (≈6 jogos completos) para elegível no P90
 SEASON      = 2025  # 2025/26
 MAX_JUGADORES = 8   # máximo por time no output
 TOP_POR_CAT   = 2   # top N por categoria
