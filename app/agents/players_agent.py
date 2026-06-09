@@ -33,7 +33,7 @@ _stats_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
 _squad_cache: dict = {}
 
 # ── Constantes ────────────────────────────────────────────────────────────────
-MIN_MINUTOS = 270   # mínimo para ser elegível no P90
+MIN_MINUTOS = 900   # mín. minutos de clube (≈10 jogos completos) para elegível no P90
 SEASON      = 2025  # 2025/26
 MAX_JUGADORES = 8   # máximo por time no output
 TOP_POR_CAT   = 2   # top N por categoria
@@ -511,9 +511,9 @@ async def _buscar_club_id(client: httpx.AsyncClient, clube: str) -> int | None:
 
 
 def _score_nome(api_name: str, nome_busca: str) -> int:
-    """Score de similaridade de nome: palavras em comum (case-insensitive)."""
-    words_api  = set(api_name.lower().split())
-    words_nome = set(nome_busca.lower().split())
+    """Score de similaridade de nome: palavras em comum (case-insensitive, diacríticos normalizados)."""
+    words_api  = set(_ascii_normalizar(api_name.lower()).split())
+    words_nome = set(_ascii_normalizar(nome_busca.lower()).split())
     return len(words_api & words_nome)
 
 
@@ -533,7 +533,7 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
     Após encontrar o player_id, pode-se usar /players?id={id}&season={season}
     para obter stats mais completas se necessário.
     """
-    nome_busca = nome.split("(")[0].strip()
+    nome_busca = _ascii_normalizar(nome.split("(")[0].strip())  # Ž→Z, ç→c, ü→u etc.
 
     try:
         async with httpx.AsyncClient(timeout=12) as client:
@@ -567,25 +567,27 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
                             entry = e
                             break
 
-            # ── Tentativa 2: todos os jogadores do clube ───────────────────────
+            # ── Tentativa 2: todos os jogadores do clube (pages 1-2) ─────────
             if not entry and club_id:
-                d2 = await _api_get(client, "/players", {
-                    "team":   club_id,
-                    "season": SEASON,
-                })
                 melhor_score = 0
-                for e in d2.get("response", []):
-                    sc = _score_nome(e.get("player", {}).get("name", ""), nome_busca)
-                    if sc > melhor_score:
-                        melhor_score = sc
-                        entry = e
+                for page in [1, 2]:
+                    d2 = await _api_get(client, "/players", {
+                        "team": club_id, "season": SEASON, "page": page,
+                    })
+                    for e in d2.get("response", []):
+                        sc = _score_nome(e.get("player", {}).get("name", ""), nome_busca)
+                        if sc > melhor_score:
+                            melhor_score = sc
+                            entry = e
+                    if melhor_score > 0:
+                        break  # achou na page 1, não busca page 2
                 if melhor_score == 0:
                     entry = None
 
             # ── Tentativa 3: search global (qualquer clube) ─────────────────────
             if not entry:
                 # Requer league; tenta com ligas mais comuns
-                for league_id in [39, 140, 78, 135, 61, 262, 288]:  # PL,LaLiga,BL,SerieA,L1,LigaMX,PSL
+                for league_id in [39, 140, 78, 79, 135, 61, 262, 288, 848]:  # PL,LaLiga,BL,2.BL,SerieA,L1,LigaMX,PSL,ConfLeague
                     d3 = await _api_get(client, "/players", {
                         "search": nome_busca,
                         "league": league_id,
@@ -633,8 +635,7 @@ def calcular_p90(raw: dict) -> dict:
     """
     Passo 3: Calcula P90 e aplica League Strength Score.
     stat_ajustada = stat_p90 × LSS
-    Exibe: "0.72 gols/90 × 0.94 (Bundesliga) = 0.68 ajustado"
-    Filtra jogadores com < 270 minutos (amostra_insuficiente=True).
+    Filtra jogadores com < 900 min de clube (amostra_insuficiente=True).
     """
     mins = raw.get("minutes", 0)
     ok   = mins >= MIN_MINUTOS
@@ -786,10 +787,25 @@ def selecionar_destaques(
 # API pública
 # ════════════════════════════════════════════════════════════════════════════════
 
+def _selecionar_para_fetch(squad: list[dict]) -> list[dict]:
+    """Seleciona FW+MF + DF ofensivos para fetch de stats. GK excluídos."""
+    out = []
+    for p in squad:
+        pos = p.get("pos", "")
+        if pos in ("FW", "MF"):
+            out.append(p)
+        elif pos == "DF" and (
+            (p.get("gols_int") or 0) >= 1 or (p.get("caps") or 0) >= 30
+        ):
+            out.append(p)
+    return out
+
+
 async def buscar_jogadores_destaque(team_name: str) -> dict:
     """
     Orquestra os 5 passos e retorna o dict para o campo jogadores_destaque_*.
-    Busca stats apenas para os 10 jogadores com mais caps (economiza quota).
+    Busca stats para FW+MF + DF ofensivos (GK excluídos, sem corte por caps).
+    Elegível no P90: >= 900 min de clube na temporada (≈10 jogos completos).
     """
     # Passo 1 — squad
     squad = await buscar_squad(team_name)
@@ -801,11 +817,11 @@ async def buscar_jogadores_destaque(team_name: str) -> dict:
             "dados_insuficientes": True,
         }
 
-    # Ordena por caps desc para priorizar os titulares
-    squad_sorted = sorted(squad, key=lambda p: p.get("caps", 0), reverse=True)
-    top_squad    = squad_sorted[:10]  # máx 10 para economizar quota
+    # Ordena por caps desc (usado só para o fallback de "caps internacionais")
+    squad_sorted = sorted(squad, key=lambda p: p.get("caps") or 0, reverse=True)
+    top_squad    = _selecionar_para_fetch(squad)
 
-    # Passo 2 — stats em paralelo (máx 5 simultâneos para não sobrecarregar)
+    # Passo 2 — stats em paralelo (semáforo 5 para compensar squad maior)
     stats_map: dict[str, dict] = {}
 
     async def fetch_one(p: dict) -> None:
@@ -813,7 +829,7 @@ async def buscar_jogadores_destaque(team_name: str) -> dict:
         if raw:
             stats_map[p["nome"]] = calcular_p90(raw)
 
-    semaphore = asyncio.Semaphore(3)
+    semaphore = asyncio.Semaphore(5)
     async def fetch_limited(p):
         async with semaphore:
             await fetch_one(p)
