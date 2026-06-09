@@ -626,8 +626,80 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
 
             # ── Tentativa 3: search global (qualquer clube) ─────────────────────
             if not entry:
-                # Requer league; tenta com ligas mais comuns
-                for league_id in [39, 140, 78, 79, 135, 61, 262, 288, 848]:  # PL,LaLiga,BL,2.BL,SerieA,L1,LigaMX,PSL,ConfLeague
+                # Ordenado por cobertura esperada (maior primeiro → para mais cedo)
+                for league_id in [
+                    # ── Ligas originais ──────────────────────────────────────────
+                    39,   # Premier League
+                    140,  # La Liga
+                    78,   # Bundesliga
+                    79,   # 2. Bundesliga
+                    135,  # Serie A
+                    61,   # Ligue 1
+                    262,  # Liga MX
+                    288,  # Premier Soccer League (África do Sul)
+                    848,  # UEFA Conference League
+                    # ── Adições — ordenadas por cobertura de jogadores ───────────
+                    203,  # Süper Lig (Turquia) — 30p
+                    253,  # Major League Soccer — 23p
+                    88,   # Eredivisie — 21p
+                    307,  # Pro League (Arábia Saudita) — 20p
+                    94,   # Primeira Liga (Portugal) — 17p
+                    179,  # Premiership (Escócia) — 17p
+                    305,  # Stars League (Qatar) — 12p
+                    301,  # Pro League (UAE) — 11p
+                    144,  # Jupiler Pro League (Bélgica) — 10p
+                    128,  # Liga Profesional (Argentina) — 10p
+                    624,  # Carioca - 1 (Brasil) — 10p
+                    475,  # Paulista - A1 (Brasil) — 10p
+                    345,  # Czech Liga — 10p
+                    40,   # Championship (Inglaterra D2) — 10p
+                    188,  # A-League (Austrália) — 8p
+                    318,  # 1. Division (Chipre) — 6p
+                    233,  # Premier League (Egito) — 6p
+                    197,  # Super League 1 (Grécia) — 6p
+                    369,  # Super League (Uzbequistão) — 6p
+                    542,  # Iraqi League — 4p
+                    119,  # Superliga (Dinamarca) — 4p
+                    141,  # Segunda División (Espanha) — 4p
+                    136,  # Serie B (Itália) — 4p
+                    383,  # Ligat Ha'al (Israel) — 4p
+                    629,  # Mineiro - 1 (Brasil) — 3p
+                    95,   # Segunda Liga (Portugal) — 3p
+                    242,  # Liga Pro (Equador) — 3p
+                    292,  # K League 1 (Coreia do Sul) — 2p
+                    98,   # J1 League (Japão) — 2p
+                    283,  # Liga I (Romênia) — 2p
+                    271,  # NB I (Hungria) — 2p
+                    477,  # Gaúcho - 1 (Brasil) — 2p
+                    186,  # Ligue 1 (Argélia) — 2p
+                    62,   # Ligue 2 (França) — 2p
+                    218,  # Bundesliga (Áustria) — 2p
+                    286,  # Super Liga (Sérvia) — 2p
+                    332,  # Super Liga (Eslováquia) — 2p
+                    304,  # Liga Panameña — 2p
+                    103,  # Eliteserien (Noruega) — 1p
+                    106,  # Ekstraklasa (Polônia) — 1p
+                    113,  # Allsvenskan (Suécia) — 1p
+                    200,  # Botola Pro (Marrocos) — 1p
+                    202,  # Ligue 1 (Tunísia) — 1p
+                    207,  # Super League (Suíça) — 1p
+                    210,  # HNL (Croácia) — 1p
+                    235,  # Premier League (Rússia) — 1p
+                    244,  # Veikkausliiga (Finlândia) — 1p
+                    252,  # Division Profesional (Paraguai) — 1p
+                    255,  # USL Championship (EUA D2) — 1p
+                    265,  # Primera División (Chile) — 1p
+                    266,  # Primera B (Chile) — 1p
+                    278,  # Super League (Malásia) — 1p
+                    299,  # Primera División (Venezuela) — 1p
+                    357,  # Premier Division (Irlanda) — 1p
+                    373,  # 1. SNL (Eslovênia) — 1p
+                    41,   # League One (Inglaterra D3) — 1p
+                    435,  # Primera División RFEF (Espanha D3) — 4p
+                    132,  # Primera C / Swiss challenge — 1p
+                    145,  # Challenger Pro League (Bélgica D2) — 1p
+                    668,  # 1. Liga U19 (Rep. Checa) — 1p
+                ]:
                     d3 = await _api_get(client, "/players", {
                         "search": nome_busca,
                         "league": league_id,
