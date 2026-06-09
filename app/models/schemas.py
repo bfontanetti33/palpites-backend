@@ -105,6 +105,7 @@ class JogadorDestaque(BaseModel):
     stat_label: str
     stat_p90: float | None = None
     stat_p90_adj: float | None = None
+    stat_per_game: float | None = None
     liga_lss: float | None = None
     liga_nome: str = ""
     stat_total: int = 0
