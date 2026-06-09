@@ -35,7 +35,7 @@ _squad_cache: dict = {}
 # ── Constantes ────────────────────────────────────────────────────────────────
 MIN_MINUTOS = 270   # mínimo para ser elegível no P90
 SEASON      = 2025  # 2025/26
-MAX_JUGADORES = 6   # máximo por time no output
+MAX_JUGADORES = 8   # máximo por time no output
 TOP_POR_CAT   = 2   # top N por categoria
 
 # ── League Strength Score (LSS) ──────────────────────────────────────────────
@@ -156,9 +156,9 @@ CATEGORIAS = [
     ("goleadores",   "goals",          "🥇", "gols/90",          "Marcar a qualquer momento"),
     ("assistentes",  "assists",        "🎯", "assists/90",        "Dar assistência"),
     ("chutadores",   "shots_on_goal",  "🔥", "chutes no gol/90",  "Chutes ao gol"),
-    ("dribladores",  "dribbles",       "⚡", "dribles/90",        "Dribles"),
-    ("passes_chave", "key_passes",     "📊", "passes chave/90",   "Criação de jogadas"),
     ("cartoes",      "yellow_cards",   "🟨", "cartões/90",        "Receber cartão amarelo"),
+    ("passes_chave", "key_passes",     "📊", "passes chave/90",   "Criação de jogadas"),
+    ("dribladores",  "dribbles",       "⚡", "dribles/90",        "Dribles"),
 ]
 
 POSICOES = {"GK": "Goleiro", "DF": "Defensor", "MF": "Meio-campo", "FW": "Atacante"}

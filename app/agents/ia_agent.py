@@ -1426,8 +1426,6 @@ def _montar_prompt(
         contexto_items.append(f"{nome_c} pode estar cansado (jogo recente nos últimos 4 dias)")
     if ctx.fadiga_fora:
         contexto_items.append(f"{nome_f} pode estar cansado (jogo recente nos últimos 4 dias)")
-    if ctx.primeira_rodada:
-        contexto_items.append("1ª rodada da Copa — times costumam ser mais cautelosos, menos gols que o normal")
     contexto_txt = "\n".join(f"  • {x}" for x in contexto_items) or "  Nenhum fator especial identificado"
 
     # ── Zebra ────────────────────────────────────────────────────────────────
