@@ -463,7 +463,8 @@ async def health_check(authorization: str | None = Header(default=None)):
 
     _vars = [
         "ANTHROPIC_API_KEY", "API_FOOTBALL_KEY", "ODDS_API_KEY",
-        "PREMIUM_TOKEN", "SUPABASE_URL", "SUPABASE_KEY",
+        "PREMIUM_TOKEN", "SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_JWT_SECRET",
+        "MERCADOPAGO_ACCESS_TOKEN", "MERCADOPAGO_WEBHOOK_SECRET",
         "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SENTRY_DSN",
     ]
 
