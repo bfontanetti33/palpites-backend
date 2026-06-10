@@ -125,15 +125,13 @@ async def recomendacao_ia(
     Nunca retorna 500 — usa fallback GLOBAL_AVG quando APIs externas estão indisponíveis.
     """
     if slug not in JOGOS_LIBERADOS:
-        raise HTTPException(status_code=403, detail="Faça login para acessar esta análise.")
-
-    try:
-        await _verificar_acesso_recomendacao(authorization, slug)
-    except HTTPException:
-        raise  # 403/401 são esperados — propaga normalmente
-    except Exception as e:
-        log.error("_verificar_acesso_recomendacao falhou para %s: %s", slug, e, exc_info=True)
-        raise HTTPException(status_code=503, detail="Erro interno de autenticação. Tente novamente.")
+        try:
+            await _verificar_acesso_recomendacao(authorization, slug)
+        except HTTPException:
+            raise
+        except Exception as e:
+            log.error("_verificar_acesso_recomendacao falhou para %s: %s", slug, e, exc_info=True)
+            raise HTTPException(status_code=503, detail="Erro interno de autenticação. Tente novamente.")
 
     try:
         partida = await buscar_detalhe_partida(slug)
