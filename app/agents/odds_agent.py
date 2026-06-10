@@ -100,6 +100,9 @@ async def buscar_event_id(home: str, away: str) -> tuple[str, bool] | tuple[None
     return None, False
 
 
+N_CASAS_MIN_TOTALS = 3   # mínimo de casas para consenso de totals ser confiável
+N_CASAS_MIN_BTTS   = 3   # mínimo de casas para consenso de btts ser confiável
+
 # ── Busca de odds ─────────────────────────────────────────────────────────────
 
 def _melhor_bookmaker(bookmakers: list) -> dict | None:
@@ -146,6 +149,19 @@ def _parsear_h2h(mercado: dict, api_home: str = "", api_away: str = "") -> dict:
     return odds
 
 
+def _parsear_btts(mercado: dict) -> dict:
+    """Extrai BTTS Sim/Não do mercado btts. Outcomes: 'Yes' / 'No'."""
+    odds: dict = {}
+    for outcome in mercado.get("outcomes", []):
+        nome = outcome.get("name", "")
+        odd  = float(outcome["price"])
+        if nome == "Yes":
+            odds["btts_sim"] = odd
+        elif nome == "No":
+            odds["btts_nao"] = odd
+    return odds
+
+
 def _parsear_totals(mercado: dict) -> dict:
     """Extrai Over/Under 1.5, 2.5 e 3.5 do mercado totals."""
     odds: dict = {}
@@ -177,7 +193,7 @@ async def buscar_odds_evento(event_id: str) -> dict | None:
         try:
             data = await _get(client, f"/sports/{SPORT}/events/{event_id}/odds", {
                 "regions":    REGIONS,
-                "markets":    "h2h,totals",
+                "markets":    "h2h,totals,btts",
                 "oddsFormat": ODDS_FORMAT,
                 "dateFormat": DATE_FORMAT,
             })
@@ -206,6 +222,44 @@ async def buscar_odds_evento(event_id: str) -> dict | None:
             odds.update(_parsear_h2h(mercado, api_home, api_away))
         elif key == "totals":
             odds.update(_parsear_totals(mercado))
+        # btts: não usamos o bookmaker preferido (1 casa) — passa pelo consenso abaixo
+
+    # Totals por consenso: se o bookmaker preferido não trouxe totals,
+    # agrega over/under de TODOS os bookmakers que oferecem (mediana simples).
+    if "over25" not in odds:
+        import statistics as _st
+        totals_por_linha: dict[str, list[float]] = {}
+        for bm_all in bookmakers:
+            for mkt in bm_all.get("markets", []):
+                if mkt.get("key") != "totals":
+                    continue
+                for chave, odd in _parsear_totals(mkt).items():
+                    totals_por_linha.setdefault(chave, []).append(odd)
+        if len(totals_por_linha.get("over25", [])) >= N_CASAS_MIN_TOTALS:
+            for chave, vals in totals_por_linha.items():
+                odds[chave] = round(_st.median(vals), 3)
+            odds["totals_n_casas"]    = len(totals_por_linha["over25"])
+            odds["totals_confianca"]  = "media"
+
+    # BTTS por consenso: mesmo padrão do totals
+    if "btts_sim" not in odds:
+        import statistics as _st
+        btts_sim_vals: list[float] = []
+        btts_nao_vals: list[float] = []
+        for bm_all in bookmakers:
+            for mkt in bm_all.get("markets", []):
+                if mkt.get("key") != "btts":
+                    continue
+                parsed = _parsear_btts(mkt)
+                if "btts_sim" in parsed:
+                    btts_sim_vals.append(parsed["btts_sim"])
+                if "btts_nao" in parsed:
+                    btts_nao_vals.append(parsed["btts_nao"])
+        if len(btts_sim_vals) >= N_CASAS_MIN_BTTS:
+            odds["btts_sim"]        = round(_st.median(btts_sim_vals), 3)
+            odds["btts_nao"]        = round(_st.median(btts_nao_vals), 3) if btts_nao_vals else None
+            odds["btts_n_casas"]    = len(btts_sim_vals)
+            odds["btts_confianca"]  = "media"
 
     # Coleta h2h de TODOS os bookmakers para consensus (odds_engine)
     bookmakers_h2h = []
