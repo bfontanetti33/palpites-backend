@@ -15,6 +15,13 @@ router = APIRouter()
 
 PREMIUM_TOKEN = os.getenv("PREMIUM_TOKEN", "token-secreto-troque-isso")
 
+JOGOS_LIBERADOS: frozenset[str] = frozenset({
+    "mexico-south-africa",
+    "brazil-morocco",
+    "south-korea-czech-republic",
+})
+_MSG_BLOQUEIO = "🔓 Análise completa em breve — comece pelos 3 jogos de estreia, grátis."
+
 
 @router.get("/copa/jogos", response_model=RespostaCopa)
 @limiter.limit("60/minute")  # seed estático — custo zero
@@ -26,6 +33,10 @@ async def listar_jogos_copa(request: Request, response: Response):
     """
     response.headers["Cache-Control"] = "public, max-age=14400"  # 4h — dados estáticos do seed
     partidas = await buscar_todos_jogos_copa()
+    for p in partidas:
+        if p.slug not in JOGOS_LIBERADOS:
+            p.bloqueado = True
+            p.mensagem_bloqueio = _MSG_BLOQUEIO
     return RespostaCopa(total=len(partidas), temporada=2026, partidas=partidas)
 
 
@@ -44,6 +55,8 @@ async def detalhe_jogo(request: Request, response: Response, slug: str):
     O campo dados_insuficientes=true indica que algum dado não estava disponível
     na API — nunca são inventados ou estimados.
     """
+    if slug not in JOGOS_LIBERADOS:
+        raise HTTPException(status_code=403, detail="Faça login para acessar esta análise.")
     response.headers["Cache-Control"] = "public, max-age=28800"  # 8h
     partida = await buscar_detalhe_partida(slug)
     if not partida:
@@ -111,6 +124,9 @@ async def recomendacao_ia(
     Aceita: PREMIUM_TOKEN fixo (admin) ou JWT Supabase (usuário premium/avulso).
     Nunca retorna 500 — usa fallback GLOBAL_AVG quando APIs externas estão indisponíveis.
     """
+    if slug not in JOGOS_LIBERADOS:
+        raise HTTPException(status_code=403, detail="Faça login para acessar esta análise.")
+
     try:
         await _verificar_acesso_recomendacao(authorization, slug)
     except HTTPException:
@@ -196,232 +212,22 @@ def _stats_valida(stats: dict) -> bool:
 @router.get("/copa/zebras")
 @limiter.limit("30/minute")
 async def zebras(request: Request, response: Response):
-    """
-    Jogos com alerta de zebra.
-    IDEAL     = critério esportivo (Elo+forma) E value de odds (is_zebra=True).
-    estatística = só critério esportivo, sem odds de valor confirmadas.
-    só-valor  = is_zebra=True sem sinal esportivo Elo+forma.
-    Fallback: mostra zebra estatística quando odds não disponíveis.
-    """
-    response.headers["Cache-Control"] = "public, max-age=900"   # 15min
-
-    from app.cache import static_cache
-    from app.agents.football_agent import _POR_SLUG
-
-    agora = datetime.now(timezone.utc)
-    resultado = []
-
-    for slug, entry in static_cache._store.items():
-        # Lê da nova chave 'stats'; fallback para 'recomendacao' legado
-        stats_entry = entry.get("stats") or {}
-        stats = stats_entry.get("dados") if stats_entry else None
-        if not stats:
-            rec = entry.get("recomendacao")
-            if rec:
-                stats = rec.get("dados")
-        if not _stats_valida(stats):
-            continue
-
-        ctx           = stats.get("contexto", {})
-        zebra_alerta  = ctx.get("zebra_alerta", False)
-        value_bets    = stats.get("value_bets") or []
-        zebras_valor  = [vb for vb in value_bets if vb.get("is_zebra")]
-
-        # Inclui se ao menos um dos critérios estiver ativo
-        if not zebra_alerta and not zebras_valor:
-            continue
-
-        jogo = _POR_SLUG.get(slug)
-        if not jogo:
-            continue
-
-        try:
-            dt = datetime.fromisoformat(
-                (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
-            )
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt < agora - __import__("datetime").timedelta(hours=2):
-                continue
-        except Exception:
-            pass
-
-        # Tipo da zebra
-        if zebra_alerta and zebras_valor:
-            zebra_tipo = "IDEAL"
-        elif zebra_alerta:
-            zebra_tipo = "estatística"
-        else:
-            zebra_tipo = "só-valor"
-
-        # Palpite = top1 (sempre o 1X2 de maior prob_dc desde Parte 1)
-        top3 = stats.get("top3") or []
-        top1 = top3[0] if top3 else {}
-
-        # Melhor mercado zebra por value_score
-        melhor_zebra = (
-            max(zebras_valor, key=lambda vb: vb.get("value_score", 0))
-            if zebras_valor else None
-        )
-
-        resultado.append({
-            "slug":              slug,
-            "horario":           jogo.get("data_hora_brasilia", ""),
-            "horario_utc":       jogo.get("data_hora_utc", ""),
-            "time_casa_nome":    jogo["time_casa"],
-            "time_casa_logo":    jogo.get("time_casa_logo", ""),
-            "time_fora_nome":    jogo["time_fora"],
-            "time_fora_logo":    jogo.get("time_fora_logo", ""),
-            "zebra_descricao":   ctx.get("zebra_descricao", ""),
-            "zebra_tipo":        zebra_tipo,
-            # Palpite da IA (quem o modelo acha que ganha)
-            "mercado":           top1.get("mercado", ""),
-            "entrada":           top1.get("entrada", ""),
-            "odd_ref":           top1.get("odd_ref"),
-            "prob_dc":           top1.get("prob_dc", 0.0),
-            "confianca":         top1.get("confianca", ""),
-            # Mercado zebra de valor (se disponível)
-            "mercado_zebra":     melhor_zebra,
-        })
-
-    resultado.sort(key=lambda x: x.get("horario_utc", ""))
-    return {"total": len(resultado), "zebras": resultado}
+    """Temporariamente vazio no lançamento grátis."""
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return {"total": 0, "zebras": []}
 
 
 @router.get("/copa/bingo")
 @limiter.limit("30/minute")
 async def bingo(request: Request, response: Response):
-    """
-    Apostas de alta confiança para combinações (acumuladas).
-    Requer odds disponíveis. Populado proativamente pelo cron de stats.
-    """
-    response.headers["Cache-Control"] = "public, max-age=900"   # 15min
-
-    from app.cache import static_cache
-    from app.agents.football_agent import _POR_SLUG
-
-    agora = datetime.now(timezone.utc)
-    candidatos = []
-
-    for slug, entry in static_cache._store.items():
-        stats_entry = entry.get("stats") or {}
-        dados = stats_entry.get("dados") if stats_entry else None
-        if not dados:
-            rec = entry.get("recomendacao")
-            if rec:
-                dados = rec.get("dados")
-        if not _stats_valida(dados):
-            continue
-        if not dados.get("odds_disponiveis", False):
-            continue
-
-        jogo = _POR_SLUG.get(slug)
-        if not jogo:
-            continue
-
-        try:
-            dt = datetime.fromisoformat(
-                (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
-            )
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt < agora:
-                continue
-        except Exception:
-            pass
-
-        top3 = dados.get("top3") or []
-        for m in top3:
-            if (
-                m.get("prob_dc", 0) >= 60
-                and m.get("odd_ref") is not None
-                and 1.3 <= (m.get("odd_ref") or 0) <= 2.5
-                and m.get("value_score") is not None
-                and m.get("value_score", -1) >= 0.0
-                and m.get("confianca", "") in ("Alta", "Média")
-            ):
-                candidatos.append({
-                    "slug":           slug,
-                    "horario":        jogo.get("data_hora_brasilia", ""),
-                    "horario_utc":    jogo.get("data_hora_utc", ""),
-                    "time_casa_nome": jogo["time_casa"],
-                    "time_fora_nome": jogo["time_fora"],
-                    "mercado":        m.get("mercado", ""),
-                    "entrada":        m.get("entrada", ""),
-                    "odd_ref":        m.get("odd_ref"),
-                    "prob_dc":        m.get("prob_dc", 0.0),
-                    "value_score":    m.get("value_score"),
-                    "confianca":      m.get("confianca", ""),
-                })
-                break  # 1 entrada por jogo
-
-    candidatos.sort(key=lambda x: -(x.get("prob_dc") or 0))
-    return {"total": len(candidatos), "bingo": candidatos[:10]}
+    """Temporariamente vazio no lançamento grátis."""
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return {"total": 0, "bingo": []}
 
 
 @router.get("/copa/odds-baixa")
 @limiter.limit("30/minute")
 async def odds_baixa(request: Request, response: Response):
-    """
-    Apostas de alta probabilidade com odds baixas (apostas seguras).
-    Prob > 65%, odd entre 1.10 e 1.70. Populado proativamente pelo cron de stats.
-    """
-    response.headers["Cache-Control"] = "public, max-age=900"   # 15min
-
-    from app.cache import static_cache
-    from app.agents.football_agent import _POR_SLUG
-
-    agora = datetime.now(timezone.utc)
-    resultado = []
-
-    for slug, entry in static_cache._store.items():
-        stats_entry = entry.get("stats") or {}
-        dados = stats_entry.get("dados") if stats_entry else None
-        if not dados:
-            rec = entry.get("recomendacao")
-            if rec:
-                dados = rec.get("dados")
-        if not _stats_valida(dados):
-            continue
-        if not dados.get("odds_disponiveis", False):
-            continue
-
-        jogo = _POR_SLUG.get(slug)
-        if not jogo:
-            continue
-
-        try:
-            dt = datetime.fromisoformat(
-                (jogo.get("data_hora_utc") or "").replace("Z", "+00:00")
-            )
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt < agora:
-                continue
-        except Exception:
-            pass
-
-        top3 = dados.get("top3") or []
-        for m in top3:
-            odd = m.get("odd_ref")
-            if (
-                m.get("prob_dc", 0) >= 65
-                and odd is not None
-                and 1.10 <= odd <= 1.70
-            ):
-                resultado.append({
-                    "slug":           slug,
-                    "horario":        jogo.get("data_hora_brasilia", ""),
-                    "horario_utc":    jogo.get("data_hora_utc", ""),
-                    "time_casa_nome": jogo["time_casa"],
-                    "time_fora_nome": jogo["time_fora"],
-                    "mercado":        m.get("mercado", ""),
-                    "entrada":        m.get("entrada", ""),
-                    "odd_ref":        odd,
-                    "prob_dc":        m.get("prob_dc", 0.0),
-                    "confianca":      m.get("confianca", ""),
-                })
-                break
-
-    resultado.sort(key=lambda x: -(x.get("prob_dc") or 0))
-    return {"total": len(resultado), "odds_baixa": resultado}
+    """Temporariamente vazio no lançamento grátis."""
+    response.headers["Cache-Control"] = "public, max-age=900"
+    return {"total": 0, "odds_baixa": []}

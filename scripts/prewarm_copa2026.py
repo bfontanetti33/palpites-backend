@@ -19,7 +19,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-sys.stdout.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8", line_buffering=True)
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
@@ -80,6 +80,7 @@ async def main(dias: int, force: bool, dry_run: bool) -> None:
     from app.agents.football_agent import buscar_detalhe_partida, _JOGOS
     from app.agents.ia_agent import calcular_stats
     from app.cache import static_cache
+    from app.agents.players_agent import buscar_jogadores_destaque as _pj
 
     n_carregados = static_cache.load_from_disk()
     print(f"{SEP}")
@@ -136,8 +137,10 @@ async def main(dias: int, force: bool, dry_run: bool) -> None:
         await asyncio.sleep(10)
         print()
 
-    aquecidos = 0
-    erros     = 0
+    aquecidos      = 0
+    erros          = 0
+    com_jogadores  = 0   # jogos com jogadores_analisados > 0 em pelo menos 1 lado
+    sem_jogadores  = 0   # jogos com 0 analisados nos dois lados
     t_inicio  = time.time()
     quota_checkpoint = quota_inicio
 
@@ -152,6 +155,21 @@ async def main(dias: int, force: bool, dry_run: bool) -> None:
         n_novo = aquecidos + erros + 1
         print(f"\n  ○ BUSCA  [{i+1:>2}/{len(candidatos)}] "
               f"{c['dt'].strftime('%d/%m %H:%M')} | {c['casa']} x {c['fora']}")
+
+        # Pre-warma player stats sequencialmente para evitar contensão do _api_lock global.
+        # O _api_lock serializa todos os calls à API-Football (150ms/call). Dois times em
+        # asyncio.gather gastam 160s+, estourando o timeout de 60s em buscar_detalhe_partida.
+        # Pré-aquecendo sequencialmente, os resultados vão para _stats_cache (TTL 24h) e a
+        # chamada interna em buscar_detalhe_partida retorna do cache em < 1s por time.
+        if not static_cache.is_player_stats_fresh(slug):
+            for nome_time, label in [(c["casa"], "casa"), (c["fora"], "fora")]:
+                tp = time.time()
+                try:
+                    r = await _pj(nome_time)
+                    analisados = r.get("jogadores_analisados", 0)
+                    print(f"    ↓ players {label} ({nome_time}): {analisados} em {time.time()-tp:.1f}s")
+                except Exception as ep:
+                    print(f"    ↓ players {label} ({nome_time}): ERRO {ep}")
 
         t0 = time.time()
         try:
@@ -175,11 +193,33 @@ async def main(dias: int, force: bool, dry_run: bool) -> None:
                 for linha in _jogadores_info(pd):
                     print(linha)
 
+                # Monitoramento de qualidade
+                jdc_info = (pd.get("jogadores_destaque_casa") or {})
+                jdf_info = (pd.get("jogadores_destaque_fora") or {})
+                an_c = jdc_info.get("jogadores_analisados", 0)
+                an_f = jdf_info.get("jogadores_analisados", 0)
+                if an_c > 0 or an_f > 0:
+                    com_jogadores += 1
+                else:
+                    sem_jogadores += 1
+                    print(f"    ⚠️⚠️⚠️  ALERTA: 0 jogadores analisados em ambos os times ({c['casa']} + {c['fora']})")
+                    print(f"    ⚠️  Verifique causa antes de continuar. Slug: {slug}")
+
                 aquecidos += 1
 
         except Exception as e:
             print(f"    → ERRO: {e}")
             erros += 1
+
+        # Checkpoint a cada 10 jogos processados (novo)
+        processados = aquecidos + erros
+        if processados > 0 and processados % 10 == 0:
+            pct_ok = round(com_jogadores / processados * 100) if processados else 0
+            print(f"\n  {'═'*60}")
+            print(f"  CHECKPOINT {processados}/72 jogos processados")
+            print(f"  com_jogadores={com_jogadores}  sem_jogadores={sem_jogadores}  ({pct_ok}% ok)")
+            print(f"  erros={erros}  aquecidos={aquecidos}")
+            print(f"  {'═'*60}\n")
 
         # Quota a cada 5 jogos calculados
         if (aquecidos + erros) % 5 == 0 and (aquecidos + erros) > 0:
@@ -200,6 +240,7 @@ async def main(dias: int, force: bool, dry_run: bool) -> None:
     print(f"\n{SEP2}")
     print(f"  PREWARM CONCLUÍDO em {t_total:.1f}s")
     print(f"  Calculados: {aquecidos} | Em cache: {len(ja_cache)} | Erros: {erros}")
+    print(f"  com_jogadores: {com_jogadores} | sem_jogadores: {sem_jogadores}")
     print(f"  Quota inicial: {quota_inicio} → final: {quota_final} (gasto: {quota_gasto})")
     print(SEP2)
 

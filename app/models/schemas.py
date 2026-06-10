@@ -179,6 +179,8 @@ class PartidaResumo(BaseModel):
     prob_favorito: float | None = None
     insight_curto: str = ""     # 1 frase curta sobre o confronto (sem Claude)
     resumo_rapido: str = ""     # insight_probabilidades completo
+    bloqueado: bool = False
+    mensagem_bloqueio: str | None = None
 
 
 class Partida(PartidaResumo):

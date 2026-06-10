@@ -30,7 +30,7 @@ API_HDR  = {"x-apisports-key": API_KEY}
 UA       = "Mozilla/5.0 (compatible; PalpitesIA/2)"
 
 # Stats cache 24h
-_stats_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
+_stats_cache: TTLCache = TTLCache(maxsize=3000, ttl=86400)
 # Squad cache (sessão)
 _squad_cache: dict = {}
 
@@ -43,6 +43,14 @@ _API_MIN_INTERVAL: float = 0.15  # segundos entre chamadas
 MIN_MINUTOS = 540   # mín. minutos de clube (≈6 jogos completos) para elegível no P90
 SEASON      = 2025  # 2025/26
 MAX_JUGADORES = 8   # máximo por time no output
+
+# Ligas com season diferente do padrão europeu (ago-mai = season do ano de início).
+# Medido: todas as ligas de calendário-ano (MLS 253, Liga MX 262, Brasileirão 71,
+# K-League 292, J-League 98, nórdicas 103/113/244, Liga Argentina 128) usam season=2025.
+# Exceção: A-League (188) temporada Out-Mai — season=2025 ainda em indexação (+75% dados em 2024).
+_SEASON_POR_LIGA: dict[int, int] = {
+    188: 2024,  # A-League (Out-Mai): season=2024 tem 75% mais dados que 2025 (em indexação)
+}
 TOP_POR_CAT   = 2   # top N por categoria
 
 # ── League Strength Score (LSS) ──────────────────────────────────────────────
@@ -557,9 +565,13 @@ _CLUB_ALIASES: dict[str, str] = {
     # ── Costa Rican ──────────────────────────────────────────────────────
     "Saprissa":                 "Deportivo Saprissa",    # ID=816
     # ── Mexican ──────────────────────────────────────────────────────────
+    "Guadalajara":              "Guadalajara Chivas",    # ID=2278; ?name=Guadalajara → CD Guadalajara ES (9900)
+    "América":                  "Club America",          # ID=2287; ?search=America → América BR/CO/PY
+    "UNAM":                     "Pumas",                 # ID=2286; ?search=Pumas → U.N.A.M. - Pumas
     "Tijuana":                  "Club Tijuana",          # ID=2280
     "UANL":                     "Tigres UANL",           # ID=2279
     "Pachuca":                  "CF Pachuca",            # ID=2292
+    # Cruz Azul, Toluca, Santos Laguna: ?name= exact match funciona direto
     # ── MLS ──────────────────────────────────────────────────────────────
     "Inter Miami CF":           "Inter Miami",           # ID=9568; API não resolve "Lionel Messi" por nome completo → T1b usa sobrenome
     "Seattle Sounders FC":      "Seattle Sounders",      # ID=1595
@@ -651,6 +663,35 @@ def _score_nome(api_name: str, nome_busca: str) -> int:
     return len(words_api & words_nome)
 
 
+def _club_names_match(api_team: str, squad_club: str) -> bool:
+    """True se o time da API corresponde ao clube do squad (para validação do T3).
+
+    Rejeita 'Cádiz CF' vs 'Guadalajara', 'Internacional' vs 'Inter Miami'.
+    Aceita 'Club Guadalajara' vs 'Guadalajara', 'Inter Miami CF' vs 'Inter Miami'.
+    Usa palavras distintivas (len>4, não-genéricas) para evitar que 'inter' ≈ 'Internacional'.
+    """
+    a = _ascii_normalizar((api_team or "").lower())
+    s = _ascii_normalizar((squad_club or "").lower())
+    if not a or not s:
+        return False
+    if a == s:
+        return True
+    GENERIC = {"club", "cf", "fc", "sc", "ac", "rc", "sk", "bk", "fk", "real",
+               "sport", "athletic", "united", "city", "town", "albion", "rovers"}
+    def _distinctive(name: str) -> list[str]:
+        return [w for w in name.split() if len(w) > 4 and w not in GENERIC]
+    da, ds = _distinctive(a), _distinctive(s)
+    if not da or not ds:
+        return False
+    for ws in ds:
+        for wa in da:
+            if ws == wa:                                      # palavra exata em comum
+                return True
+            if len(ws) > 6 and len(wa) > 6 and (ws in wa or wa in ws):
+                return True                                   # substring longa (≥7 chars)
+    return False
+
+
 async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
     """
     Passo 2 (Ajuste 2): Busca stats do jogador em 3 tentativas em cascata.
@@ -677,6 +718,7 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
             # 1a: nome completo; 1b: só sobrenome — a API rejeita nomes multi-token
             # (ex: "Joshua Kimmich" → 0; "Kimmich" → 1 resultado)
             entry = None
+            _entry_season = SEASON  # season usada para encontrar o jogador (default T1/T2)
             if club_id:
                 d1 = await _api_get(client, "/players", {
                     "search": nome_busca,
@@ -794,15 +836,19 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
                     145,  # Challenger Pro League (Bélgica D2) — 1p
                     668,  # 1. Liga U19 (Rep. Checa) — 1p
                 ]:
+                    _season_t3 = _SEASON_POR_LIGA.get(league_id, SEASON)
                     d3 = await _api_get(client, "/players", {
                         "search": nome_busca,
                         "league": league_id,
-                        "season": SEASON,
+                        "season": _season_t3,
                     })
                     for e in d3.get("response", []):
                         if _score_nome(e.get("player", {}).get("name", ""), nome_busca) > 0:
-                            entry = e
-                            break
+                            team_api = (e.get("statistics") or [{}])[0].get("team", {}).get("name", "")
+                            if _club_names_match(team_api, clube):
+                                entry = e
+                                _entry_season = _season_t3
+                                break
                     if entry:
                         break
 
@@ -814,7 +860,7 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
             if player_id:
                 d_full = await _api_get(client, "/players", {
                     "id":     player_id,
-                    "season": SEASON,
+                    "season": _entry_season,  # season onde o jogador foi encontrado
                 })
                 full_entries = d_full.get("response", [])
                 if full_entries:
@@ -825,6 +871,12 @@ async def buscar_stats_jogador(nome: str, clube: str) -> dict | None:
 
     agregado = _agregar_stats([entry])
     if not agregado:
+        return None
+
+    # Coherence check: clube_nome das stats deve corresponder ao clube do squad.
+    # Dado errado (outro jogador) é pior que vazio — retorna None em vez de propagar.
+    clube_api = agregado.get("clube_nome", "")
+    if clube_api and not _club_names_match(clube_api, clube):
         return None
 
     player_info = entry.get("player", {})
@@ -935,7 +987,7 @@ def _card_jogador(player: dict, stats_p90: dict, cat_key: str,
         "posicao":          POSICOES.get(player["pos"], player["pos"]),
         "pos_sigla":        player["pos"],
         "clube":            stats_p90.get("clube_nome") or player["clube"],
-        "clube_logo":       stats_p90.get("clube_logo", ""),
+        "clube_logo":       stats_p90.get("clube_logo") or "",
         "foto_jogador":     stats_p90.get("foto", ""),
         "caps":             player.get("caps"),
         "categoria":        cat_key,
