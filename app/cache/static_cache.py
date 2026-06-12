@@ -30,6 +30,8 @@ def _stats_ttl(horario_utc: str | None) -> float:
     try:
         dt = datetime.fromisoformat((horario_utc or "").replace("Z", "+00:00"))
         horas = (dt - datetime.now(timezone.utc)).total_seconds() / 3600
+        if horas < 0:
+            return 30 * 24 * 3600  # jogo passado — análise pré-jogo imutável, 30 dias
         if horas > 12:
             return 24 * 3600   # > 12h: 1×/dia
         if horas > 2:

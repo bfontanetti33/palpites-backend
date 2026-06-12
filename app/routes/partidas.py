@@ -19,6 +19,8 @@ JOGOS_LIBERADOS: frozenset[str] = frozenset({
     "mexico-south-africa",
     "brazil-morocco",
     "south-korea-czech-republic",
+    "usa-paraguay",
+    "canada-bosnia-and-herzegovina",
 })
 _MSG_BLOQUEIO = "🔓 Análise completa em breve — comece pelos 3 jogos de estreia, grátis."
 
