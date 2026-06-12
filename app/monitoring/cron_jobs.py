@@ -234,10 +234,30 @@ async def _job_healthcheck_15min() -> None:
         await asyncio.sleep(900)  # 15min
 
 
+async def _job_sync_status() -> None:
+    """
+    Tick de 3min — sincroniza status e placar dos jogos ao vivo/recém-terminados.
+    Só gera chamadas à API-Football para jogos na janela ativa (ao vivo, ou iniciados
+    há < 3h, ou começando em < 10min). Custo estimado: ~20 req/dia de jogos, zero nos
+    dias sem jogo.
+    """
+    await asyncio.sleep(30)  # aguarda startup antes da 1ª execução
+    while True:
+        try:
+            from app.agents.football_agent import sincronizar_status_jogos
+            atualizados = await sincronizar_status_jogos()
+            if atualizados:
+                log.info("sync_status: %d jogo(s) atualizados", atualizados)
+        except Exception as e:
+            log.error("cron_sync_status falhou: %s", e)
+        await asyncio.sleep(180)  # tick a cada 3min
+
+
 async def iniciar_cron_jobs() -> None:
-    """Inicia os 4 cron jobs como tasks asyncio independentes."""
+    """Inicia os 5 cron jobs como tasks asyncio independentes."""
     asyncio.create_task(_job_cache_diario())
     asyncio.create_task(_job_odds_tiered())
     asyncio.create_task(_job_prewarm_stats())
     asyncio.create_task(_job_healthcheck_15min())
-    log.info("Cron jobs iniciados: cache-diário, odds-tiered, prewarm-stats, healthcheck-15min")
+    asyncio.create_task(_job_sync_status())
+    log.info("Cron jobs iniciados: cache-diário, odds-tiered, prewarm-stats, healthcheck-15min, sync-status")

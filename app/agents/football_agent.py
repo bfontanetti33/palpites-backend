@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import time
+from datetime import datetime, timezone
 from math import exp, factorial
 from pathlib import Path
 
@@ -151,6 +152,10 @@ for _j in _JOGOS:
     _ascii = _slug_ascii(_j["slug"])
     if _ascii != _j["slug"]:
         _POR_SLUG[_ascii] = _j
+
+# Statuses da API-Football usados pelo sync de placar
+_STATUS_LIVE = {"1H", "HT", "2H", "ET", "BT", "P", "SUSP", "INT", "LIVE"}
+_STATUS_FT   = {"FT", "AET", "PEN"}
 
 
 def _carregar_seed_forma() -> dict[str, list]:
@@ -956,6 +961,103 @@ async def buscar_todos_jogos_copa() -> list[PartidaResumo]:
         _jogo_para_resumo(j, _partida_cache.get(j["slug"]), static_cache.get_stats(j["slug"]))
         for j in _JOGOS
     ]
+
+
+async def sincronizar_status_jogos() -> int:
+    """
+    Sincroniza status e placar dos jogos ao vivo e recém-terminados.
+
+    Janela ativa (únicos jogos que geram chamada à API):
+      - jogo sabidamente ao vivo (_STATUS_LIVE)
+      - iniciado há menos de 3h (cobre 90min + prorrogação + pênaltis)
+      - começa em menos de 10min
+
+    Atualiza _JOGOS in-memory → propaga imediatamente para buscar_todos_jogos_copa.
+    Quando um jogo termina (FT/AET/PEN), expulsa do _partida_cache para que a próxima
+    chamada de /recomendacao recalcule com o resultado final.
+
+    Bypassa _cache (TTL 8h seria longo demais para placar ao vivo).
+    Retorna número de jogos cujo status/placar mudou.
+    """
+    agora = datetime.now(timezone.utc)
+    atualizados = 0
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        for jogo in _JOGOS:
+            fid = jogo.get("api_fixture_id")
+            if not fid:
+                continue
+
+            dt_str = jogo.get("data_hora_utc") or jogo.get("data_hora_brasilia", "")
+            try:
+                dt = datetime.fromisoformat(dt_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                continue
+
+            horas_desde = (agora - dt).total_seconds() / 3600
+            horas_ate   = (dt - agora).total_seconds() / 3600
+            status_atual = jogo.get("status", "NS")
+
+            # Pula jogos já encerrados há mais de 30min (resultado estável)
+            if status_atual in _STATUS_FT and horas_desde > 0.5:
+                continue
+
+            # Pula NS que não começam em menos de 10min
+            em_janela = (
+                status_atual in _STATUS_LIVE
+                or (0 <= horas_desde < 3.0)
+                or (0 <= horas_ate < (10 / 60))
+                # Bootstrap: seed ainda tem NS para jogo que já deveria ter terminado
+                # (ex: servidor reiniciou após o jogo). Cobre só até 72h para não
+                # re-verificar jogos antigos em todo tick.
+                or (status_atual == "NS" and 3.0 <= horas_desde < 72.0)
+            )
+            if not em_janela:
+                continue
+
+            try:
+                r = await client.get(
+                    f"{BASE_URL}/fixtures",
+                    headers=HEADERS,
+                    params={"id": fid},
+                )
+                r.raise_for_status()
+                resp = r.json().get("response", [])
+                if not resp:
+                    continue
+
+                f          = resp[0]
+                novo_status = f["fixture"]["status"]["short"]
+                gols_casa   = f["goals"]["home"]
+                gols_fora   = f["goals"]["away"]
+
+                mudou = (
+                    jogo.get("status")    != novo_status
+                    or jogo.get("gols_casa") != gols_casa
+                    or jogo.get("gols_fora") != gols_fora
+                )
+                if mudou:
+                    jogo["status"]    = novo_status
+                    jogo["gols_casa"] = gols_casa
+                    jogo["gols_fora"] = gols_fora
+                    atualizados += 1
+                    log.info(
+                        "sync_status: %s → %s  %s×%s",
+                        jogo["slug"], novo_status, gols_casa, gols_fora,
+                    )
+
+                    # Jogo encerrado: expulsa do _partida_cache para forçar recálculo
+                    if novo_status in _STATUS_FT:
+                        _partida_cache.pop(jogo["slug"], None)
+
+            except Exception as e:
+                log.warning("sync_status %s: %s", jogo.get("slug", fid), e)
+
+            await asyncio.sleep(1)  # 1 req/s — bem abaixo do rate limit Pro (30 req/min)
+
+    return atualizados
 
 
 def _enriquecer_odds(partida: "Partida", slug: str) -> "Partida":
