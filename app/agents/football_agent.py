@@ -1115,11 +1115,13 @@ def _enriquecer_odds(partida: "Partida", slug: str) -> "Partida":
                     vitoria_casa=round(vc), empate=round(emp), vitoria_fora=round(vf),
                     lambda_casa=mg.get("lambda_casa", 1.2),
                     lambda_fora=mg.get("lambda_fora", 1.2),
+                    metodo="dc_poisson",
                 )
                 fav_b, prob_fav_b = _favorito_e_prob(
                     partida.time_casa_nome, partida.time_fora_nome, prob_b
                 )
                 updates.update({
+                    "probabilidades":    prob_b,
                     "prob_vitoria_casa": vc,
                     "prob_empate":       emp,
                     "prob_vitoria_fora": vf,
