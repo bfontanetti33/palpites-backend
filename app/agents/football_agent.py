@@ -764,6 +764,26 @@ def _insight_curto(nome_casa: str, nome_fora: str, prob: "Probabilidades | None"
     return f"Confronto equilibrado — {nome_casa} {vc}% / Empate {emp}% / {nome_fora} {vf}%"
 
 
+def _resumo_rapido(nome_casa: str, nome_fora: str, prob: "Probabilidades | None") -> str:
+    """Gera resumo de probabilidades dinamicamente a partir de prob (com lambdas).
+    Mesmos thresholds de _insight_curto para consistência entre os dois campos."""
+    if not prob:
+        return ""
+    vc, emp, vf = prob.vitoria_casa, prob.empate, prob.vitoria_fora
+    lc = float(getattr(prob, "lambda_casa", None) or 1.2)
+    lf = float(getattr(prob, "lambda_fora",  None) or 1.2)
+    gols = f"Gols esperados: {lc:.1f} (casa) e {lf:.1f} (fora)."
+    if vc >= 55:
+        return f"{nome_casa} é favorito com {vc}% de vitória. {gols} Empate: {emp}%."
+    if vf >= 55:
+        return f"{nome_fora} é favorito com {vf}% de vitória. {gols} Empate: {emp}%."
+    if vc >= 45:
+        return f"{nome_casa} tem leve vantagem ({vc}% vs {vf}%). {gols} Empate: {emp}%."
+    if vf >= 45:
+        return f"{nome_fora} tem leve vantagem ({vf}% vs {vc}%). {gols} Empate: {emp}%."
+    return f"Confronto equilibrado — {nome_casa} {vc}% · Empate {emp}% · {nome_fora} {vf}%. {gols}"
+
+
 def _jogo_para_resumo(
     j: dict,
     partida: "Partida | None" = None,
@@ -811,7 +831,11 @@ def _jogo_para_resumo(
         favorito=fav,
         prob_favorito=prob_fav,
         insight_curto=_insight_curto(nome_casa, nome_fora, prob),
-        resumo_rapido=partida.insight_probabilidades if partida else "",
+        resumo_rapido=(
+            _resumo_rapido(nome_casa, nome_fora, prob)
+            if prob
+            else (partida.insight_probabilidades if partida else "")
+        ),
     )
 
 
