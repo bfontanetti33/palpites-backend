@@ -596,18 +596,22 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro:
 
 async def _media_escanteios(client: httpx.AsyncClient, team_id: int) -> tuple[float | None, int]:
     """
-    Calcula média de escanteios do time nos últimos 5 jogos sênior.
-    Re-usa o cache de /fixtures?team&last=20 já feito por _forma_recente.
-    Para cada fixture, chama /fixtures/statistics (cacheado por 4h).
+    Calcula média de escanteios do time usando os 8 jogos mais recentes COM dado de corner.
+    Busca nos últimos 30 jogos sênior (do mais recente para mais antigo) até acumular 8
+    com estatística real — ignora fixtures sem dado de corners em vez de deixá-los zerar
+    a amostra útil.
     Retorna (media, n) onde n = jogos com dado real de corner.
     """
+    _MAX_COM_DADO = 8
     try:
-        data = await _get(client, "/fixtures", {"team": team_id, "last": 20})
+        data = await _get(client, "/fixtures", {"team": team_id, "last": 30})
         fixtures = [f for f in data.get("response", []) if _e_jogo_senior_masculino(f)]
-        fixtures = sorted(fixtures, key=lambda x: x["fixture"]["date"])[-5:]
+        fixtures = sorted(fixtures, key=lambda x: x["fixture"]["date"], reverse=True)
 
         escanteios: list[int] = []
         for f in fixtures:
+            if len(escanteios) >= _MAX_COM_DADO:
+                break
             fid = f["fixture"]["id"]
             try:
                 sdata = await _get(client, "/fixtures/statistics", {"fixture": fid})
@@ -1238,8 +1242,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     stats_fora.media_escanteios = esc_f_mean
     stats_casa.escanteios_amostra_n = esc_c_n
     stats_fora.escanteios_amostra_n = esc_f_n
-    stats_casa.escanteios_baixa_confianca = 0 < esc_c_n < 3
-    stats_fora.escanteios_baixa_confianca = 0 < esc_f_n < 3
+    stats_casa.escanteios_baixa_confianca = 0 < esc_c_n < 5
+    stats_fora.escanteios_baixa_confianca = 0 < esc_f_n < 5
 
     # ── Odds + Jogadores + Ratings em paralelo ────────────────────────────────
     # Separado do gather principal: cada um usa cliente próprio.
