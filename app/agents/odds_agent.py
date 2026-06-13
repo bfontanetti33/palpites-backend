@@ -85,8 +85,15 @@ async def buscar_event_id(home: str, away: str) -> tuple[str, bool] | tuple[None
     """
     eventos = await listar_eventos_copa()
 
+    # Odds API usa nomes ingleses; seed usa nomes oficiais
+    _aliases: dict[str, str] = {
+        "turkiye":  "turkey",    # seed "Türkiye" → API "Turkey"
+        "congo dr": "dr congo",  # seed "Congo DR" → API "DR Congo"
+    }
+
     def _norm(s: str) -> str:
-        return unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("ASCII").lower()
+        out = unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("ASCII").lower()
+        return _aliases.get(out, out)
 
     home_l = _norm(home)
     away_l = _norm(away)
