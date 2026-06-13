@@ -15,6 +15,7 @@ Cache: 30 minutos (odds mudam, mas não a cada segundo).
 """
 import logging
 import os
+import unicodedata
 from datetime import datetime, timezone
 from cachetools import TTLCache
 import httpx
@@ -85,7 +86,7 @@ async def buscar_event_id(home: str, away: str) -> tuple[str, bool] | tuple[None
     eventos = await listar_eventos_copa()
 
     def _norm(s: str) -> str:
-        return s.lower().replace("á","a").replace("é","e").replace("í","i").replace("ó","o").replace("ú","u")
+        return unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("ASCII").lower()
 
     home_l = _norm(home)
     away_l = _norm(away)
