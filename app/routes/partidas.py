@@ -46,7 +46,12 @@ async def listar_jogos_copa(request: Request, response: Response):
 
 @router.get("/copa/jogos/{slug}", response_model=Partida)
 @limiter.limit("20/minute")  # cache 8h protege quota API-Football
-async def detalhe_jogo(request: Request, response: Response, slug: str):
+async def detalhe_jogo(
+    request: Request,
+    response: Response,
+    slug: str,
+    authorization: str | None = Header(default=None),
+):
     """
     Detalhes completos de um jogo da Copa 2026.
 
@@ -60,8 +65,10 @@ async def detalhe_jogo(request: Request, response: Response, slug: str):
     na API — nunca são inventados ou estimados.
     """
     if slug not in JOGOS_LIBERADOS:
-        raise HTTPException(status_code=403, detail="Faça login para acessar esta análise.")
-    response.headers["Cache-Control"] = "public, max-age=28800"  # 8h
+        await _verificar_acesso(authorization)
+        response.headers["Cache-Control"] = "private, max-age=300"
+    else:
+        response.headers["Cache-Control"] = "public, max-age=28800"  # 8h
     partida = await buscar_detalhe_partida(slug)
     if not partida:
         raise HTTPException(
@@ -71,13 +78,40 @@ async def detalhe_jogo(request: Request, response: Response, slug: str):
     return partida
 
 
+async def _verificar_acesso(authorization: str | None) -> str:
+    """
+    Valida token SEM consumir crédito avulso. Retorna user_id ou "admin".
+    Usado pelo endpoint de detalhe — só confirma quem pode ver, não cobra.
+    """
+    token = (authorization or "").removeprefix("Bearer ").strip()
+
+    if PREMIUM_TOKEN and token == PREMIUM_TOKEN:
+        return "admin"
+
+    if not token:
+        raise HTTPException(status_code=403, detail="Faça login para acessar.")
+
+    from app.auth.supabase_client import verify_jwt_token, get_user_premium_status
+    payload = verify_jwt_token(token)
+    if not payload:
+        raise HTTPException(status_code=403, detail="Token inválido. Faça login novamente.")
+
+    user_id = payload.get("sub", "")
+    status  = await get_user_premium_status(user_id)
+
+    if status["is_premium"] or status["avulso_credits"] > 0:
+        return user_id
+
+    raise HTTPException(
+        status_code=403,
+        detail="Acesso restrito. Assine o plano Premium para usar este recurso.",
+    )
+
+
 async def _verificar_acesso_recomendacao(authorization: str | None, slug: str) -> str:
     """
-    Fluxo de autenticação:
-    1. PREMIUM_TOKEN fixo → admin override (sem logging)
-    2. JWT Supabase → verifica premium ou crédito avulso
-    3. Sem token → 403
-    Retorna user_id (ou "admin") se autorizado.
+    Valida token E consome crédito avulso (se aplicável). Retorna user_id ou "admin".
+    Usado pelo endpoint de recomendação — cobra 1 crédito por análise avulsa.
     """
     token = (authorization or "").removeprefix("Bearer ").strip()
 
