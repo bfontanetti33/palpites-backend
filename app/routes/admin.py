@@ -330,7 +330,8 @@ async def prewarm_stats(
                     horas = (dt - agora).total_seconds() / 3600
                     if -0.5 <= horas <= max_horas:
                         _l1_cache.pop(jogo["slug"], None)
-                        _sc.invalidate_player_stats(jogo["slug"], save=False)
+                        # player_stats NÃO é invalidado — jogadores de clube são estáveis
+                        # durante a Copa e a rebusca falha para jogos não disputados
                 except Exception:
                     continue
             _sc.save_to_disk()  # 1 write para todos os slugs
