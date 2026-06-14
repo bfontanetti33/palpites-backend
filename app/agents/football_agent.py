@@ -1124,19 +1124,21 @@ def _enriquecer_odds(partida: "Partida", slug: str) -> "Partida":
                 fav_b, prob_fav_b = _favorito_e_prob(
                     partida.time_casa_nome, partida.time_fora_nome, prob_b
                 )
+                _insight_prob_b = _gerar_insight_probabilidades(
+                    partida.time_casa_nome, partida.time_fora_nome, prob_b
+                )
                 updates.update({
-                    "probabilidades":    prob_b,
-                    "prob_vitoria_casa": vc,
-                    "prob_empate":       emp,
-                    "prob_vitoria_fora": vf,
-                    "favorito":          fav_b,
-                    "prob_favorito":     prob_fav_b,
-                    "insight_curto":     _insight_curto(
+                    "probabilidades":         prob_b,
+                    "prob_vitoria_casa":      vc,
+                    "prob_empate":            emp,
+                    "prob_vitoria_fora":      vf,
+                    "favorito":               fav_b,
+                    "prob_favorito":          prob_fav_b,
+                    "insight_curto":          _insight_curto(
                         partida.time_casa_nome, partida.time_fora_nome, prob_b
                     ),
-                    "resumo_rapido":     _gerar_insight_probabilidades(
-                        partida.time_casa_nome, partida.time_fora_nome, prob_b
-                    ),
+                    "resumo_rapido":          _insight_prob_b,
+                    "insight_probabilidades": _insight_prob_b,
                 })
     except Exception:
         pass
