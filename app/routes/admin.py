@@ -962,3 +962,21 @@ async def debug_players(team_name: str, authorization: str | None = Header(defau
             "error":     type(e).__name__,
             "detail":    str(e),
         }
+
+
+# ── Webhook status ────────────────────────────────────────────────────────────
+
+@router.get("/admin/webhook-status", tags=["Admin"])
+async def webhook_status(authorization: str | None = Header(default=None)):
+    """
+    Confirma se as env vars do webhook do Mercado Pago estão configuradas.
+    Retorna true/false por variável — SEM expor os valores.
+    Protegido por ADMIN_TOKEN.
+    """
+    _checar_token(authorization)
+    return {
+        "mercadopago_webhook_secret_configurado": bool(os.getenv("MERCADOPAGO_WEBHOOK_SECRET")),
+        "mercadopago_access_token_configurado":   bool(os.getenv("MERCADOPAGO_ACCESS_TOKEN")),
+        "backend_url": os.getenv("BACKEND_URL", "(não configurado)"),
+        "webhook_url": os.getenv("BACKEND_URL", "https://palpites-backend-production.up.railway.app") + "/api/v1/webhooks/mercadopago",
+    }
