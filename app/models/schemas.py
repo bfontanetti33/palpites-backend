@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # ── Sub-modelos de partida ────────────────────────────────────────────────────
@@ -130,29 +130,29 @@ class JogadoresDestaque(BaseModel):
 
 class RatingDinamico(BaseModel):
     """Camada 1 — Rating combinado (Elo + Pi-rating + FIFA Ranking)."""
-    # Elo rating
-    elo_score: float | None = None        # de eloratings.net (fallback se SPA)
-    fonte_elo: str = "indisponível"       # "eloratings.net" | "fallback" | "indisponível"
+    # Elo rating — interno ao modelo, não exposto no payload
+    elo_score: float | None = Field(default=None, exclude=True)
+    fonte_elo: str = Field(default="indisponível", exclude=True)
 
-    # Pi-rating (desempenho recente ponderado)
-    pi_rating: float = 0.0
+    # Pi-rating — interno ao modelo
+    pi_rating: float = Field(default=0.0, exclude=True)
 
-    # FIFA Ranking
-    fifa_ranking: int | None = None       # posição no ranking FIFA mundial
-    fifa_ranking_copa: int | None = None  # posição entre os 48 times da Copa
-    fifa_normalizado: float | None = None # (48 - copa_pos) / 47 → 0.0 a 1.0
+    # FIFA Ranking — fifa_ranking e fifa_ranking_disponivel são exibidos; resto é interno
+    fifa_ranking: int | None = None
+    fifa_ranking_copa: int | None = Field(default=None, exclude=True)
+    fifa_normalizado: float | None = Field(default=None, exclude=True)
     fifa_ranking_disponivel: bool = False
 
-    # Normalização regional
+    # Normalização regional — interno ao modelo
     confederacao: str = ""
-    elo_rank_regional: int | None = None  # posição dentro da confederação (na Copa)
-    media_elo_regiao: float | None = None
-    std_elo_regiao: float | None = None
-    elo_z_regional: float | None = None  # z-score dentro da confederação
+    elo_rank_regional: int | None = Field(default=None, exclude=True)
+    media_elo_regiao: float | None = Field(default=None, exclude=True)
+    std_elo_regiao: float | None = Field(default=None, exclude=True)
+    elo_z_regional: float | None = Field(default=None, exclude=True)
 
-    # Rating final
-    rating_combinado: float = 0.0
-    formula_usada: str = ""               # ex: "50% Elo + 30% Pi + 20% FIFA"
+    # Rating final — interno ao modelo
+    rating_combinado: float = Field(default=0.0, exclude=True)
+    formula_usada: str = Field(default="", exclude=True)
 
 
 # ── Modelos de partida ────────────────────────────────────────────────────────
