@@ -5,7 +5,7 @@ import os
 
 router = APIRouter()
 
-ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")
+ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "").strip()
 _VERSAO     = "1.0.0"
 _REGIAO     = "southamerica-east1"
 
