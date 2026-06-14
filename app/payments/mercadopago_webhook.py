@@ -308,7 +308,7 @@ async def criar_preferencia(
             )
 
     # [DIAG-TEMP] confirma o que chegou no body — remover após diagnóstico
-    log.info(
+    log.warning(
         "criar_preferencia [DIAG]: cpf=%s device_id=%s plano=%s avulso=%s",
         "presente" if body.cpf else "ausente",
         f"presente({body.device_id[:8]}...)" if body.device_id else "ausente",
