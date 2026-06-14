@@ -33,19 +33,67 @@ _MSG_BLOQUEIO = "🔓 Análise completa em breve — comece pelos 3 jogos de est
 
 
 @router.get("/copa/jogos", response_model=RespostaCopa)
-@limiter.limit("60/minute")  # seed estático — custo zero
-async def listar_jogos_copa(request: Request, response: Response):
+@limiter.limit("60/minute")
+async def listar_jogos_copa(
+    request: Request,
+    response: Response,
+    authorization: str | None = Header(default=None),
+):
     """
     Lista todos os jogos da Copa do Mundo FIFA 2026.
     Retorna status atual (NS/FT/1H/...) e placar quando disponível.
     dados_insuficientes na lista individual indica dados parciais.
+    Personaliza palpite e bloqueado por usuário (1 query Supabase se autenticado).
     """
-    response.headers["Cache-Control"] = "public, max-age=14400"  # 4h — dados estáticos do seed
     partidas = await buscar_todos_jogos_copa()
+
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    is_premium = False
+    until_dt = None
+
+    if PREMIUM_TOKEN and token == PREMIUM_TOKEN:
+        # Admin: tudo liberado sem Supabase
+        response.headers["Cache-Control"] = "private, no-store"
+        return RespostaCopa(total=len(partidas), temporada=2026, partidas=partidas)
+    elif token:
+        from app.auth.supabase_client import verify_jwt_token, get_user_premium_status
+        payload = verify_jwt_token(token)
+        if payload:
+            user_id = payload.get("sub", "")
+            status = await get_user_premium_status(user_id)
+            is_premium = status["is_premium"]
+            premium_until = status.get("premium_until")
+            if is_premium and premium_until:
+                try:
+                    until_dt = datetime.fromisoformat(premium_until.replace("Z", "+00:00"))
+                except ValueError:
+                    pass
+        response.headers["Cache-Control"] = "private, max-age=60"
+    else:
+        response.headers["Cache-Control"] = "public, max-age=14400"
+
     for p in partidas:
-        if p.slug not in JOGOS_LIBERADOS:
+        jogo_liberado = p.slug in JOGOS_LIBERADOS
+        if not jogo_liberado and is_premium and until_dt:
+            try:
+                jogo_dt = datetime.fromisoformat(p.horario)
+                if jogo_dt.tzinfo is None:
+                    jogo_dt = jogo_dt.replace(tzinfo=timezone.utc)
+                if jogo_dt <= until_dt:
+                    jogo_liberado = True
+            except Exception:
+                pass  # fail-open: dúvida → libera (nunca bloqueia quem pagou)
+        if not jogo_liberado:
             p.bloqueado = True
             p.mensagem_bloqueio = _MSG_BLOQUEIO
+            p.insight_curto = ""
+            p.favorito = ""
+            p.prob_favorito = None
+            p.prob_vitoria_casa = None
+            p.prob_empate = None
+            p.prob_vitoria_fora = None
+            p.resumo_rapido = ""
+
     return RespostaCopa(total=len(partidas), temporada=2026, partidas=partidas)
 
 
