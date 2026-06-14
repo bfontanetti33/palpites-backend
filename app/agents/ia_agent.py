@@ -1280,7 +1280,7 @@ REGRA ANTI-INVENÇÃO (crítica — máxima prioridade):
 INSIGHT_JOGADORES — regra específica:
 - Só cite jogadores cujos DADOS REAIS estejam no prompt — proibido inventar qualquer número
 - Formato: "De olho no [nome] do [clube] — [stat_total] [gols ou assists] na temporada, [caps] jogos pela seleção"
-- Se stat_p90 disponível: adicione "média de [stat_p90] por jogo"
+- Se stat_p90 disponível: adicione "média de [stat_p90] por 90 minutos"
 - PROIBIDO citar: títulos, troféus, estatísticas da temporada completa oficial, odd de mercado
 - PROIBIDO usar "caps" (jogos pela seleção) como se fosse estatística de performance — caps é contexto, não gol nem assistência
 - Se um jogador só tem "caps internacionais" e zero stat de gols/assists, NÃO o cite
