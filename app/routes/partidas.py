@@ -69,8 +69,10 @@ async def detalhe_jogo(
     O campo dados_insuficientes=true indica que algum dado não estava disponível
     na API — nunca são inventados ou estimados.
     """
+    user_id_auth: str = "anon"
+    premium_until: str | None = None
     if slug not in JOGOS_LIBERADOS:
-        await _verificar_acesso(authorization)
+        user_id_auth, premium_until = await _verificar_acesso(authorization)
         response.headers["Cache-Control"] = "private, max-age=300"
     else:
         response.headers["Cache-Control"] = "public, max-age=28800"  # 8h
@@ -80,18 +82,33 @@ async def detalhe_jogo(
             status_code=404,
             detail="Partida não encontrada. Os fixtures da Copa 2026 podem ainda não ter sido carregados na API.",
         )
+    if premium_until and user_id_auth != "admin":
+        try:
+            jogo_dt = datetime.fromisoformat(partida.horario)
+            if jogo_dt.tzinfo is None:
+                jogo_dt = jogo_dt.replace(tzinfo=timezone.utc)
+            until_dt = datetime.fromisoformat(premium_until.replace("Z", "+00:00"))
+            if jogo_dt > until_dt:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Jogo fora da sua janela premium. Renove o plano.",
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # fail-open: não bloqueia se não conseguir parsear horário
     return partida
 
 
-async def _verificar_acesso(authorization: str | None) -> str:
+async def _verificar_acesso(authorization: str | None) -> tuple[str, str | None]:
     """
-    Valida token SEM consumir crédito avulso. Retorna user_id ou "admin".
+    Valida token SEM consumir crédito avulso. Retorna (user_id, premium_until) ou ("admin", None).
     Usado pelo endpoint de detalhe — só confirma quem pode ver, não cobra.
     """
     token = (authorization or "").removeprefix("Bearer ").strip()
 
     if PREMIUM_TOKEN and token == PREMIUM_TOKEN:
-        return "admin"
+        return "admin", None
 
     if not token:
         raise HTTPException(status_code=403, detail="Faça login para acessar.")
@@ -104,8 +121,11 @@ async def _verificar_acesso(authorization: str | None) -> str:
     user_id = payload.get("sub", "")
     status  = await get_user_premium_status(user_id)
 
-    if status["is_premium"] or status["avulso_credits"] > 0:
-        return user_id
+    if status["is_premium"]:
+        return user_id, status["premium_until"]
+
+    if status["avulso_credits"] > 0:
+        return user_id, None  # avulso sem restrição de janela (fase C)
 
     raise HTTPException(
         status_code=403,
@@ -113,16 +133,16 @@ async def _verificar_acesso(authorization: str | None) -> str:
     )
 
 
-async def _verificar_acesso_recomendacao(authorization: str | None, slug: str) -> str:
+async def _verificar_acesso_recomendacao(authorization: str | None, slug: str) -> tuple[str, str | None]:
     """
-    Valida token E consome crédito avulso (se aplicável). Retorna user_id ou "admin".
+    Valida token E consome crédito avulso (se aplicável). Retorna (user_id, premium_until) ou ("admin", None).
     Usado pelo endpoint de recomendação — cobra 1 crédito por análise avulsa.
     """
     token = (authorization or "").removeprefix("Bearer ").strip()
 
     # 1. Admin override — PREMIUM_TOKEN fixo continua funcionando
     if PREMIUM_TOKEN and token == PREMIUM_TOKEN:
-        return "admin"
+        return "admin", None
 
     # 2. Sem token
     if not token:
@@ -142,12 +162,12 @@ async def _verificar_acesso_recomendacao(authorization: str | None, slug: str) -
 
     if status["is_premium"]:
         await register_usage(user_id, slug)
-        return user_id
+        return user_id, status["premium_until"]
 
     if status["avulso_credits"] > 0:
         if await deduct_avulso_credit(user_id):
             await register_usage(user_id, slug)
-            return user_id
+            return user_id, None  # avulso sem restrição de janela (fase C)
 
     raise HTTPException(
         status_code=403,
@@ -167,9 +187,11 @@ async def recomendacao_ia(
     Aceita: PREMIUM_TOKEN fixo (admin) ou JWT Supabase (usuário premium/avulso).
     Nunca retorna 500 — usa fallback GLOBAL_AVG quando APIs externas estão indisponíveis.
     """
+    user_id_auth: str = "anon"
+    premium_until: str | None = None
     if slug not in JOGOS_LIBERADOS:
         try:
-            await _verificar_acesso_recomendacao(authorization, slug)
+            user_id_auth, premium_until = await _verificar_acesso_recomendacao(authorization, slug)
         except HTTPException:
             raise
         except Exception as e:
@@ -184,6 +206,22 @@ async def recomendacao_ia(
 
     if not partida:
         raise HTTPException(status_code=404, detail="Partida não encontrada.")
+
+    if premium_until and user_id_auth != "admin":
+        try:
+            jogo_dt = datetime.fromisoformat(partida.horario)
+            if jogo_dt.tzinfo is None:
+                jogo_dt = jogo_dt.replace(tzinfo=timezone.utc)
+            until_dt = datetime.fromisoformat(premium_until.replace("Z", "+00:00"))
+            if jogo_dt > until_dt:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Jogo fora da sua janela premium. Renove o plano.",
+                )
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # fail-open: não bloqueia se não conseguir parsear horário
 
     # gerar_recomendacao nunca lança exceção — usa fallback por camada.
     # O try/except abaixo é segurança extra para erros verdadeiramente inesperados.

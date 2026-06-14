@@ -109,7 +109,7 @@ async def _processar_pagamento_aprovado_inner(payment: dict) -> None:
     plano_info = _PLANOS.get(plano)
 
     from app.auth.supabase_client import (
-        set_premium, add_avulso_credit, get_user_id_by_email,
+        set_premium, add_avulso_credit, get_user_id_by_email, get_user_premium_status,
     )
     from app.monitoring.telegram_bot import send_telegram
 
@@ -135,7 +135,18 @@ async def _processar_pagamento_aprovado_inner(payment: dict) -> None:
             )
         else:
             dias = plano_info["dias"]
-            premium_until = (datetime.now(timezone.utc) + timedelta(days=dias)).isoformat()
+            status_atual = await get_user_premium_status(user_id)
+            current_until_str = status_atual.get("premium_until")
+            now_utc = datetime.now(timezone.utc)
+            if current_until_str:
+                try:
+                    current_until = datetime.fromisoformat(current_until_str.replace("Z", "+00:00"))
+                    base = max(now_utc, current_until)
+                except ValueError:
+                    base = now_utc
+            else:
+                base = now_utc
+            premium_until = (base + timedelta(days=dias)).isoformat()
             await set_premium(user_id, premium_until, email=email)
             plano_label = plano_info["label"]
 
