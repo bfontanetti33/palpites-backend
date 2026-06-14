@@ -167,10 +167,8 @@ class PartidaResumo(BaseModel):
     cidade: str
     time_casa_nome: str
     time_casa_logo: str
-    time_casa_iso2: str = ""
     time_fora_nome: str
     time_fora_logo: str
-    time_fora_iso2: str = ""
     gols_casa: int | None = None
     gols_fora: int | None = None
     # Campos de probabilidade — populados a partir do _partida_cache quando disponível

@@ -144,28 +144,6 @@ def _slug_ascii(s: str) -> str:
     import unicodedata
     return unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("ASCII")
 
-# Mapa nome oficial (seed) → código ISO-3166-1 alpha-2 (ou subdivisão GB-*).
-# GB-ENG / GB-SCT / GB-WLS não têm emoji padrão — front usa flagcdn.com/{code.lower()}.svg.
-_ISO2: dict[str, str] = {
-    "Algeria":              "DZ", "Argentina":            "AR", "Australia":            "AU",
-    "Austria":              "AT", "Belgium":              "BE", "Bosnia & Herzegovina": "BA",
-    "Brazil":               "BR", "Canada":               "CA", "Cape Verde Islands":   "CV",
-    "Colombia":             "CO", "Congo DR":             "CD", "Croatia":              "HR",
-    "Curaçao":              "CW", "Czech Republic":       "CZ", "Ecuador":              "EC",
-    "Egypt":                "EG", "England":          "GB-ENG", "France":               "FR",
-    "Germany":              "DE", "Ghana":                "GH", "Haiti":                "HT",
-    "Iran":                 "IR", "Iraq":                 "IQ", "Ivory Coast":          "CI",
-    "Japan":                "JP", "Jordan":               "JO", "Mexico":               "MX",
-    "Morocco":              "MA", "Netherlands":          "NL", "New Zealand":          "NZ",
-    "Norway":               "NO", "Panama":               "PA", "Paraguay":             "PY",
-    "Portugal":             "PT", "Qatar":                "QA", "Saudi Arabia":         "SA",
-    "Scotland":         "GB-SCT", "Senegal":              "SN", "South Africa":         "ZA",
-    "South Korea":          "KR", "Spain":                "ES", "Sweden":               "SE",
-    "Switzerland":          "CH", "Tunisia":              "TN", "Türkiye":              "TR",
-    "Uruguay":              "UY", "USA":                  "US", "Uzbekistan":           "UZ",
-    "Wales":            "GB-WLS",
-}
-
 # Aceita tanto o slug Unicode original quanto a versão ASCII (sem diacríticos).
 # Necessário porque URLs como australia-turkiye e australia-türkiye devem resolver o mesmo jogo.
 _POR_SLUG: dict[str, dict] = {}
@@ -847,10 +825,8 @@ def _jogo_para_resumo(
         cidade=j.get("cidade") or "",
         time_casa_nome=nome_casa,
         time_casa_logo=j.get("time_casa_logo") or "",
-        time_casa_iso2=_ISO2.get(nome_casa, ""),
         time_fora_nome=nome_fora,
         time_fora_logo=j.get("time_fora_logo") or "",
-        time_fora_iso2=_ISO2.get(nome_fora, ""),
         gols_casa=j.get("gols_casa"),
         gols_fora=j.get("gols_fora"),
         prob_vitoria_casa=float(prob.vitoria_casa) if prob else None,
@@ -1388,10 +1364,9 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
         cidade=jogo.get("cidade") or "",
         time_casa_nome=jogo["time_casa"],
         time_casa_logo=jogo.get("time_casa_logo") or "",
-        time_casa_iso2=_ISO2.get(jogo["time_casa"], ""),
+        time_casa_id=home_id,
         time_fora_nome=jogo["time_fora"],
         time_fora_logo=jogo.get("time_fora_logo") or "",
-        time_fora_iso2=_ISO2.get(jogo["time_fora"], ""),
         time_fora_id=away_id,
         gols_casa=jogo.get("gols_casa"),
         gols_fora=jogo.get("gols_fora"),
