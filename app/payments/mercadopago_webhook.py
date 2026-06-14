@@ -209,6 +209,7 @@ async def mercadopago_webhook(
 class _PreferenciaRequest(BaseModel):
     plano: str
     email: str | None = None  # usado apenas com PREMIUM_TOKEN (admin/teste)
+    device_id: str | None = None  # MP_DEVICE_SESSION_ID do security.js (opcional)
 
 
 @router.post("/pagamentos/criar-preferencia")
@@ -273,6 +274,22 @@ async def criar_preferencia(
             "currency_id": "BRL",
             "unit_price":  plano_info["preco"],
         }],
+        "payer": {
+            "email": email,
+        },
+        "additional_info": {
+            "items": [{
+                "id":          f"plan_{plano}",
+                "title":       plano_info["label"],
+                "description": f"Acesso ao serviço Palpites da IA — {plano_info['label']}",
+                "category_id": "services",
+                "quantity":    1,
+                "unit_price":  plano_info["preco"],
+            }],
+            "payer": {
+                "email": email,
+            },
+        },
         "external_reference": f"{email}|{plano}",
         "back_urls": {
             "success": f"{FRONTEND_URL}/pagamento/sucesso",
@@ -284,14 +301,18 @@ async def criar_preferencia(
         "statement_descriptor": "PALPITES DA IA",
     }
 
+    mp_headers: dict = {
+        "Authorization": f"Bearer {MP_ACCESS_TOKEN}",
+        "Content-Type":  "application/json",
+    }
+    if body.device_id:
+        mp_headers["X-meli-session-id"] = body.device_id
+
     try:
         async with httpx.AsyncClient(timeout=15) as c:
             r = await c.post(
                 f"{MP_API}/checkout/preferences",
-                headers={
-                    "Authorization": f"Bearer {MP_ACCESS_TOKEN}",
-                    "Content-Type":  "application/json",
-                },
+                headers=mp_headers,
                 json=preference_payload,
             )
             r.raise_for_status()
