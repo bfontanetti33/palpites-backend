@@ -135,7 +135,7 @@ async def _processar_pagamento_aprovado_inner(payment: dict) -> None:
         else:
             dias = plano_info["dias"]
             premium_until = (datetime.now(timezone.utc) + timedelta(days=dias)).isoformat()
-            await set_premium(user_id, premium_until)
+            await set_premium(user_id, premium_until, email=email)
             plano_label = plano_info["label"]
 
     await send_telegram(

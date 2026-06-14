@@ -263,20 +263,31 @@ async def get_user_id_by_email(email: str) -> str | None:
         return None
 
 
-async def set_premium(user_id: str, premium_until_iso: str) -> None:
-    """Ativa premium para o usuário até a data indicada (ISO 8601)."""
+async def set_premium(user_id: str, premium_until_iso: str, email: str = "") -> None:
+    """
+    Ativa premium para o usuário até a data indicada (ISO 8601).
+    Usa UPSERT: cria a linha se não existir (usuário sem linha em public.users).
+    """
     if not SUPABASE_URL or not SUPABASE_KEY:
         return
+    import logging as _l
+    _log = _l.getLogger(__name__)
     try:
         async with httpx.AsyncClient(timeout=5) as c:
-            await c.patch(
+            r = await c.post(
                 f"{SUPABASE_URL}/rest/v1/users",
-                headers=_HEADERS,
-                params={"id": f"eq.{user_id}"},
-                json={"is_premium": True, "premium_until": premium_until_iso},
+                headers={**_HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal"},
+                json={
+                    "id":            user_id,
+                    "email":         email,
+                    "is_premium":    True,
+                    "premium_until": premium_until_iso,
+                },
             )
-    except Exception:
-        pass
+            if r.status_code not in (200, 201, 204):
+                _log.error("set_premium: HTTP %s — %s", r.status_code, r.text[:200])
+    except Exception as e:
+        _log.error("set_premium: exceção — %s", e)
 
 
 async def add_avulso_credit(email: str) -> None:
