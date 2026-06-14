@@ -307,6 +307,15 @@ async def criar_preferencia(
                 detail="CPF inválido. Verifique o número e tente novamente.",
             )
 
+    # [DIAG-TEMP] confirma o que chegou no body — remover após diagnóstico
+    log.info(
+        "criar_preferencia [DIAG]: cpf=%s device_id=%s plano=%s avulso=%s",
+        "presente" if body.cpf else "ausente",
+        f"presente({body.device_id[:8]}...)" if body.device_id else "ausente",
+        plano,
+        plano_info["credito"],
+    )
+
     _payer: dict = {"email": email}
     if cpf_digits:
         _payer["identification"] = {"type": "CPF", "number": cpf_digits}
