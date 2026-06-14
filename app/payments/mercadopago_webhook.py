@@ -301,12 +301,22 @@ async def criar_preferencia(
         "statement_descriptor": "PALPITES DA IA",
     }
 
+    # [TEMP-LOG] diagnóstico device_id — remover após confirmar cadeia front→backend→MP
+    device_id_preview = body.device_id[:20] if body.device_id else None
+    log.info(
+        "criar_preferencia [device_id]: chegou=%s preview=%s email=%s plano=%s",
+        bool(body.device_id), device_id_preview, email, plano,
+    )
+
     mp_headers: dict = {
         "Authorization": f"Bearer {MP_ACCESS_TOKEN}",
         "Content-Type":  "application/json",
     }
     if body.device_id:
         mp_headers["X-meli-session-id"] = body.device_id
+        log.info("criar_preferencia [device_id]: X-meli-session-id INCLUÍDO no header MP")
+    else:
+        log.info("criar_preferencia [device_id]: X-meli-session-id AUSENTE — device_id não veio no body")
 
     try:
         async with httpx.AsyncClient(timeout=15) as c:
