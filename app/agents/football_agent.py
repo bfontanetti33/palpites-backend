@@ -558,7 +558,7 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro:
                 nome=nome, pais=pais_seed, jogos_apitados=0,
                 cartoes_por_jogo=cpj,
                 penaltis_por_jogo=_MEDIA_COPA.get("penaltis_por_jogo"),
-                tendencia=_tendencia_de_cartoes(cpj),
+                tendencia=None,  # média genérica da Copa — não exibir como tendência do árbitro
                 fonte="media_copa_2026",
                 nota="Histórico não encontrado na API — usando média da Copa",
             )
@@ -584,7 +584,7 @@ async def _arbitro(client: httpx.AsyncClient, fixture_id: int) -> Arbitro:
             jogos_apitados=total,
             cartoes_por_jogo=cpj,
             penaltis_por_jogo=_MEDIA_COPA.get("penaltis_por_jogo"),
-            tendencia=_tendencia_de_cartoes(cpj),
+            tendencia=None,  # fonte não confiável (stats não vêm inline do /fixtures) — não exibir
             fonte="api-football",
         )
 
