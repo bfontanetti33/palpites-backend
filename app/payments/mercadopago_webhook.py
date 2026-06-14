@@ -15,6 +15,7 @@ import hashlib
 import hmac
 import logging
 import os
+import re
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -206,10 +207,28 @@ async def mercadopago_webhook(
 
 # ── Criação de preferência (Checkout Pro) ─────────────────────────────────────
 
+def _validar_cpf(cpf_raw: str) -> str | None:
+    """Valida CPF (formato + dígito verificador). Retorna 11 dígitos ou None se inválido.
+    Não loga o valor — dado sensível LGPD."""
+    digits = re.sub(r"\D", "", cpf_raw)
+    if len(digits) != 11 or len(set(digits)) == 1:
+        return None
+    s = sum(int(digits[i]) * (10 - i) for i in range(9))
+    d1 = 0 if (s % 11) < 2 else 11 - (s % 11)
+    if int(digits[9]) != d1:
+        return None
+    s = sum(int(digits[i]) * (11 - i) for i in range(10))
+    d2 = 0 if (s % 11) < 2 else 11 - (s % 11)
+    if int(digits[10]) != d2:
+        return None
+    return digits
+
+
 class _PreferenciaRequest(BaseModel):
     plano: str
     email: str | None = None  # usado apenas com PREMIUM_TOKEN (admin/teste)
     device_id: str | None = None  # MP_DEVICE_SESSION_ID do security.js (opcional)
+    cpf: str | None = None  # repassado ao MP, não persistido nem logado
 
 
 @router.post("/pagamentos/criar-preferencia")
@@ -267,6 +286,20 @@ async def criar_preferencia(
     if not MP_ACCESS_TOKEN:
         raise HTTPException(status_code=503, detail="Serviço de pagamento não configurado.")
 
+    # CPF — repassado ao MP, não persistido nem logado
+    cpf_digits: str | None = None
+    if body.cpf:
+        cpf_digits = _validar_cpf(body.cpf)
+        if cpf_digits is None:
+            raise HTTPException(
+                status_code=400,
+                detail="CPF inválido. Verifique o número e tente novamente.",
+            )
+
+    _payer: dict = {"email": email}
+    if cpf_digits:
+        _payer["identification"] = {"type": "CPF", "number": cpf_digits}
+
     preference_payload = {
         "items": [{
             "title":       plano_info["label"],
@@ -274,9 +307,7 @@ async def criar_preferencia(
             "currency_id": "BRL",
             "unit_price":  plano_info["preco"],
         }],
-        "payer": {
-            "email": email,
-        },
+        "payer": _payer,
         "additional_info": {
             "items": [{
                 "id":          f"plan_{plano}",
@@ -301,22 +332,12 @@ async def criar_preferencia(
         "statement_descriptor": "PALPITES DA IA",
     }
 
-    # [TEMP-LOG] diagnóstico device_id — remover após confirmar cadeia front→backend→MP
-    device_id_preview = body.device_id[:20] if body.device_id else None
-    log.info(
-        "criar_preferencia [device_id]: chegou=%s preview=%s email=%s plano=%s",
-        bool(body.device_id), device_id_preview, email, plano,
-    )
-
     mp_headers: dict = {
         "Authorization": f"Bearer {MP_ACCESS_TOKEN}",
         "Content-Type":  "application/json",
     }
     if body.device_id:
         mp_headers["X-meli-session-id"] = body.device_id
-        log.info("criar_preferencia [device_id]: X-meli-session-id INCLUÍDO no header MP")
-    else:
-        log.info("criar_preferencia [device_id]: X-meli-session-id AUSENTE — device_id não veio no body")
 
     try:
         async with httpx.AsyncClient(timeout=15) as c:
@@ -328,8 +349,8 @@ async def criar_preferencia(
             r.raise_for_status()
             data = r.json()
     except httpx.HTTPStatusError as e:
-        log.error("criar_preferencia: MP retornou %s — %s", e.response.status_code, e.response.text[:300])
-        raise HTTPException(status_code=502, detail=f"Erro MP ({e.response.status_code}): {e.response.text[:200]}")
+        log.error("criar_preferencia: MP retornou %s ao criar preferência", e.response.status_code)
+        raise HTTPException(status_code=502, detail=f"Erro ao criar preferência ({e.response.status_code}). Tente novamente.")
     except Exception as e:
         log.error("criar_preferencia: falha ao chamar MP — %s", e)
         raise HTTPException(status_code=503, detail="Serviço de pagamento temporariamente indisponível.")
