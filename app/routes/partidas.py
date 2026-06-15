@@ -68,8 +68,17 @@ async def listar_jogos_copa(
                     until_dt = datetime.fromisoformat(premium_until.replace("Z", "+00:00"))
                 except ValueError:
                     pass
+            log.warning(
+                "[DIAG] /copa/jogos token=ok email=%s is_premium=%s until=%s",
+                payload.get("email", payload.get("sub", "?")[:8]),
+                is_premium,
+                premium_until if is_premium else "-",
+            )
+        else:
+            log.warning("[DIAG] /copa/jogos token=INVALIDO prefix=%s...", token[:30])
         response.headers["Cache-Control"] = "private, max-age=60"
     else:
+        log.warning("[DIAG] /copa/jogos token=AUSENTE (anon)")
         response.headers["Cache-Control"] = "public, max-age=14400"
 
     for p in partidas:
