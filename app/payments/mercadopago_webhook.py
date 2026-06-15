@@ -297,6 +297,13 @@ async def criar_preferencia(
     if not MP_ACCESS_TOKEN:
         raise HTTPException(status_code=503, detail="Serviço de pagamento não configurado.")
 
+    # CPF obrigatório — sem identificação o MP rejeita por high_risk
+    if not body.cpf:
+        raise HTTPException(
+            status_code=400,
+            detail="CPF obrigatório para concluir o pagamento. Informe seu CPF no campo indicado.",
+        )
+
     # CPF — repassado ao MP, não persistido nem logado
     cpf_digits: str | None = None
     if body.cpf:
