@@ -65,9 +65,13 @@ async def _processar_kiwify(body: dict) -> None:
         log.warning("KIWIFY: order_status=%s ignorado (order_id=%s)", order_status, order_id)
         return
 
-    customer = body.get("Customer") or {}
-    email = (customer.get("email") or "").strip().lower()
-    if not email:
+    tracking       = body.get("TrackingParameters") or {}
+    src_email      = (tracking.get("src") or "").strip().lower()
+    customer       = body.get("Customer") or {}
+    customer_email = (customer.get("email") or "").strip().lower()
+    # src = email da conta logada (prioridade); fallback = email do checkout Kiwify
+    email_conta = src_email or customer_email
+    if not email_conta:
         log.warning("KIWIFY: email ausente — order_id=%s", order_id)
         return
 
@@ -93,17 +97,27 @@ async def _processar_kiwify(body: dict) -> None:
             )
             return
 
-    user_id = await get_user_id_by_email(email)
+    user_id = await get_user_id_by_email(email_conta)
     if not user_id:
+        import asyncio
+        from app.monitoring.telegram_bot import send_telegram
+        asyncio.create_task(send_telegram(
+            f"⚠️ <b>KIWIFY — pagamento sem conta</b>\n"
+            f"order_id: <code>{order_id}</code>\n"
+            f"src (conta): <code>{src_email or '(vazio)'}</code>\n"
+            f"email checkout: <code>{customer_email}</code>\n"
+            f"plano: {plano['nome']}\n"
+            f"👉 Conceder acesso manual no Supabase"
+        ))
         log.warning(
-            "KIWIFY: usuário não encontrado — email=%s order_id=%s",
-            email, order_id,
+            "KIWIFY: usuário não encontrado — src=%s customer_email=%s order_id=%s",
+            src_email, customer_email, order_id,
         )
         return
 
     if plano["credito"]:
-        await add_avulso_credit(email)
-        log.warning("KIWIFY: crédito avulso adicionado — email=%s order_id=%s", email, order_id)
+        await add_avulso_credit(email_conta)
+        log.warning("KIWIFY: crédito avulso adicionado — email=%s order_id=%s", email_conta, order_id)
         return
 
     # Acumula premium (mesmo padrão do MP: base = max(agora, expiry_atual))
@@ -122,10 +136,10 @@ async def _processar_kiwify(body: dict) -> None:
         base = now_utc
 
     premium_until = (base + timedelta(days=dias)).isoformat()
-    await set_premium(user_id, premium_until, email=email)
+    await set_premium(user_id, premium_until, email=email_conta)
     log.warning(
         "KIWIFY: premium ativado — email=%s plano=%s dias=%d until=%s order_id=%s",
-        email, plano["nome"], dias, premium_until, order_id,
+        email_conta, plano["nome"], dias, premium_until, order_id,
     )
 
 
