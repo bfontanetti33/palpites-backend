@@ -31,11 +31,11 @@ router = APIRouter()
 
 KIWIFY_TOKEN = os.getenv("KIWIFY_WEBHOOK_TOKEN", "")
 
-# product_id (UUID) → plano — confirmados via redirect dos links de checkout
+# product_id (UUID) → plano — confirmados em compras reais
 _PRODUTOS: dict[str, dict] = {
     "7f8404a0-6865-11f1-87c8-9f90b522aa21": {"dias": 7,  "credito": False, "nome": "semanal"},
     "7de8c0a0-6864-11f1-96d1-ebb444055bc7": {"dias": 30, "credito": False, "nome": "mensal"},
-    # ÚNICO (Análise Avulsa): product_id desconhecido — detectado por ausência de Subscription
+    "b83913d0-6865-11f1-a300-a796256126e9": {"dias": 1,  "credito": True,  "nome": "avulso"},
 }
 
 _EVENTOS_ATIVOS = {"order_approved", "subscription_renewed"}
