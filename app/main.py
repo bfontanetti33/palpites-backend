@@ -16,6 +16,7 @@ from app.limiter import limiter, rate_limit_handler
 from app.routes.partidas import router as partidas_router
 from app.routes.admin import router as admin_router
 from app.payments.mercadopago_webhook import router as mp_router
+from app.payments.kiwify_webhook import router as kiwify_router
 
 # ── Sentry (só inicializa se DSN configurado) ─────────────────────────────────
 _SENTRY_DSN = os.getenv("SENTRY_DSN", "")
@@ -86,6 +87,7 @@ app.add_middleware(
 app.include_router(partidas_router, prefix="/api/v1", tags=["Partidas"])
 app.include_router(admin_router,    prefix="/api/v1", tags=["Admin"])
 app.include_router(mp_router,       prefix="/api/v1", tags=["Pagamentos"])
+app.include_router(kiwify_router,   prefix="/api/v1", tags=["Pagamentos"])
 
 
 # ── Startup ───────────────────────────────────────────────────────────────────
