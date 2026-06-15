@@ -76,10 +76,11 @@ async def listar_jogos_copa(
             )
         else:
             log.warning("[DIAG] /copa/jogos token=INVALIDO prefix=%s...", token[:30])
-        response.headers["Cache-Control"] = "private, max-age=60"
+        response.headers["Cache-Control"] = "private, no-store"
     else:
         log.warning("[DIAG] /copa/jogos token=AUSENTE (anon)")
-        response.headers["Cache-Control"] = "public, max-age=14400"
+        response.headers["Cache-Control"] = "public, max-age=300"
+    response.headers["Vary"] = "Authorization"
 
     for p in partidas:
         jogo_liberado = p.slug in JOGOS_LIBERADOS
