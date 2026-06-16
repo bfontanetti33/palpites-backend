@@ -333,6 +333,10 @@ class RecomendacaoIA(BaseModel):
     analise: str
     texto_completo: str
 
+    # Snapshot pré-jogo
+    jogo_iniciado: bool = False
+    congelado: bool = False
+
 
 class StatsRecomendacao(BaseModel):
     """Output das Camadas 1-4B + Score Final. Sem narrativa Claude."""

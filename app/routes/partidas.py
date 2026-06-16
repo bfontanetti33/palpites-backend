@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, Header, Request, Response
 
 from app.agents.football_agent import buscar_todos_jogos_copa, buscar_detalhe_partida
 from app.agents.ia_agent import gerar_recomendacao
+from app.auth.supabase_client import salvar_palpite_congelado, ler_palpite_congelado
 from app.models.schemas import RespostaCopa, Partida, RecomendacaoIA
 from app.limiter import limiter
 
@@ -233,6 +234,16 @@ async def _verificar_acesso_recomendacao(authorization: str | None, slug: str) -
     )
 
 
+def _jogo_ja_comecou(horario: str) -> bool:
+    try:
+        dt = datetime.fromisoformat(horario)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) >= dt
+    except Exception:
+        return False  # dúvida → trata como NÃO começou (não congela à toa)
+
+
 @router.get("/copa/jogos/{slug}/recomendacao", response_model=RecomendacaoIA)
 @limiter.limit("5/minute")
 async def recomendacao_ia(
@@ -281,16 +292,37 @@ async def recomendacao_ia(
         except Exception:
             pass  # fail-open: não bloqueia se não conseguir parsear horário
 
+    # Snapshot pré-jogo: serve palpite congelado se o jogo já começou
+    jogo_iniciado = _jogo_ja_comecou(partida.horario)
+    if jogo_iniciado:
+        snap = await ler_palpite_congelado(slug)
+        if snap:
+            snap["jogo_iniciado"] = True
+            snap["congelado"] = True
+            return snap
+        # sem snapshot → cai no fluxo normal (fallback honesto)
+
     # gerar_recomendacao nunca lança exceção — usa fallback por camada.
     # O try/except abaixo é segurança extra para erros verdadeiramente inesperados.
     try:
-        return await gerar_recomendacao(partida)
+        rec = await gerar_recomendacao(partida)
     except Exception as e:
         log.error("gerar_recomendacao falhou para %s: %s", slug, e, exc_info=True)
         raise HTTPException(
             status_code=503,
             detail="Serviço temporariamente indisponível. Tente novamente em instantes.",
         )
+
+    # Congela palpite no Supabase enquanto o jogo ainda não começou
+    if not jogo_iniciado:
+        try:
+            payload = rec.model_dump(mode="json")
+            payload["congelado_em"] = datetime.now(timezone.utc).isoformat()
+            await salvar_palpite_congelado(slug, payload)
+        except Exception as e:
+            log.warning("salvar_palpite_congelado falhou para %s: %s", slug, e)
+
+    return rec
 
 
 @router.get("/usuario/assinatura")

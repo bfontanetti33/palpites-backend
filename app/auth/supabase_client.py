@@ -314,3 +314,43 @@ async def add_avulso_credit(email: str) -> None:
             )
     except Exception:
         pass
+
+
+# ── Snapshot pré-jogo ─────────────────────────────────────────────────────────
+
+async def salvar_palpite_congelado(slug: str, payload: dict) -> None:
+    """Upsert do palpite pré-jogo na tabela palpites_congelados (PK = slug)."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            await c.post(
+                f"{SUPABASE_URL}/rest/v1/palpites_congelados",
+                headers={**_HEADERS, "Prefer": "resolution=merge-duplicates,return=minimal"},
+                json={
+                    "slug": slug,
+                    "payload": payload,
+                    "congelado_em": payload.get("congelado_em"),
+                },
+            )
+    except Exception as e:
+        _log_jwt.warning("falha ao salvar palpite congelado %s: %s", slug, e)
+
+
+async def ler_palpite_congelado(slug: str) -> dict | None:
+    """Lê o palpite congelado do Supabase. Retorna None se não existir ou em erro."""
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=5) as c:
+            r = await c.get(
+                f"{SUPABASE_URL}/rest/v1/palpites_congelados",
+                headers=_HEADERS,
+                params={"slug": f"eq.{slug}", "select": "payload", "limit": "1"},
+            )
+            r.raise_for_status()
+            data = r.json()
+            return data[0]["payload"] if data else None
+    except Exception as e:
+        _log_jwt.warning("falha ao ler palpite congelado %s: %s", slug, e)
+        return None
