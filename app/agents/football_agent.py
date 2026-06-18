@@ -1164,6 +1164,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
             and static_cache.is_player_stats_fresh(slug)
             and static_cache.is_forma_fresh(slug)
             and static_cache.is_h2h_fresh(slug)
+            and cached_dict.get("jogadores_destaque_casa") is not None
+            and cached_dict.get("jogadores_destaque_fora") is not None
         ):
             # Todos os componentes frescos — zero chamadas de API
             partida = _enriquecer_odds(Partida.model_validate(cached_dict), slug)
@@ -1187,6 +1189,13 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     needs_forma = cached_dict is None or not static_cache.is_forma_fresh(slug)
     needs_h2h   = cached_dict is None or not static_cache.is_h2h_fresh(slug)
     needs_plyr  = cached_dict is None or not static_cache.is_player_stats_fresh(slug)
+    # Se TTL está fresco mas um lado ficou null (ex: timeout na sessão anterior),
+    # força rebusca para não propagar null indefinidamente
+    if not needs_plyr and cached_dict and (
+        cached_dict.get("jogadores_destaque_casa") is None
+        or cached_dict.get("jogadores_destaque_fora") is None
+    ):
+        needs_plyr = True
 
     # ── Wrappers condicionais: retorna valor do cache se fresco, senão busca API ──
     async def _get_team_stats(team_id: int, cache_key: str) -> EstatisticasTemporada:
@@ -1269,8 +1278,8 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
 
     resultados = await asyncio.gather(
         _timed(_odds_api(home_nome, away_nome), 15),
-        _timed(_get_jogadores(home_nome, "jogadores_destaque_casa"), 60),
-        _timed(_get_jogadores(away_nome, "jogadores_destaque_fora"), 60),
+        _timed(_get_jogadores(home_nome, "jogadores_destaque_casa"), 120),
+        _timed(_get_jogadores(away_nome, "jogadores_destaque_fora"), 120),
         _timed(_buscar_fifa_ranking_wikipedia(), 8),
         _timed(_calcular_rating(home_nome, forma_casa, jogo["data_hora_brasilia"]), 10),
         _timed(_calcular_rating(away_nome, forma_fora, jogo["data_hora_brasilia"]), 10),
