@@ -1148,3 +1148,83 @@ async def buscar_jogadores_destaque(team_name: str) -> dict:
         "jogadores_analisados": len(stats_map),
         "dados_insuficientes": len(destaques) == 0,
     }
+
+
+# ── Player props enrichment ────────────────────────────────────────────────────
+
+_CAT_TO_PROP: dict[str, str] = {
+    "goleadores":  "goal_scorer",
+    "assistentes": "assists",
+    "chutadores":  "shots_on_target",
+}
+
+
+def _casar_nome(jogador_nome: str, props_dict: dict) -> tuple[str | None, dict | None]:
+    """
+    Faz word-set intersection entre o nome do jogador e as chaves normalizadas de props_dict.
+    Retorna (chave, props) se houver ÚNICO melhor match com score > 0.
+    Retorna (None, None) em caso de empate ou score == 0.
+    """
+    nome_norm = unicodedata.normalize("NFKD", jogador_nome.lower()).encode("ASCII", "ignore").decode("ASCII")
+    palavras_jogador = set(nome_norm.split())
+
+    melhor_score = 0
+    melhor_chave: str | None = None
+    melhor_props: dict | None = None
+    empate = False
+
+    for chave, props in props_dict.items():
+        score = len(palavras_jogador & set(chave.split()))
+        if score > melhor_score:
+            melhor_score = score
+            melhor_chave = chave
+            melhor_props = props
+            empate = False
+        elif score == melhor_score and score > 0:
+            empate = True
+
+    if empate or melhor_score == 0:
+        return None, None
+    return melhor_chave, melhor_props
+
+
+def enriquecer_jogadores_com_props(jogadores: list[dict], player_props: dict) -> list[dict]:
+    """
+    Preenche odd_evento/odd_label/odd_n_casas em cada jogador com base na categoria.
+    Fail-safe: sempre retorna jogadores, nunca propaga exceção.
+    """
+    try:
+        for j in jogadores:
+            cat = j.get("categoria", "")
+            mercado = _CAT_TO_PROP.get(cat)
+            if not mercado:
+                j.setdefault("odd_evento", None)
+                j.setdefault("odd_label", None)
+                j.setdefault("odd_n_casas", None)
+                continue
+
+            props_mkt = player_props.get(mercado, {})
+            if not props_mkt:
+                j.setdefault("odd_evento", None)
+                j.setdefault("odd_label", None)
+                j.setdefault("odd_n_casas", None)
+                continue
+
+            _, match = _casar_nome(j.get("nome", ""), props_mkt)
+            if match:
+                j["odd_evento"]  = match.get("odd")
+                j["odd_n_casas"] = match.get("n_casas")
+                if mercado == "goal_scorer":
+                    j["odd_label"] = "Marcar a qualquer momento"
+                elif mercado == "assists":
+                    j["odd_label"] = "Assistência"
+                else:  # shots_on_target
+                    linha = match.get("linha", 0.5)
+                    j["odd_label"] = f"Chutes no gol +{linha}"
+            else:
+                j.setdefault("odd_evento", None)
+                j.setdefault("odd_label", None)
+                j.setdefault("odd_n_casas", None)
+    except Exception as e:
+        log.warning("enriquecer_jogadores_com_props falhou: %s", e)
+    return jogadores

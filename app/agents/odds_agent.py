@@ -321,6 +321,116 @@ async def buscar_odds_partida(home_nome: str, away_nome: str) -> dict | None:
     return odds
 
 
+_PLAYER_PROPS_MARKETS = "player_goal_scorer_anytime,player_assists,player_shots_on_target"
+
+
+def _norm_player(s: str) -> str:
+    """NFKD + ASCII encode-ignore: normaliza nomes da Odds API para chaves do dict."""
+    return unicodedata.normalize("NFKD", s.lower()).encode("ASCII", "ignore").decode("ASCII")
+
+
+async def buscar_player_props_evento(event_id: str) -> dict:
+    """
+    Busca player props para gols/assistências/chutes-no-gol de um evento.
+    Custo: 3 créditos (3 mercados × 1 região).
+    Retorna:
+      {
+        "goal_scorer":    {nome_norm: {"odd": float, "n_casas": int}, ...},
+        "assists":        {nome_norm: {"odd": float, "n_casas": int}, ...},
+        "shots_on_target":{nome_norm: {"odd": float, "linha": float, "n_casas": int}, ...},
+      }
+    Retorna {} em qualquer erro (fail-safe).
+    """
+    import statistics as _st
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            data = await _get(client, f"/sports/{SPORT}/events/{event_id}/odds", {
+                "regions":    REGIONS,
+                "markets":    _PLAYER_PROPS_MARKETS,
+                "oddsFormat": ODDS_FORMAT,
+            })
+    except Exception as e:
+        log.warning("buscar_player_props_evento %s: %s", event_id, e)
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    bookmakers = data.get("bookmakers", [])
+    if not bookmakers:
+        log.warning("buscar_player_props_evento %s: 0 bookmakers retornados", event_id)
+        return {}
+
+    # {nome_norm: [odd, ...]} para goal_scorer e assists
+    # {nome_norm: [(linha, odd), ...]} para shots_on_target
+    gs_raw:  dict[str, list[float]] = {}
+    ass_raw: dict[str, list[float]] = {}
+    sot_raw: dict[str, list[tuple[float, float]]] = {}
+
+    for bm in bookmakers:
+        for mkt in bm.get("markets", []):
+            mkt_key = mkt.get("key", "")
+            for outcome in mkt.get("outcomes", []):
+                desc = outcome.get("description", "")
+                if not desc:
+                    continue
+                nome = _norm_player(desc)
+                price = float(outcome.get("price", 0) or 0)
+                if price <= 1.0:
+                    continue
+
+                if mkt_key == "player_goal_scorer_anytime" and outcome.get("name") == "Yes":
+                    gs_raw.setdefault(nome, []).append(price)
+
+                elif mkt_key == "player_assists" and outcome.get("name") in ("Yes", "Over"):
+                    # Pega apenas Over 0.5 (dar assistência) — ignora linhas > 0.5
+                    ponto = float(outcome.get("point") or 0.5)
+                    if ponto <= 0.5:
+                        ass_raw.setdefault(nome, []).append(price)
+
+                elif mkt_key == "player_shots_on_target" and outcome.get("name") == "Over":
+                    linha = float(outcome.get("point") or 0.5)
+                    sot_raw.setdefault(nome, []).append((linha, price))
+
+    result: dict = {}
+
+    if gs_raw:
+        result["goal_scorer"] = {
+            nome: {"odd": round(_st.median(odds), 2), "n_casas": len(odds)}
+            for nome, odds in gs_raw.items()
+        }
+
+    if ass_raw:
+        result["assists"] = {
+            nome: {"odd": round(_st.median(odds), 2), "n_casas": len(odds)}
+            for nome, odds in ass_raw.items()
+        }
+
+    if sot_raw:
+        sot_out: dict = {}
+        for nome, linha_odds in sot_raw.items():
+            min_linha = min(l for l, _ in linha_odds)
+            prices = [p for l, p in linha_odds if l == min_linha]
+            if prices:
+                sot_out[nome] = {
+                    "odd":     round(_st.median(prices), 2),
+                    "linha":   min_linha,
+                    "n_casas": len(prices),
+                }
+        if sot_out:
+            result["shots_on_target"] = sot_out
+
+    log.info(
+        "player_props %s: goal_scorer=%d assists=%d shots_on_target=%d",
+        event_id,
+        len(result.get("goal_scorer", {})),
+        len(result.get("assists", {})),
+        len(result.get("shots_on_target", {})),
+    )
+    return result
+
+
 async def buscar_todas_odds_copa() -> dict[str, dict]:
     """
     Busca odds de todos os jogos da Copa 2026 de uma vez (1 request).

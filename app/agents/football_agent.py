@@ -19,7 +19,7 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from math import exp, factorial
 from pathlib import Path
 
@@ -1288,6 +1288,37 @@ async def buscar_detalhe_partida(slug: str) -> Partida | None:
     wiki          = _safe(resultados[3]) or {}
     rating_c      = _safe(resultados[4])
     rating_f      = _safe(resultados[5])
+
+    # ── Player props enrichment (próximos 7 dias apenas) ──────────────────────
+    try:
+        jogo_horario = jogo.get("data_hora_brasilia", "")
+        jogo_dt = datetime.fromisoformat(jogo_horario) if jogo_horario else None
+        if jogo_dt:
+            if jogo_dt.tzinfo is None:
+                jogo_dt = jogo_dt.replace(tzinfo=timezone.utc)
+            agora = datetime.now(timezone.utc)
+            dentro_janela = timedelta(0) <= (jogo_dt - agora) <= timedelta(days=7)
+            if dentro_janela:
+                from app.agents.odds_agent import (
+                    buscar_player_props_evento as _props_api,
+                    buscar_event_id as _eid,
+                )
+                from app.agents.players_agent import enriquecer_jogadores_com_props
+                event_id = (odds or {}).get("event_id")
+                if not event_id:
+                    event_id, _ = await _eid(home_nome, away_nome)
+                if event_id:
+                    player_props = await asyncio.wait_for(
+                        _props_api(event_id), timeout=10
+                    )
+                    if player_props:
+                        for raw in [dest_casa_raw, dest_fora_raw]:
+                            if raw and isinstance(raw, dict) and raw.get("jogadores"):
+                                raw["jogadores"] = enriquecer_jogadores_com_props(
+                                    raw["jogadores"], player_props
+                                )
+    except Exception as e:
+        log.warning("player_props_enrichment falhou para %s: %s", slug, e)
 
     # Re-calcula ratings com Wikipedia se disponível
     if wiki and rating_c is not None and rating_f is not None:

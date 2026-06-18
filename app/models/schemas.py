@@ -115,6 +115,10 @@ class JogadorDestaque(BaseModel):
     odd_mercado: float | None = None
     amostra_insuficiente: bool = False
     dados_insuficientes: bool = False
+    # Player props da Odds API (opcional — preenchido só para jogos nos próximos 7 dias)
+    odd_evento: float | None = None
+    odd_label: str | None = None
+    odd_n_casas: int | None = None
 
 
 class JogadoresDestaque(BaseModel):
